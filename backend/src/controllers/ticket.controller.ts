@@ -9,6 +9,14 @@ import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
 const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
 
+const STATUS_LABELS: Record<(typeof TICKET_STATUSES)[number], string> = {
+  OPEN: "Ouvert",
+  IN_PROGRESS: "En cours",
+  ON_HOLD: "En attente",
+  RESOLVED: "Résolu",
+  CLOSED: "Fermé",
+};
+
 const createTicketSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(5).max(5000),
@@ -191,20 +199,60 @@ export async function updateTicket(req: Request, res: Response) {
     include: ticketInclude,
   });
 
+  // Destinataires "parties prenantes" du ticket (demandeur + assigné), sans doublon
+  const stakeholders = [updated.requester, updated.assignee].filter(
+    (u, i, arr): u is NonNullable<typeof u> => Boolean(u) && arr.findIndex((x) => x?.email === u!.email) === i
+  );
+
   if (data.assigneeId && updated.assignee) {
     void sendMail({
       to: updated.assignee.email,
       subject: `[${updated.reference}] Ticket qui vous a été assigné`,
       text: `Le ticket "${updated.title}" vous a été assigné.\n\n${updated.description}`,
     });
+
+    if (updated.requester.email !== updated.assignee.email) {
+      void sendMail({
+        to: updated.requester.email,
+        subject: `[${updated.reference}] Votre ticket a été assigné`,
+        text: `Votre ticket "${updated.title}" a été assigné à ${updated.assignee.name}.`,
+      });
+    }
   }
 
-  if (data.status) {
-    void sendMail({
-      to: updated.requester.email,
-      subject: `[${updated.reference}] Statut mis à jour : ${data.status}`,
-      text: `Le statut de votre ticket "${updated.title}" est maintenant : ${data.status}.`,
-    });
+  if (data.status === "CLOSED") {
+    for (const person of stakeholders) {
+      void sendMail({
+        to: person.email,
+        subject: `[${updated.reference}] Ticket fermé : ${updated.title}`,
+        text: `Le ticket "${updated.title}" a été fermé.\n\nSi le problème persiste, vous pouvez répondre à ce ticket depuis le portail pour le rouvrir.\n\nMerci d'avoir utilisé le support IT.`,
+      });
+    }
+  } else if (data.status) {
+    for (const person of stakeholders) {
+      void sendMail({
+        to: person.email,
+        subject: `[${updated.reference}] Statut mis à jour : ${STATUS_LABELS[data.status]}`,
+        text: `Le statut du ticket "${updated.title}" est maintenant : ${STATUS_LABELS[data.status]}.`,
+      });
+    }
+  }
+
+  const hasOtherChanges = Boolean(data.typeId || data.categoryId || data.subCategoryId !== undefined || data.priorityId);
+  if (hasOtherChanges) {
+    const changes: string[] = [];
+    if (data.typeId) changes.push(`Type : ${updated.type.name}`);
+    if (data.categoryId) changes.push(`Catégorie : ${updated.category.name}`);
+    if (data.subCategoryId !== undefined) changes.push(`Sous-catégorie : ${updated.subCategory?.name ?? "—"}`);
+    if (data.priorityId) changes.push(`Priorité : ${updated.priority.name}`);
+
+    for (const person of stakeholders) {
+      void sendMail({
+        to: person.email,
+        subject: `[${updated.reference}] Ticket mis à jour : ${updated.title}`,
+        text: `Le ticket "${updated.title}" a été modifié.\n\n${changes.join("\n")}`,
+      });
+    }
   }
 
   res.json({ ticket: serializeTicket(updated) });

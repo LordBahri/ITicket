@@ -18,7 +18,7 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Fil de commentaires par ticket, avec notes internes réservées aux agents/admins
 - Pièces jointes sur les tickets (upload/téléchargement sécurisé, limité aux personnes ayant accès au ticket)
 - Base de connaissances (FAQ) liée aux catégories, avec suggestion d'articles lors de la création d'un ticket
-- Notifications email (création de ticket, assignation, changement de statut, nouveau commentaire) — en dev, les emails sont simplement logués en console si aucun SMTP n'est configuré
+- Notifications email complètes : ouverture (confirmation au demandeur + alerte aux agents), assignation (à l'assigné et au demandeur), changement de statut, fermeture (message dédié), modification (type/catégorie/sous-catégorie/priorité) et nouveau commentaire — en dev, les emails sont simplement logués en console si aucun SMTP n'est configuré
 - Tableau de bord avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution)
 - Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés et utilisateurs
 
@@ -33,6 +33,51 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 | **API** | Le champ `channel` du ticket est extensible pour tout autre système tiers |
 
 Chaque canal auto-provisionne l'utilisateur demandeur (par email) s'il n'existe pas encore, afin que la personne reçoive bien les notifications de suivi.
+
+## Configuration Office 365 / Outlook (ex. support@meninx.tn)
+
+La boîte peut servir à la fois à **envoyer** les notifications (SMTP) et à **recevoir** des emails qui créent automatiquement des tickets (IMAP). Les deux utilisent les mêmes identifiants.
+
+**Paramètres dans `backend/.env`** (voir les exemples commentés dans `.env.example`) :
+
+```bash
+# Envoi des notifications
+SMTP_HOST="smtp.office365.com"
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER="support@meninx.tn"
+SMTP_PASS="<mot de passe ou mot de passe d'application>"
+MAIL_FROM="Support IT Meninx <support@meninx.tn>"
+
+# Création de tickets à partir des emails reçus
+IMAP_HOST="outlook.office365.com"
+IMAP_PORT=993
+IMAP_SECURE=true
+IMAP_USER="support@meninx.tn"
+IMAP_PASS="<mot de passe ou mot de passe d'application>"
+```
+
+**Prérequis côté tenant Microsoft 365** — Microsoft désactive par défaut l'authentification SMTP/IMAP « classique » (login + mot de passe) sur de nombreux tenants. Sans cette étape, la connexion échouera même avec le bon mot de passe :
+
+1. Dans le centre d'administration Microsoft 365 (ou via PowerShell Exchange Online), activer l'authentification SMTP et IMAP pour la boîte `support@meninx.tn` :
+   ```powershell
+   Set-CASMailbox -Identity support@meninx.tn -SmtpClientAuthenticationDisabled $false -ImapEnabled $true
+   ```
+2. Si l'authentification multifacteur (MFA) est activée sur ce compte, générer un **mot de passe d'application** dédié (Sécurité du compte Microsoft) et l'utiliser comme `SMTP_PASS` / `IMAP_PASS` plutôt que le mot de passe habituel.
+3. Vérifier qu'aucune stratégie d'accès conditionnel ne bloque les connexions IMAP/SMTP depuis l'IP du serveur.
+
+**Aucun identifiant n'est stocké dans le code** : ces valeurs restent dans `.env` (jamais commité, voir `.gitignore`) ou dans les secrets de votre environnement de déploiement.
+
+### Qui reçoit quoi
+
+| Événement | Destinataires |
+|---|---|
+| Création de ticket (« ouverture ») | Le demandeur (confirmation) + tous les agents/admins actifs |
+| Assignation | L'agent assigné + le demandeur |
+| Changement de statut | Le demandeur + l'agent assigné |
+| Fermeture | Le demandeur + l'agent assigné (message dédié, différent d'un simple changement de statut) |
+| Modification (type, catégorie, sous-catégorie, priorité) | Le demandeur + l'agent assigné |
+| Nouveau commentaire (non interne) | L'autre partie (demandeur ↔ agent assigné) |
 
 ## Démarrage rapide (avec Docker)
 
