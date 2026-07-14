@@ -2,7 +2,7 @@ export type Role = "ADMIN" | "AGENT" | "USER";
 
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CLOSED";
 
-export type TicketChannel = "WEB" | "EMAIL" | "CHAT" | "API" | "PHONE";
+export type TicketChannel = "WEB" | "EMAIL" | "CHAT" | "API" | "PHONE" | "SLACK" | "TEAMS";
 
 export interface User {
   id: string;
@@ -39,6 +39,14 @@ export interface Comment {
   author: { id: string; name: string; role: Role };
 }
 
+export interface Attachment {
+  id: string;
+  ticketId: string;
+  filename: string;
+  url: string;
+  createdAt: string;
+}
+
 export interface Ticket {
   id: string;
   reference: string;
@@ -57,6 +65,19 @@ export interface Ticket {
   updatedAt: string;
   isOverdue: boolean;
   comments?: Comment[];
+  attachments?: Attachment[];
+}
+
+export interface KnowledgeArticle {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  isPublished: boolean;
+  category: Category | null;
+  author: { id: string; name: string };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DashboardStats {

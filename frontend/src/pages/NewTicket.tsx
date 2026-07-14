@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
-import type { Category, Priority, Ticket } from "../types";
+import type { Category, KnowledgeArticle, Priority, Ticket } from "../types";
 
 export function NewTicket() {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export function NewTicket() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
+  const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data: categories } = useQuery({
@@ -23,6 +24,15 @@ export function NewTicket() {
     queryFn: async () => (await apiClient.get<{ priorities: Priority[] }>("/priorities")).data.priorities,
   });
 
+  const { data: suggestedArticles } = useQuery({
+    queryKey: ["knowledge", { categoryId }],
+    queryFn: async () =>
+      (
+        await apiClient.get<{ articles: KnowledgeArticle[] }>("/knowledge", { params: { categoryId } })
+      ).data.articles,
+    enabled: Boolean(categoryId),
+  });
+
   const mutation = useMutation({
     mutationFn: async () =>
       (
@@ -33,7 +43,16 @@ export function NewTicket() {
           priorityId,
         })
       ).data.ticket,
-    onSuccess: (ticket) => {
+    onSuccess: async (ticket) => {
+      if (files && files.length > 0) {
+        const formData = new FormData();
+        Array.from(files).forEach((file) => formData.append("files", file));
+        try {
+          await apiClient.post(`/tickets/${ticket.id}/attachments`, formData);
+        } catch {
+          // La pièce jointe peut être ré-ajoutée depuis la page du ticket si l'upload échoue
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       navigate(`/tickets/${ticket.id}`);
     },
@@ -110,6 +129,33 @@ export function NewTicket() {
               ))}
             </select>
           </div>
+        </div>
+
+        {suggestedArticles && suggestedArticles.length > 0 && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+            <p className="mb-2 text-sm font-medium text-blue-900">
+              Ces articles pourraient répondre à votre demande :
+            </p>
+            <ul className="space-y-1">
+              {suggestedArticles.map((a) => (
+                <li key={a.id}>
+                  <Link to={`/knowledge/${a.id}`} target="_blank" className="text-sm text-blue-700 underline">
+                    {a.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Pièces jointes (optionnel)</label>
+          <input
+            type="file"
+            multiple
+            onChange={(e) => setFiles(e.target.files)}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
         </div>
 
         <button

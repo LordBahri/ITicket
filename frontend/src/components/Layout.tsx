@@ -24,6 +24,9 @@ export function Layout() {
           <NavLink to="/tickets/new" className={linkClass}>
             Nouveau ticket
           </NavLink>
+          <NavLink to="/knowledge" className={linkClass}>
+            Base de connaissances
+          </NavLink>
           {user?.role === "ADMIN" && (
             <>
               <div className="mt-4 px-3 text-xs font-semibold uppercase text-slate-400">Administration</div>

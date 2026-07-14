@@ -7,6 +7,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { TicketList } from "./pages/TicketList";
 import { TicketDetail } from "./pages/TicketDetail";
 import { NewTicket } from "./pages/NewTicket";
+import { KnowledgeBase } from "./pages/KnowledgeBase";
+import { KnowledgeArticleDetail } from "./pages/KnowledgeArticleDetail";
 import { AdminCategories } from "./pages/AdminCategories";
 import { AdminPriorities } from "./pages/AdminPriorities";
 import { AdminUsers } from "./pages/AdminUsers";
@@ -23,6 +25,8 @@ export default function App() {
           <Route path="/tickets" element={<TicketList />} />
           <Route path="/tickets/new" element={<NewTicket />} />
           <Route path="/tickets/:id" element={<TicketDetail />} />
+          <Route path="/knowledge" element={<KnowledgeBase />} />
+          <Route path="/knowledge/:id" element={<KnowledgeArticleDetail />} />
 
           <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
             <Route path="/admin/categories" element={<AdminCategories />} />

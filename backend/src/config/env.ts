@@ -22,4 +22,23 @@ export const env = {
     pass: process.env.SMTP_PASS ?? "",
   },
   mailFrom: process.env.MAIL_FROM ?? "IT Support <support@societe.local>",
+  uploads: {
+    dir: process.env.UPLOAD_DIR ?? "uploads",
+    maxSizeMb: Number(process.env.MAX_UPLOAD_MB ?? 10),
+  },
+  imap: {
+    host: process.env.IMAP_HOST ?? "",
+    port: Number(process.env.IMAP_PORT ?? 993),
+    secure: process.env.IMAP_SECURE !== "false",
+    user: process.env.IMAP_USER ?? "",
+    pass: process.env.IMAP_PASS ?? "",
+    pollIntervalMs: Number(process.env.IMAP_POLL_INTERVAL_MS ?? 60_000),
+  },
+  slack: {
+    signingSecret: process.env.SLACK_SIGNING_SECRET ?? "",
+    botToken: process.env.SLACK_BOT_TOKEN ?? "",
+  },
+  teams: {
+    webhookSecret: process.env.TEAMS_WEBHOOK_SECRET ?? "",
+  },
 };

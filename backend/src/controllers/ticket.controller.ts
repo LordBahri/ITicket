@@ -3,10 +3,10 @@ import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { computeDueAt, isOverdue } from "../services/sla.service";
-import { generateTicketReference } from "../services/ticketReference.service";
 import { sendMail } from "../services/email.service";
+import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 
-const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE"] as const;
+const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
 const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
 
 const createTicketSchema = z.object({
@@ -33,13 +33,6 @@ const listQuerySchema = z.object({
   overdue: z.enum(["true", "false"]).optional(),
 });
 
-const ticketInclude = {
-  category: true,
-  priority: true,
-  requester: { select: { id: true, name: true, email: true } },
-  assignee: { select: { id: true, name: true, email: true } },
-};
-
 function serializeTicket(ticket: any) {
   return { ...ticket, isOverdue: isOverdue(ticket) };
 }
@@ -47,50 +40,14 @@ function serializeTicket(ticket: any) {
 export async function createTicket(req: Request, res: Response) {
   const data = createTicketSchema.parse(req.body);
 
-  const [category, priority] = await Promise.all([
-    prisma.category.findUnique({ where: { id: data.categoryId } }),
-    prisma.priority.findUnique({ where: { id: data.priorityId } }),
-  ]);
-  if (!category || !category.isActive) throw new HttpError(400, "Catégorie invalide");
-  if (!priority) throw new HttpError(400, "Priorité invalide");
-
-  const reference = await generateTicketReference();
-  const dueAt = computeDueAt(priority);
-
-  const ticket = await prisma.ticket.create({
-    data: {
-      reference,
-      title: data.title,
-      description: data.description,
-      channel: data.channel ?? "WEB",
-      categoryId: data.categoryId,
-      priorityId: data.priorityId,
-      requesterId: req.user!.id,
-      dueAt,
-    },
-    include: ticketInclude,
+  const ticket = await createTicketRecord({
+    title: data.title,
+    description: data.description,
+    categoryId: data.categoryId,
+    priorityId: data.priorityId,
+    requesterId: req.user!.id,
+    channel: data.channel ?? "WEB",
   });
-
-  const requester = await prisma.user.findUnique({ where: { id: req.user!.id } });
-  if (requester) {
-    void sendMail({
-      to: requester.email,
-      subject: `[${ticket.reference}] Ticket créé : ${ticket.title}`,
-      text: `Bonjour ${requester.name},\n\nVotre ticket "${ticket.title}" a bien été créé (référence ${ticket.reference}).\nNotre équipe support va le traiter dans les meilleurs délais.\n\nCordialement,\nSupport IT`,
-    });
-  }
-
-  const agents = await prisma.user.findMany({
-    where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true },
-    select: { email: true },
-  });
-  for (const agent of agents) {
-    void sendMail({
-      to: agent.email,
-      subject: `[${ticket.reference}] Nouveau ticket : ${ticket.title}`,
-      text: `Un nouveau ticket a été créé par ${requester?.name ?? "un utilisateur"}.\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
-    });
-  }
 
   res.status(201).json({ ticket: serializeTicket(ticket) });
 }
@@ -136,6 +93,7 @@ async function getTicketOr404(id: string) {
         include: { author: { select: { id: true, name: true, role: true } } },
         orderBy: { createdAt: "asc" },
       },
+      attachments: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!ticket) throw new HttpError(404, "Ticket introuvable");

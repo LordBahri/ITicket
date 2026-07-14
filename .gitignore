@@ -9,3 +9,4 @@ coverage/
 backend/prisma/dev.db
 frontend/dist/
 *.tsbuildinfo
+backend/uploads/

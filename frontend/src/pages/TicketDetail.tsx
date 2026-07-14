@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { StatusBadge } from "../components/StatusBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
 import type { Ticket, User, TicketStatus } from "../types";
+import { AttachmentsPanel } from "../components/AttachmentsPanel";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
@@ -93,6 +94,8 @@ export function TicketDetail() {
           <div>Échéance SLA : {ticket.dueAt ? new Date(ticket.dueAt).toLocaleString("fr-FR") : "—"}</div>
         </div>
       </div>
+
+      <AttachmentsPanel ticketId={ticket.id} attachments={ticket.attachments ?? []} />
 
       {isStaff && (
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-6">
