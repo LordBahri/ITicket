@@ -2,10 +2,17 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
+import { useToast } from "../context/ToastContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
 import type { Category, KnowledgeArticle, Priority, Ticket } from "../types";
+
+const inputClass =
+  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function NewTicket() {
   const navigate = useNavigate();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -50,13 +57,18 @@ export function NewTicket() {
         try {
           await apiClient.post(`/tickets/${ticket.id}/attachments`, formData);
         } catch {
-          // La pièce jointe peut être ré-ajoutée depuis la page du ticket si l'upload échoue
+          toast.info("Ticket créé, mais l'envoi des pièces jointes a échoué — réessayez depuis la page du ticket");
         }
       }
+      toast.success(`Ticket ${ticket.reference} créé`);
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       navigate(`/tickets/${ticket.id}`);
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible de créer le ticket")),
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible de créer le ticket");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   function handleSubmit(e: FormEvent) {
@@ -69,103 +81,93 @@ export function NewTicket() {
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Nouveau ticket</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <Card className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="animate-fade-in rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
-          <input
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex : Mon PC ne démarre plus"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
-          <textarea
-            required
-            rows={5}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Décrivez le problème ou la demande en détail…"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Type d'intervention</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
+            <input
               required
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">Sélectionner…</option>
-              {categories?.filter((c) => c.isActive).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex : Mon PC ne démarre plus"
+              className={inputClass}
+            />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+            <textarea
               required
-              value={priorityId}
-              onChange={(e) => setPriorityId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="">Sélectionner…</option>
-              {priorities?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              rows={5}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Décrivez le problème ou la demande en détail…"
+              className={inputClass}
+            />
           </div>
-        </div>
 
-        {suggestedArticles && suggestedArticles.length > 0 && (
-          <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
-            <p className="mb-2 text-sm font-medium text-blue-900">
-              Ces articles pourraient répondre à votre demande :
-            </p>
-            <ul className="space-y-1">
-              {suggestedArticles.map((a) => (
-                <li key={a.id}>
-                  <Link to={`/knowledge/${a.id}`} target="_blank" className="text-sm text-blue-700 underline">
-                    {a.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Type d'intervention</label>
+              <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
+                <option value="">Sélectionner…</option>
+                {categories
+                  ?.filter((c) => c.isActive)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
+              <select required value={priorityId} onChange={(e) => setPriorityId(e.target.value)} className={inputClass}>
+                <option value="">Sélectionner…</option>
+                {priorities?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Pièces jointes (optionnel)</label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => setFiles(e.target.files)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
+          {suggestedArticles && suggestedArticles.length > 0 && (
+            <div className="animate-fade-in rounded-md border border-brand-200 bg-brand-50 p-3">
+              <p className="mb-2 text-sm font-medium text-brand-900">
+                💡 Ces articles pourraient répondre à votre demande :
+              </p>
+              <ul className="space-y-1">
+                {suggestedArticles.map((a) => (
+                  <li key={a.id}>
+                    <Link to={`/knowledge/${a.id}`} target="_blank" className="text-sm text-brand-700 underline">
+                      {a.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {mutation.isPending ? "Création…" : "Créer le ticket"}
-        </button>
-      </form>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Pièces jointes (optionnel)</label>
+            <input type="file" multiple onChange={(e) => setFiles(e.target.files)} className={`${inputClass} py-1.5`} />
+          </div>
+
+          <Button type="submit" loading={mutation.isPending}>
+            Créer le ticket
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

@@ -1,14 +1,22 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
+import { useToast } from "../context/ToastContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Priority } from "../types";
+
+const inputClass =
+  "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function AdminPriorities() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [name, setName] = useState("");
   const [responseTimeHours, setResponseTimeHours] = useState(8);
   const [resolutionTimeHours, setResolutionTimeHours] = useState(48);
-  const [color, setColor] = useState("#6b7280");
+  const [color, setColor] = useState("#6366f1");
   const [error, setError] = useState<string | null>(null);
 
   const { data: priorities, isLoading } = useQuery({
@@ -21,9 +29,14 @@ export function AdminPriorities() {
       apiClient.post("/priorities", { name, responseTimeHours, resolutionTimeHours, color }),
     onSuccess: () => {
       setName("");
+      toast.success("Priorité créée");
       queryClient.invalidateQueries({ queryKey: ["priorities"] });
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible de créer la priorité")),
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible de créer la priorité");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   function handleSubmit(e: FormEvent) {
@@ -37,55 +50,53 @@ export function AdminPriorities() {
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Priorités &amp; SLA</h1>
 
-      <form onSubmit={handleSubmit} className="mb-6 space-y-3 rounded-lg border border-slate-200 bg-white p-5">
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-        <div className="grid grid-cols-2 gap-3">
-          <input
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nom (ex : Haute)"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="h-10 w-full rounded-md border border-slate-300"
-          />
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">Délai de première réponse (heures)</label>
+      <Card className="mb-6 p-5">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <div className="grid grid-cols-2 gap-3">
             <input
-              type="number"
-              min={1}
               required
-              value={responseTimeHours}
-              onChange={(e) => setResponseTimeHours(Number(e.target.value))}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nom (ex : Haute)"
+              className={inputClass}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">Délai de résolution (heures)</label>
             <input
-              type="number"
-              min={1}
-              required
-              value={resolutionTimeHours}
-              onChange={(e) => setResolutionTimeHours(Number(e.target.value))}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-10 w-full cursor-pointer rounded-md border border-slate-300"
             />
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">Délai de première réponse (heures)</label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={responseTimeHours}
+                onChange={(e) => setResponseTimeHours(Number(e.target.value))}
+                className={`w-full ${inputClass}`}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">Délai de résolution (heures)</label>
+              <input
+                type="number"
+                min={1}
+                required
+                value={resolutionTimeHours}
+                onChange={(e) => setResolutionTimeHours(Number(e.target.value))}
+                className={`w-full ${inputClass}`}
+              />
+            </div>
           </div>
-        </div>
-        <button
-          type="submit"
-          disabled={createMutation.isPending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          Ajouter
-        </button>
-      </form>
+          <Button type="submit" loading={createMutation.isPending}>
+            Ajouter
+          </Button>
+        </form>
+      </Card>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -95,13 +106,7 @@ export function AdminPriorities() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
-                  Chargement…
-                </td>
-              </tr>
-            )}
+            {isLoading && Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} columns={3} />)}
             {priorities?.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-2">
@@ -118,7 +123,7 @@ export function AdminPriorities() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }

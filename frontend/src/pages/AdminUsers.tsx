@@ -1,11 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "../api/client";
+import { apiClient, apiErrorMessage } from "../api/client";
+import { useToast } from "../context/ToastContext";
+import { Card } from "../components/ui/Card";
+import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Role, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
 
 export function AdminUsers() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -15,14 +19,18 @@ export function AdminUsers() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<{ role: Role; isActive: boolean }> }) =>
       apiClient.patch(`/users/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => {
+      toast.success("Utilisateur mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
   });
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Utilisateurs</h1>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -34,13 +42,7 @@ export function AdminUsers() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  Chargement…
-                </td>
-              </tr>
-            )}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={5} />)}
             {users?.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-2 font-medium text-slate-900">{u.name}</td>
@@ -50,7 +52,7 @@ export function AdminUsers() {
                   <select
                     value={u.role}
                     onChange={(e) => updateMutation.mutate({ id: u.id, data: { role: e.target.value as Role } })}
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                    className="rounded-md border border-slate-300 px-2 py-1 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -62,8 +64,11 @@ export function AdminUsers() {
                 <td className="px-4 py-2">
                   <button
                     onClick={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
-                    className={u.isActive ? "text-emerald-600" : "text-slate-400"}
+                    className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                      u.isActive ? "text-emerald-600" : "text-slate-400"
+                    }`}
                   >
+                    <span className={`h-1.5 w-1.5 rounded-full ${u.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
                     {u.isActive ? "Actif" : "Désactivé"}
                   </button>
                 </td>
@@ -71,7 +76,7 @@ export function AdminUsers() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }

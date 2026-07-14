@@ -1,18 +1,59 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { TableRowSkeleton } from "../components/ui/Skeleton";
+import { EmptyState } from "../components/ui/EmptyState";
 import type { Category, Priority, Ticket, TicketStatus } from "../types";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
+const PAGE_SIZE = 15;
+
+type SortKey = "reference" | "priority" | "status" | "createdAt";
+
+const inputClass = "rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
+function SortHeader({
+  label,
+  sortKey,
+  activeKey,
+  direction,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey;
+  direction: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sortKey === activeKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      className="cursor-pointer select-none px-4 py-2 hover:text-slate-700"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span className={`text-[10px] ${active ? "text-brand-600" : "text-slate-300"}`}>
+          {active && direction === "asc" ? "▲" : "▼"}
+        </span>
+      </span>
+    </th>
+  );
+}
 
 export function TicketList() {
   const [status, setStatus] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -39,26 +80,61 @@ export function TicketList() {
       ).data.tickets,
   });
 
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  const sorted = useMemo(() => {
+    if (!tickets) return [];
+    const copy = [...tickets];
+    copy.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "reference") cmp = a.reference.localeCompare(b.reference);
+      else if (sortKey === "status") cmp = a.status.localeCompare(b.status);
+      else if (sortKey === "priority") cmp = a.priority.level - b.priority.level;
+      else cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return copy;
+  }, [tickets, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Tickets</h1>
-        <Link
-          to="/tickets/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          + Nouveau ticket
+        <Link to="/tickets/new">
+          <Button>+ Nouveau ticket</Button>
         </Link>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
+      <Card className="mb-4 flex flex-wrap gap-3 p-4">
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Rechercher (titre, référence)…"
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          className={inputClass}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+          className={inputClass}
+        >
           <option value="">Tous les statuts</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
@@ -66,7 +142,14 @@ export function TicketList() {
             </option>
           ))}
         </select>
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <select
+          value={categoryId}
+          onChange={(e) => {
+            setCategoryId(e.target.value);
+            setPage(1);
+          }}
+          className={inputClass}
+        >
           <option value="">Toutes les catégories</option>
           {categories?.map((c) => (
             <option key={c.id} value={c.id}>
@@ -74,7 +157,14 @@ export function TicketList() {
             </option>
           ))}
         </select>
-        <select value={priorityId} onChange={(e) => setPriorityId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <select
+          value={priorityId}
+          onChange={(e) => {
+            setPriorityId(e.target.value);
+            setPage(1);
+          }}
+          className={inputClass}
+        >
           <option value="">Toutes les priorités</option>
           {priorities?.map((p) => (
             <option key={p.id} value={p.id}>
@@ -82,40 +172,41 @@ export function TicketList() {
             </option>
           ))}
         </select>
-      </div>
+      </Card>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-2">Référence</th>
+              <SortHeader label="Référence" sortKey="reference" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
               <th className="px-4 py-2">Titre</th>
               <th className="px-4 py-2">Catégorie</th>
-              <th className="px-4 py-2">Priorité</th>
-              <th className="px-4 py-2">Statut</th>
+              <SortHeader label="Priorité" sortKey="priority" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+              <SortHeader label="Statut" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
               <th className="px-4 py-2">Assigné à</th>
-              <th className="px-4 py-2">Créé le</th>
+              <SortHeader label="Créé le" sortKey="createdAt" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
+            {isLoading &&
+              Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
+
+            {!isLoading && pageItems.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  Chargement…
+                <td colSpan={7}>
+                  <EmptyState
+                    icon="🎫"
+                    title="Aucun ticket trouvé"
+                    description="Essayez d'ajuster vos filtres ou créez un nouveau ticket."
+                  />
                 </td>
               </tr>
             )}
-            {!isLoading && tickets?.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  Aucun ticket trouvé
-                </td>
-              </tr>
-            )}
-            {tickets?.map((ticket) => (
+
+            {pageItems.map((ticket) => (
               <tr key={ticket.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link to={`/tickets/${ticket.id}`} className="font-medium text-slate-900 hover:underline">
+                  <Link to={`/tickets/${ticket.id}`} className="font-medium text-brand-700 hover:underline">
                     {ticket.reference}
                   </Link>
                   {ticket.isOverdue && <span className="ml-2 text-xs font-medium text-red-600">En retard</span>}
@@ -134,7 +225,33 @@ export function TicketList() {
             ))}
           </tbody>
         </table>
-      </div>
+
+        {!isLoading && sorted.length > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <span>
+              {sorted.length} ticket{sorted.length > 1 ? "s" : ""} · page {currentPage}/{totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                ← Précédent
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Suivant →
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

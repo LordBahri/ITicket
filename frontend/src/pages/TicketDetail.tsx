@@ -3,16 +3,24 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { StatusBadge } from "../components/StatusBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { PageSpinner } from "../components/ui/Spinner";
 import type { Ticket, User, TicketStatus } from "../types";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
+const selectClass =
+  "rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
 
@@ -33,24 +41,33 @@ export function TicketDetail() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: async () =>
-      apiClient.post(`/tickets/${id}/comments`, { message, isInternal }),
+    mutationFn: async () => apiClient.post(`/tickets/${id}/comments`, { message, isInternal }),
     onSuccess: () => {
       setMessage("");
       setIsInternal(false);
+      toast.success("Commentaire ajouté");
       queryClient.invalidateQueries({ queryKey: ["ticket", id] });
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible d'ajouter le commentaire")),
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible d'ajouter le commentaire");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<{ status: TicketStatus; assigneeId: string | null }>) =>
       apiClient.patch(`/tickets/${id}`, data),
     onSuccess: () => {
+      toast.success("Ticket mis à jour");
       queryClient.invalidateQueries({ queryKey: ["ticket", id] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible de mettre à jour le ticket")),
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible de mettre à jour le ticket");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   function handleComment(e: FormEvent) {
@@ -61,19 +78,23 @@ export function TicketDetail() {
   }
 
   if (isLoading || !ticket) {
-    return <div className="text-slate-500">Chargement…</div>;
+    return <PageSpinner label="Chargement du ticket…" />;
   }
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link to="/tickets" className="mb-4 inline-block text-sm text-slate-500 hover:underline">
+      <Link to="/tickets" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         ← Retour aux tickets
       </Link>
 
-      <div className="mb-4 rounded-lg border border-slate-200 bg-white p-6">
+      <Card className="mb-4 p-6">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-400">{ticket.reference}</span>
-          {ticket.isOverdue && <span className="text-xs font-semibold text-red-600">SLA dépassé</span>}
+          {ticket.isOverdue && (
+            <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+              ⚠ SLA dépassé
+            </span>
+          )}
         </div>
         <h1 className="mb-3 text-xl font-bold text-slate-900">{ticket.title}</h1>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -87,27 +108,32 @@ export function TicketDetail() {
           </span>
         </div>
         <p className="mb-4 whitespace-pre-wrap text-sm text-slate-700">{ticket.description}</p>
-        <div className="grid grid-cols-2 gap-2 text-sm text-slate-500">
-          <div>Demandeur : {ticket.requester.name}</div>
-          <div>Assigné à : {ticket.assignee?.name ?? "Non assigné"}</div>
-          <div>Créé le : {new Date(ticket.createdAt).toLocaleString("fr-FR")}</div>
-          <div>Échéance SLA : {ticket.dueAt ? new Date(ticket.dueAt).toLocaleString("fr-FR") : "—"}</div>
+        <div className="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-4 text-sm text-slate-500">
+          <div>Demandeur : <span className="text-slate-700">{ticket.requester.name}</span></div>
+          <div>Assigné à : <span className="text-slate-700">{ticket.assignee?.name ?? "Non assigné"}</span></div>
+          <div>Créé le : <span className="text-slate-700">{new Date(ticket.createdAt).toLocaleString("fr-FR")}</span></div>
+          <div>
+            Échéance SLA :{" "}
+            <span className={ticket.isOverdue ? "font-medium text-red-600" : "text-slate-700"}>
+              {ticket.dueAt ? new Date(ticket.dueAt).toLocaleString("fr-FR") : "—"}
+            </span>
+          </div>
         </div>
-      </div>
+      </Card>
 
       <AttachmentsPanel ticketId={ticket.id} attachments={ticket.attachments ?? []} />
 
       {isStaff && (
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-6">
+        <Card className="mb-4 p-6">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Gestion du ticket</h2>
-          {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          {error && <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex flex-wrap gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">Statut</label>
               <select
                 value={ticket.status}
                 onChange={(e) => updateMutation.mutate({ status: e.target.value as TicketStatus })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                className={selectClass}
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -121,7 +147,7 @@ export function TicketDetail() {
               <select
                 value={ticket.assignee?.id ?? ""}
                 onChange={(e) => updateMutation.mutate({ assigneeId: e.target.value || null })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                className={selectClass}
               >
                 <option value="">Non assigné</option>
                 {agents?.map((a) => (
@@ -132,17 +158,17 @@ export function TicketDetail() {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <Card className="p-6">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Historique &amp; commentaires</h2>
         <div className="mb-4 space-y-3">
           {ticket.comments?.length === 0 && <p className="text-sm text-slate-400">Aucun commentaire pour le moment</p>}
           {ticket.comments?.map((c) => (
             <div
               key={c.id}
-              className={`rounded-md border p-3 text-sm ${
+              className={`animate-fade-in rounded-md border p-3 text-sm ${
                 c.isInternal ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"
               }`}
             >
@@ -164,7 +190,7 @@ export function TicketDetail() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Ajouter un commentaire…"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
           <div className="flex items-center justify-between">
             {isStaff ? (
@@ -175,16 +201,12 @@ export function TicketDetail() {
             ) : (
               <span />
             )}
-            <button
-              type="submit"
-              disabled={commentMutation.isPending}
-              className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-            >
+            <Button type="submit" size="sm" loading={commentMutation.isPending}>
               Envoyer
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

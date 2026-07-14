@@ -3,11 +3,20 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { PageSpinner } from "../components/ui/Spinner";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import type { KnowledgeArticle } from "../types";
+
+const inputClass =
+  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function KnowledgeArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
@@ -16,6 +25,7 @@ export function KnowledgeArticleDetail() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["knowledge", id],
@@ -26,21 +36,34 @@ export function KnowledgeArticleDetail() {
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<{ title: string; content: string; isPublished: boolean }>) =>
       apiClient.patch(`/knowledge/${id}`, data),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       setEditing(false);
+      if (variables.isPublished !== undefined) {
+        toast.success(variables.isPublished ? "Article publié" : "Article dépublié");
+      } else {
+        toast.success("Article mis à jour");
+      }
       queryClient.invalidateQueries({ queryKey: ["knowledge", id] });
       queryClient.invalidateQueries({ queryKey: ["knowledge"] });
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible de mettre à jour l'article")),
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible de mettre à jour l'article");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async () => apiClient.delete(`/knowledge/${id}`),
     onSuccess: () => {
+      toast.success("Article supprimé");
       queryClient.invalidateQueries({ queryKey: ["knowledge"] });
       navigate("/knowledge");
     },
-    onError: (err) => setError(apiErrorMessage(err, "Impossible de supprimer l'article")),
+    onError: (err) => {
+      setConfirmDelete(false);
+      toast.error(apiErrorMessage(err, "Impossible de supprimer l'article"));
+    },
   });
 
   function startEdit() {
@@ -57,51 +80,38 @@ export function KnowledgeArticleDetail() {
   }
 
   if (isLoading || !article) {
-    return <div className="text-slate-500">Chargement…</div>;
+    return <PageSpinner label="Chargement de l'article…" />;
   }
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link to="/knowledge" className="mb-4 inline-block text-sm text-slate-500 hover:underline">
+      <Link to="/knowledge" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         ← Retour à la base de connaissances
       </Link>
 
-      {error && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-4 animate-fade-in rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {editing ? (
-        <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-slate-200 bg-white p-6">
-          <input
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <textarea
-            required
-            rows={10}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Enregistrer
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-600"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
+        <Card className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
+            <textarea required rows={10} value={content} onChange={(e) => setContent(e.target.value)} className={inputClass} />
+            <div className="flex gap-2">
+              <Button type="submit" loading={updateMutation.isPending}>
+                Enregistrer
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setEditing(false)}>
+                Annuler
+              </Button>
+            </div>
+          </form>
+        </Card>
       ) : (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
+        <Card className="p-6">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {article.category && (
@@ -117,19 +127,16 @@ export function KnowledgeArticleDetail() {
             </div>
             {isStaff && (
               <div className="flex gap-3 text-sm">
-                <button onClick={startEdit} className="text-slate-500 hover:underline">
+                <button onClick={startEdit} className="text-slate-500 hover:text-slate-800 hover:underline">
                   Modifier
                 </button>
                 <button
                   onClick={() => updateMutation.mutate({ isPublished: !article.isPublished })}
-                  className="text-slate-500 hover:underline"
+                  className="text-slate-500 hover:text-slate-800 hover:underline"
                 >
                   {article.isPublished ? "Dépublier" : "Publier"}
                 </button>
-                <button
-                  onClick={() => confirm("Supprimer cet article ?") && deleteMutation.mutate()}
-                  className="text-red-600 hover:underline"
-                >
+                <button onClick={() => setConfirmDelete(true)} className="text-red-600 hover:underline">
                   Supprimer
                 </button>
               </div>
@@ -137,11 +144,21 @@ export function KnowledgeArticleDetail() {
           </div>
           <h1 className="mb-4 text-xl font-bold text-slate-900">{article.title}</h1>
           <p className="whitespace-pre-wrap text-sm text-slate-700">{article.content}</p>
-          <p className="mt-6 text-xs text-slate-400">
+          <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-400">
             Par {article.author.name} · Mis à jour le {new Date(article.updatedAt).toLocaleDateString("fr-FR")}
           </p>
-        </div>
+        </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Supprimer cet article ?"
+        description="Cette action est définitive et ne peut pas être annulée."
+        confirmLabel="Supprimer"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

@@ -1,10 +1,24 @@
-import { useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
+import { useToast } from "../context/ToastContext";
+import { Card } from "./ui/Card";
+import { Button } from "./ui/Button";
 import type { Attachment } from "../types";
+
+function fileIcon(filename: string) {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext ?? "")) return "🖼️";
+  if (ext === "pdf") return "📕";
+  if (["doc", "docx"].includes(ext ?? "")) return "📄";
+  if (["xls", "xlsx", "csv"].includes(ext ?? "")) return "📊";
+  return "📎";
+}
 
 export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; attachments: Attachment[] }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   const uploadMutation = useMutation({
@@ -13,8 +27,15 @@ export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; 
       Array.from(files).forEach((file) => formData.append("files", file));
       return apiClient.post(`/tickets/${ticketId}/attachments`, formData);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] }),
-    onError: (err) => setError(apiErrorMessage(err, "Impossible d'ajouter la pièce jointe")),
+    onSuccess: () => {
+      toast.success("Pièce(s) jointe(s) ajoutée(s)");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+    },
+    onError: (err) => {
+      const msg = apiErrorMessage(err, "Impossible d'ajouter la pièce jointe");
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -26,35 +47,50 @@ export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; 
   }
 
   async function handleDownload(attachment: Attachment) {
-    const res = await apiClient.get(`/tickets/${ticketId}/attachments/${attachment.id}/download`, {
-      responseType: "blob",
-    });
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = attachment.filename;
-    link.click();
-    window.URL.revokeObjectURL(url);
+    try {
+      const res = await apiClient.get(`/tickets/${ticketId}/attachments/${attachment.id}/download`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.filename;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Impossible de télécharger le fichier"));
+    }
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-slate-200 bg-white p-6">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Pièces jointes</h2>
-      {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+    <Card className="mb-4 p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900">Pièces jointes</h2>
+        <Button variant="secondary" size="sm" loading={uploadMutation.isPending} onClick={() => inputRef.current?.click()}>
+          + Ajouter
+        </Button>
+        <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden" />
+      </div>
 
-      {attachments.length === 0 && <p className="mb-3 text-sm text-slate-400">Aucune pièce jointe</p>}
-      <ul className="mb-3 space-y-1">
-        {attachments.map((a) => (
-          <li key={a.id}>
-            <button onClick={() => handleDownload(a)} className="text-sm text-slate-700 underline hover:text-slate-900">
-              📎 {a.filename}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {error && <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-      <input type="file" multiple onChange={handleFileChange} className="text-sm" />
-      {uploadMutation.isPending && <p className="mt-2 text-xs text-slate-400">Envoi…</p>}
-    </div>
+      {attachments.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune pièce jointe</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {attachments.map((a) => (
+            <li key={a.id}>
+              <button
+                onClick={() => handleDownload(a)}
+                className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-700"
+              >
+                <span>{fileIcon(a.filename)}</span>
+                <span className="underline decoration-slate-300 underline-offset-2">{a.filename}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
