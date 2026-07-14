@@ -5,6 +5,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { IconLightbulb } from "../components/icons";
 import type { Category, KnowledgeArticle, Priority, Ticket } from "../types";
 
 const inputClass =
@@ -143,8 +144,8 @@ export function NewTicket() {
 
           {suggestedArticles && suggestedArticles.length > 0 && (
             <div className="animate-fade-in rounded-md border border-brand-200 bg-brand-50 p-3">
-              <p className="mb-2 text-sm font-medium text-brand-900">
-                💡 Ces articles pourraient répondre à votre demande :
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-brand-900">
+                <IconLightbulb className="h-4 w-4" /> Ces articles pourraient répondre à votre demande :
               </p>
               <ul className="space-y-1">
                 {suggestedArticles.map((a) => (

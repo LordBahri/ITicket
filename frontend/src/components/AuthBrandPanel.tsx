@@ -1,24 +1,27 @@
+import { IconTicket, IconClock, IconUsers } from "./icons";
+
 const FEATURES = [
-  { icon: "🎫", text: "Suivi centralisé de toutes vos demandes IT" },
-  { icon: "⏱️", text: "SLA automatiques par priorité" },
-  { icon: "💬", text: "Web, email, Slack, Teams — un seul endroit" },
+  { Icon: IconTicket, text: "Suivi centralisé de toutes vos demandes IT" },
+  { Icon: IconClock, text: "SLA automatiques par priorité" },
+  { Icon: IconUsers, text: "Web, email, Slack, Teams — un seul endroit" },
 ];
 
 export function AuthBrandPanel() {
   return (
-    <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-indigo-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+    <div className="relative hidden overflow-hidden bg-brand-700 p-12 text-white lg:flex lg:flex-col lg:justify-between">
       <div
-        className="pointer-events-none absolute inset-0 opacity-20"
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
         style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 60%, white 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
+          backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+          backgroundSize: "28px 28px",
         }}
       />
 
       <div className="relative">
         <div className="mb-1 flex items-center gap-2 text-lg font-bold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-base">🎫</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+            <IconTicket className="h-[18px] w-[18px]" />
+          </span>
           ITicket
         </div>
       </div>
@@ -29,12 +32,12 @@ export function AuthBrandPanel() {
           Créez, suivez et résolvez vos demandes d'intervention en un seul endroit, quel que soit le canal utilisé.
         </p>
         <ul className="space-y-3">
-          {FEATURES.map((f) => (
-            <li key={f.text} className="flex items-center gap-3 text-sm text-brand-50">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-base">
-                {f.icon}
+          {FEATURES.map(({ Icon, text }) => (
+            <li key={text} className="flex items-center gap-3 text-sm text-brand-50">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                <Icon className="h-4 w-4" />
               </span>
-              {f.text}
+              {text}
             </li>
           ))}
         </ul>

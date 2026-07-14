@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
+import { IconBook, IconPlus } from "../components/icons";
 import type { Category, KnowledgeArticle } from "../types";
 
 const inputClass =
@@ -148,7 +149,7 @@ export function KnowledgeBase() {
 
         {!isLoading && articles?.length === 0 && (
           <Card>
-            <EmptyState icon="📚" title="Aucun article trouvé" description="Essayez une autre recherche ou catégorie." />
+            <EmptyState icon={IconBook} title="Aucun article trouvé" description="Essayez une autre recherche ou catégorie." />
           </Card>
         )}
 

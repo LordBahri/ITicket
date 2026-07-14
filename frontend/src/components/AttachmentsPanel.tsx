@@ -4,16 +4,8 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { IconFile, IconPlus } from "./icons";
 import type { Attachment } from "../types";
-
-function fileIcon(filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext ?? "")) return "🖼️";
-  if (ext === "pdf") return "📕";
-  if (["doc", "docx"].includes(ext ?? "")) return "📄";
-  if (["xls", "xlsx", "csv"].includes(ext ?? "")) return "📊";
-  return "📎";
-}
 
 export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; attachments: Attachment[] }) {
   const queryClient = useQueryClient();
@@ -67,7 +59,7 @@ export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">Pièces jointes</h2>
         <Button variant="secondary" size="sm" loading={uploadMutation.isPending} onClick={() => inputRef.current?.click()}>
-          + Ajouter
+          <IconPlus className="h-4 w-4" /> Ajouter
         </Button>
         <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden" />
       </div>
@@ -84,7 +76,7 @@ export function AttachmentsPanel({ ticketId, attachments }: { ticketId: string; 
                 onClick={() => handleDownload(a)}
                 className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-700"
               >
-                <span>{fileIcon(a.filename)}</span>
+                <IconFile className="h-4 w-4 shrink-0 text-slate-400" />
                 <span className="underline decoration-slate-300 underline-offset-2">{a.filename}</span>
               </button>
             </li>

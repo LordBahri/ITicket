@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
+import { IconTicket } from "../components/icons";
 import type { Category, Priority, Ticket, TicketStatus } from "../types";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
@@ -195,7 +196,7 @@ export function TicketList() {
               <tr>
                 <td colSpan={7}>
                   <EmptyState
-                    icon="🎫"
+                    icon={IconTicket}
                     title="Aucun ticket trouvé"
                     description="Essayez d'ajuster vos filtres ou créez un nouveau ticket."
                   />

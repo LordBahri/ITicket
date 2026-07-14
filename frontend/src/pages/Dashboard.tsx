@@ -4,6 +4,8 @@ import { apiClient } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
+import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle } from "../components/icons";
+import type { ComponentType, SVGProps } from "react";
 import type { DashboardStats } from "../types";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,12 +24,22 @@ const STATUS_COLORS: Record<string, string> = {
   CLOSED: "bg-slate-300",
 };
 
-function StatCard({ icon, label, value, accent }: { icon: string; label: string; value: string | number; accent?: string }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  value: string | number;
+  accent?: string;
+}) {
   return (
     <Card className="p-5">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm text-slate-500">{label}</span>
-        <span className="text-lg">{icon}</span>
+        <Icon className={`h-4 w-4 ${accent ?? "text-slate-400"}`} />
       </div>
       <div className={`text-2xl font-bold ${accent ?? "text-slate-900"}`}>{value}</div>
     </Card>
@@ -80,10 +92,10 @@ export function Dashboard() {
       ) : (
         <>
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard icon="🎫" label="Tickets au total" value={data.total} />
-            <StatCard icon="🔵" label="Ouverts" value={data.byStatus.OPEN} />
-            <StatCard icon="🟡" label="En cours" value={data.byStatus.IN_PROGRESS} />
-            <StatCard icon="⚠️" label="En retard (SLA)" value={data.overdueCount} accent="text-red-600" />
+            <StatCard icon={IconTicket} label="Tickets au total" value={data.total} />
+            <StatCard icon={IconOpen} label="Ouverts" value={data.byStatus.OPEN} />
+            <StatCard icon={IconClock} label="En cours" value={data.byStatus.IN_PROGRESS} />
+            <StatCard icon={IconAlertTriangle} label="En retard (SLA)" value={data.overdueCount} accent="text-red-600" />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

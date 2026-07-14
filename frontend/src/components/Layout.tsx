@@ -1,5 +1,15 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import {
+  IconDashboard,
+  IconTicket,
+  IconPlus,
+  IconBook,
+  IconTag,
+  IconClock,
+  IconUsers,
+  IconLogout,
+} from "./icons";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -24,24 +34,24 @@ export function Layout() {
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
         <div className="mb-6 flex items-center gap-2 px-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-base text-white">
-            🎫
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
+            <IconTicket className="h-[18px] w-[18px]" />
           </span>
           <span className="text-lg font-bold text-slate-900">ITicket</span>
         </div>
 
         <nav className="flex-1 space-y-1">
           <NavLink to="/" end className={navLinkClass}>
-            <span aria-hidden>📊</span> Tableau de bord
+            <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
           </NavLink>
           <NavLink to="/tickets" className={navLinkClass}>
-            <span aria-hidden>🎫</span> {isStaff ? "Tous les tickets" : "Mes tickets"}
+            <IconTicket className="h-[18px] w-[18px] shrink-0" /> {isStaff ? "Tous les tickets" : "Mes tickets"}
           </NavLink>
           <NavLink to="/tickets/new" className={navLinkClass}>
-            <span aria-hidden>➕</span> Nouveau ticket
+            <IconPlus className="h-[18px] w-[18px] shrink-0" /> Nouveau ticket
           </NavLink>
           <NavLink to="/knowledge" className={navLinkClass}>
-            <span aria-hidden>📚</span> Base de connaissances
+            <IconBook className="h-[18px] w-[18px] shrink-0" /> Base de connaissances
           </NavLink>
           {user?.role === "ADMIN" && (
             <>
@@ -49,13 +59,13 @@ export function Layout() {
                 Administration
               </div>
               <NavLink to="/admin/categories" className={navLinkClass}>
-                <span aria-hidden>🗂️</span> Catégories
+                <IconTag className="h-[18px] w-[18px] shrink-0" /> Catégories
               </NavLink>
               <NavLink to="/admin/priorities" className={navLinkClass}>
-                <span aria-hidden>⏱️</span> Priorités &amp; SLA
+                <IconClock className="h-[18px] w-[18px] shrink-0" /> Priorités &amp; SLA
               </NavLink>
               <NavLink to="/admin/users" className={navLinkClass}>
-                <span aria-hidden>👥</span> Utilisateurs
+                <IconUsers className="h-[18px] w-[18px] shrink-0" /> Utilisateurs
               </NavLink>
             </>
           )}
@@ -74,7 +84,7 @@ export function Layout() {
             title="Déconnexion"
             className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
-            ⎋
+            <IconLogout className="h-[18px] w-[18px]" />
           </button>
         </div>
       </aside>

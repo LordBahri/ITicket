@@ -9,6 +9,7 @@ import { PriorityBadge } from "../components/PriorityBadge";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
+import { IconAlertTriangle } from "../components/icons";
 import type { Ticket, User, TicketStatus } from "../types";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 
@@ -91,8 +92,8 @@ export function TicketDetail() {
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-400">{ticket.reference}</span>
           {ticket.isOverdue && (
-            <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
-              ⚠ SLA dépassé
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+              <IconAlertTriangle className="h-3.5 w-3.5" /> SLA dépassé
             </span>
           )}
         </div>
