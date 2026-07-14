@@ -10,7 +10,7 @@ import { TableRowSkeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { IconTicket } from "../components/icons";
 import { useAuth } from "../context/AuthContext";
-import type { Category, Company, Priority, Ticket, TicketStatus } from "../types";
+import type { Category, Company, Priority, Ticket, TicketStatus, TicketType } from "../types";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 15;
@@ -53,6 +53,7 @@ export function TicketList() {
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
 
   const [status, setStatus] = useState("");
+  const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
   const [companyId, setCompanyId] = useState("");
@@ -60,6 +61,11 @@ export function TicketList() {
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
+
+  const { data: ticketTypes } = useQuery({
+    queryKey: ["ticket-types"],
+    queryFn: async () => (await apiClient.get<{ ticketTypes: TicketType[] }>("/ticket-types")).data.ticketTypes,
+  });
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -78,12 +84,13 @@ export function TicketList() {
   });
 
   const { data: tickets, isLoading } = useQuery({
-    queryKey: ["tickets", { status, categoryId, priorityId, companyId, search }],
+    queryKey: ["tickets", { status, typeId, categoryId, priorityId, companyId, search }],
     queryFn: async () =>
       (
         await apiClient.get<{ tickets: Ticket[] }>("/tickets", {
           params: {
             status: status || undefined,
+            typeId: typeId || undefined,
             categoryId: categoryId || undefined,
             priorityId: priorityId || undefined,
             companyId: companyId || undefined,
@@ -152,6 +159,21 @@ export function TicketList() {
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
               {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={typeId}
+          onChange={(e) => {
+            setTypeId(e.target.value);
+            setPage(1);
+          }}
+          className={inputClass}
+        >
+          <option value="">Tous les types</option>
+          {ticketTypes?.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>
@@ -244,7 +266,13 @@ export function TicketList() {
                 </td>
                 <td className="px-4 py-2">{ticket.title}</td>
                 {isStaff && <td className="px-4 py-2 text-slate-500">{ticket.requester.company.name}</td>}
-                <td className="px-4 py-2 text-slate-500">{ticket.category.name}</td>
+                <td className="px-4 py-2 text-slate-500">
+                  <div>{ticket.category.name}</div>
+                  <div className="text-xs text-slate-400">
+                    {ticket.type.name}
+                    {ticket.subCategory ? ` · ${ticket.subCategory.name}` : ""}
+                  </div>
+                </td>
                 <td className="px-4 py-2">
                   <PriorityBadge priority={ticket.priority} />
                 </td>

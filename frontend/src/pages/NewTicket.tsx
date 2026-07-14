@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { IconLightbulb } from "../components/icons";
-import type { Category, KnowledgeArticle, Priority, Ticket } from "../types";
+import type { Category, KnowledgeArticle, Priority, SubCategory, Ticket, TicketType } from "../types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -17,14 +17,30 @@ export function NewTicket() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [subCategoryId, setSubCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: ticketTypes } = useQuery({
+    queryKey: ["ticket-types"],
+    queryFn: async () => (await apiClient.get<{ ticketTypes: TicketType[] }>("/ticket-types")).data.ticketTypes,
+  });
+
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => (await apiClient.get<{ categories: Category[] }>("/categories")).data.categories,
+  });
+
+  const { data: subCategories } = useQuery({
+    queryKey: ["subcategories", { categoryId }],
+    queryFn: async () =>
+      (
+        await apiClient.get<{ subCategories: SubCategory[] }>("/subcategories", { params: { categoryId } })
+      ).data.subCategories,
+    enabled: Boolean(categoryId),
   });
 
   const { data: priorities } = useQuery({
@@ -41,13 +57,22 @@ export function NewTicket() {
     enabled: Boolean(categoryId),
   });
 
+  const activeSubCategories = subCategories?.filter((s) => s.isActive) ?? [];
+
+  function handleCategoryChange(value: string) {
+    setCategoryId(value);
+    setSubCategoryId("");
+  }
+
   const mutation = useMutation({
     mutationFn: async () =>
       (
         await apiClient.post<{ ticket: Ticket }>("/tickets", {
           title,
           description,
+          typeId,
           categoryId,
+          subCategoryId: subCategoryId || undefined,
           priorityId,
         })
       ).data.ticket,
@@ -114,10 +139,24 @@ export function NewTicket() {
             />
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Type de demande</label>
+            <select required value={typeId} onChange={(e) => setTypeId(e.target.value)} className={inputClass}>
+              <option value="">Sélectionner…</option>
+              {ticketTypes
+                ?.filter((t) => t.isActive)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Type d'intervention</label>
-              <select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Catégorie</label>
+              <select required value={categoryId} onChange={(e) => handleCategoryChange(e.target.value)} className={inputClass}>
                 <option value="">Sélectionner…</option>
                 {categories
                   ?.filter((c) => c.isActive)
@@ -130,16 +169,35 @@ export function NewTicket() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
-              <select required value={priorityId} onChange={(e) => setPriorityId(e.target.value)} className={inputClass}>
-                <option value="">Sélectionner…</option>
-                {priorities?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+              <label className="mb-1 block text-sm font-medium text-slate-700">Sous-catégorie</label>
+              <select
+                value={subCategoryId}
+                onChange={(e) => setSubCategoryId(e.target.value)}
+                disabled={!categoryId || activeSubCategories.length === 0}
+                className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+              >
+                <option value="">
+                  {categoryId && activeSubCategories.length === 0 ? "Aucune" : "Sélectionner (optionnel)…"}
+                </option>
+                {activeSubCategories.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
+            <select required value={priorityId} onChange={(e) => setPriorityId(e.target.value)} className={inputClass}>
+              <option value="">Sélectionner…</option>
+              {priorities?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {suggestedArticles && suggestedArticles.length > 0 && (

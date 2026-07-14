@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiErrorMessage } from "../api/client";
 import { Button } from "../components/ui/Button";
@@ -65,11 +65,8 @@ export function Login() {
             Se connecter
           </Button>
 
-          <p className="mt-4 text-center text-sm text-slate-500">
-            Pas encore de compte ?{" "}
-            <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
-              Créer un compte
-            </Link>
+          <p className="mt-4 text-center text-xs text-slate-400">
+            Pas encore de compte ? Contactez votre administrateur IT.
           </p>
         </form>
       </div>

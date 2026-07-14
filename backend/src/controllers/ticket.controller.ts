@@ -12,7 +12,9 @@ const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"]
 const createTicketSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(5).max(5000),
+  typeId: z.string(),
   categoryId: z.string(),
+  subCategoryId: z.string().optional(),
   priorityId: z.string(),
   channel: z.enum(TICKET_CHANNELS).optional(),
 });
@@ -20,13 +22,17 @@ const createTicketSchema = z.object({
 const updateTicketSchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
   assigneeId: z.string().nullable().optional(),
+  typeId: z.string().optional(),
   categoryId: z.string().optional(),
+  subCategoryId: z.string().nullable().optional(),
   priorityId: z.string().optional(),
 });
 
 const listQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
+  typeId: z.string().optional(),
   categoryId: z.string().optional(),
+  subCategoryId: z.string().optional(),
   priorityId: z.string().optional(),
   assigneeId: z.string().optional(),
   companyId: z.string().optional(),
@@ -44,7 +50,9 @@ export async function createTicket(req: Request, res: Response) {
   const ticket = await createTicketRecord({
     title: data.title,
     description: data.description,
+    typeId: data.typeId,
     categoryId: data.categoryId,
+    subCategoryId: data.subCategoryId,
     priorityId: data.priorityId,
     requesterId: req.user!.id,
     channel: data.channel ?? "WEB",
@@ -62,7 +70,9 @@ export async function listTickets(req: Request, res: Response) {
     where.requesterId = req.user!.id;
   }
   if (query.status) where.status = query.status;
+  if (query.typeId) where.typeId = query.typeId;
   if (query.categoryId) where.categoryId = query.categoryId;
+  if (query.subCategoryId) where.subCategoryId = query.subCategoryId;
   if (query.priorityId) where.priorityId = query.priorityId;
   if (query.assigneeId) where.assigneeId = query.assigneeId;
   if (query.companyId) where.requester = { companyId: query.companyId };
@@ -125,10 +135,27 @@ export async function updateTicket(req: Request, res: Response) {
 
   const updateData: Record<string, unknown> = {};
 
+  if (data.typeId) {
+    const type = await prisma.ticketType.findUnique({ where: { id: data.typeId } });
+    if (!type) throw new HttpError(400, "Type de demande invalide");
+    updateData.typeId = data.typeId;
+  }
+
   if (data.categoryId) {
     const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
     if (!category) throw new HttpError(400, "Catégorie invalide");
     updateData.categoryId = data.categoryId;
+  }
+
+  if (data.subCategoryId !== undefined) {
+    if (data.subCategoryId) {
+      const subCategory = await prisma.subCategory.findUnique({ where: { id: data.subCategoryId } });
+      const effectiveCategoryId = (updateData.categoryId as string | undefined) ?? ticket.categoryId;
+      if (!subCategory || subCategory.categoryId !== effectiveCategoryId) {
+        throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
+      }
+    }
+    updateData.subCategoryId = data.subCategoryId;
   }
 
   if (data.priorityId) {

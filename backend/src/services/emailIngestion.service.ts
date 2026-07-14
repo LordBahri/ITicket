@@ -2,7 +2,12 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { env } from "../config/env";
 import { ensureUserByEmail } from "./userProvision.service";
-import { createTicketRecord, resolveDefaultCategoryId, resolveDefaultPriorityId } from "./ticket.service";
+import {
+  createTicketRecord,
+  resolveDefaultTicketTypeId,
+  resolveDefaultCategoryId,
+  resolveDefaultPriorityId,
+} from "./ticket.service";
 
 function extractSenderEmail(from?: string): { email: string; name: string } | null {
   if (!from) return null;
@@ -19,7 +24,11 @@ async function processMailbox(client: ImapFlow) {
     const uids = await client.search({ seen: false }, { uid: true });
     if (!uids || uids.length === 0) return;
 
-    const [categoryId, priorityId] = await Promise.all([resolveDefaultCategoryId(), resolveDefaultPriorityId()]);
+    const [typeId, categoryId, priorityId] = await Promise.all([
+      resolveDefaultTicketTypeId(),
+      resolveDefaultCategoryId(),
+      resolveDefaultPriorityId(),
+    ]);
 
     for (const uid of uids) {
       try {
@@ -40,6 +49,7 @@ async function processMailbox(client: ImapFlow) {
         await createTicketRecord({
           title,
           description,
+          typeId,
           categoryId,
           priorityId,
           requesterId: requester.id,

@@ -24,11 +24,26 @@ export interface User {
   createdAt?: string;
 }
 
+export interface TicketType {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;
   description: string | null;
   isActive: boolean;
+}
+
+export interface SubCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  categoryId: string;
 }
 
 export interface Priority {
@@ -64,7 +79,9 @@ export interface Ticket {
   description: string;
   status: TicketStatus;
   channel: TicketChannel;
+  type: TicketType;
   category: Category;
+  subCategory: SubCategory | null;
   priority: Priority;
   requester: { id: string; name: string; email: string; service: string; company: Company };
   assignee: { id: string; name: string; email: string } | null;

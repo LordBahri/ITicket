@@ -6,7 +6,9 @@ import { sendMail } from "./email.service";
 import type { TicketChannel } from "@prisma/client";
 
 export const ticketInclude = {
+  type: true,
   category: true,
+  subCategory: true,
   priority: true,
   requester: { select: { id: true, name: true, email: true, service: true, company: true } },
   assignee: { select: { id: true, name: true, email: true } },
@@ -15,7 +17,9 @@ export const ticketInclude = {
 interface CreateTicketParams {
   title: string;
   description: string;
+  typeId: string;
   categoryId: string;
+  subCategoryId?: string | null;
   priorityId: string;
   requesterId: string;
   channel: TicketChannel;
@@ -23,12 +27,21 @@ interface CreateTicketParams {
 }
 
 export async function createTicketRecord(params: CreateTicketParams) {
-  const [category, priority] = await Promise.all([
+  const [type, category, priority] = await Promise.all([
+    prisma.ticketType.findUnique({ where: { id: params.typeId } }),
     prisma.category.findUnique({ where: { id: params.categoryId } }),
     prisma.priority.findUnique({ where: { id: params.priorityId } }),
   ]);
+  if (!type || !type.isActive) throw new HttpError(400, "Type de demande invalide");
   if (!category || !category.isActive) throw new HttpError(400, "Catégorie invalide");
   if (!priority) throw new HttpError(400, "Priorité invalide");
+
+  if (params.subCategoryId) {
+    const subCategory = await prisma.subCategory.findUnique({ where: { id: params.subCategoryId } });
+    if (!subCategory || !subCategory.isActive || subCategory.categoryId !== params.categoryId) {
+      throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
+    }
+  }
 
   const reference = await generateTicketReference();
   const dueAt = computeDueAt(priority);
@@ -39,7 +52,9 @@ export async function createTicketRecord(params: CreateTicketParams) {
       title: params.title,
       description: params.description,
       channel: params.channel,
+      typeId: params.typeId,
       categoryId: params.categoryId,
+      subCategoryId: params.subCategoryId ?? null,
       priorityId: params.priorityId,
       requesterId: params.requesterId,
       dueAt,
@@ -62,12 +77,24 @@ export async function createTicketRecord(params: CreateTicketParams) {
       void sendMail({
         to: agent.email,
         subject: `[${ticket.reference}] Nouveau ticket (${ticket.channel}) : ${ticket.title}`,
-        text: `Un nouveau ticket a été créé par ${ticket.requester.name} via ${ticket.channel}.\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
+        text: `Un nouveau ticket a été créé par ${ticket.requester.name} via ${ticket.channel}.\nType : ${type.name}\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
       });
     }
   }
 
   return ticket;
+}
+
+export async function resolveDefaultTicketTypeId(preferredName?: string): Promise<string> {
+  if (preferredName) {
+    const match = await prisma.ticketType.findFirst({ where: { name: preferredName, isActive: true } });
+    if (match) return match.id;
+  }
+  const fallback =
+    (await prisma.ticketType.findFirst({ where: { name: "Incident", isActive: true } })) ??
+    (await prisma.ticketType.findFirst({ where: { isActive: true }, orderBy: { name: "asc" } }));
+  if (!fallback) throw new HttpError(500, "Aucun type de demande disponible");
+  return fallback.id;
 }
 
 export async function resolveDefaultCategoryId(preferredName?: string): Promise<string> {

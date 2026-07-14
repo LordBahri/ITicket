@@ -101,8 +101,12 @@ export function TicketDetail() {
         <div className="mb-4 flex flex-wrap gap-2">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
+          <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+            {ticket.type.name}
+          </span>
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {ticket.category.name}
+            {ticket.subCategory ? ` · ${ticket.subCategory.name}` : ""}
           </span>
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
             Canal : {ticket.channel}

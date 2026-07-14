@@ -14,16 +14,61 @@ async function main() {
     await prisma.priority.upsert({ where: { name: priority.name }, update: {}, create: priority });
   }
 
+  const ticketTypes = [
+    { name: "Incident", description: "Un service ou un équipement ne fonctionne pas comme prévu" },
+    { name: "Demande de service", description: "Demande standard : accès, matériel, information, changement mineur" },
+    { name: "Problème", description: "Cause récurrente ou sous-jacente à plusieurs incidents" },
+    { name: "Changement", description: "Demande de modification planifiée d'un système ou service" },
+  ];
+  for (const type of ticketTypes) {
+    await prisma.ticketType.upsert({ where: { name: type.name }, update: {}, create: type });
+  }
+
   const categories = [
-    { name: "Matériel", description: "Panne ou demande liée au matériel informatique (PC, imprimante, périphériques)" },
-    { name: "Logiciel", description: "Installation, bug ou demande liée à un logiciel" },
-    { name: "Réseau", description: "Problème de connexion réseau, VPN, Wi-Fi" },
-    { name: "Compte & Accès", description: "Création de compte, réinitialisation de mot de passe, droits d'accès" },
-    { name: "Téléphonie", description: "Demandes liées à la téléphonie fixe ou mobile" },
-    { name: "Autre", description: "Toute autre demande d'intervention IT" },
+    {
+      name: "Matériel",
+      description: "Panne ou demande liée au matériel informatique (PC, imprimante, périphériques)",
+      subCategories: ["Ordinateur portable", "Ordinateur de bureau", "Imprimante / Scanner", "Écran / Périphérique", "Autre matériel"],
+    },
+    {
+      name: "Logiciel",
+      description: "Installation, bug ou demande liée à un logiciel",
+      subCategories: ["Installation logicielle", "Bug / Dysfonctionnement", "Mise à jour", "Licence logicielle", "Autre logiciel"],
+    },
+    {
+      name: "Réseau",
+      description: "Problème de connexion réseau, VPN, Wi-Fi",
+      subCategories: ["Wi-Fi", "VPN", "Réseau local (LAN)", "Accès Internet", "Autre réseau"],
+    },
+    {
+      name: "Compte & Accès",
+      description: "Création de compte, réinitialisation de mot de passe, droits d'accès",
+      subCategories: ["Création de compte", "Réinitialisation de mot de passe", "Modification des droits d'accès", "Désactivation de compte"],
+    },
+    {
+      name: "Téléphonie",
+      description: "Demandes liées à la téléphonie fixe ou mobile",
+      subCategories: ["Téléphone fixe", "Mobile professionnel", "Ligne / Standard téléphonique"],
+    },
+    {
+      name: "Autre",
+      description: "Toute autre demande d'intervention IT",
+      subCategories: ["Autre demande"],
+    },
   ];
   for (const category of categories) {
-    await prisma.category.upsert({ where: { name: category.name }, update: {}, create: category });
+    const created = await prisma.category.upsert({
+      where: { name: category.name },
+      update: {},
+      create: { name: category.name, description: category.description },
+    });
+    for (const subName of category.subCategories) {
+      await prisma.subCategory.upsert({
+        where: { categoryId_name: { categoryId: created.id, name: subName } },
+        update: {},
+        create: { name: subName, categoryId: created.id },
+      });
+    }
   }
 
   const companies = [

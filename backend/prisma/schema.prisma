@@ -69,6 +69,16 @@ model User {
   @@index([companyId])
 }
 
+model TicketType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  tickets Ticket[]
+}
+
 model Category {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -76,8 +86,25 @@ model Category {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  tickets  Ticket[]
-  articles KnowledgeArticle[]
+  tickets      Ticket[]
+  articles     KnowledgeArticle[]
+  subCategories SubCategory[]
+}
+
+model SubCategory {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  tickets Ticket[]
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
 }
 
 model KnowledgeArticle {
@@ -118,8 +145,14 @@ model Ticket {
   status      TicketStatus  @default(OPEN)
   channel     TicketChannel @default(WEB)
 
+  typeId String
+  type   TicketType @relation(fields: [typeId], references: [id])
+
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
+
+  subCategoryId String?
+  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id])
 
   priorityId String
   priority   Priority @relation(fields: [priorityId], references: [id])

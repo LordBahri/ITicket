@@ -1,17 +1,9 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
-import { hashPassword, comparePassword } from "../utils/password";
+import { comparePassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { HttpError } from "../middleware/errorHandler";
-
-const registerSchema = z.object({
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z.string().min(8).max(100),
-  companyId: z.string().min(1, "La société est requise"),
-  service: z.string().min(2).max(100),
-});
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -38,36 +30,6 @@ function toPublicUser(user: {
     isActive: user.isActive,
     company: user.company,
   };
-}
-
-export async function register(req: Request, res: Response) {
-  const data = registerSchema.parse(req.body);
-
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) {
-    throw new HttpError(409, "Un compte existe déjà avec cet email");
-  }
-
-  const company = await prisma.company.findUnique({ where: { id: data.companyId } });
-  if (!company || !company.isActive) {
-    throw new HttpError(400, "Société invalide");
-  }
-
-  const passwordHash = await hashPassword(data.password);
-  const user = await prisma.user.create({
-    data: {
-      name: data.name,
-      email: data.email,
-      passwordHash,
-      companyId: data.companyId,
-      service: data.service,
-      role: "USER",
-    },
-    include: userInclude,
-  });
-
-  const token = signToken({ sub: user.id, role: user.role });
-  res.status(201).json({ token, user: toPublicUser(user) });
 }
 
 export async function login(req: Request, res: Response) {

@@ -6,6 +6,7 @@ import {
   IconTicket,
   IconPlus,
   IconBook,
+  IconLayers,
   IconTag,
   IconClock,
   IconUsers,
@@ -60,6 +61,9 @@ export function Layout() {
               <div className="mt-5 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Administration
               </div>
+              <NavLink to="/admin/ticket-types" className={navLinkClass}>
+                <IconLayers className="h-[18px] w-[18px] shrink-0" /> Types de demande
+              </NavLink>
               <NavLink to="/admin/categories" className={navLinkClass}>
                 <IconTag className="h-[18px] w-[18px] shrink-0" /> Catégories
               </NavLink>

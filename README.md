@@ -9,8 +9,10 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 
 ## Fonctionnalités (V1)
 
-- Authentification (inscription / connexion) avec rôles **Utilisateur**, **Agent**, **Admin**
-- Catégories (types d'intervention) et priorités configurables, avec délais de SLA (réponse / résolution)
+- Authentification par connexion (JWT) avec rôles **Utilisateur**, **Agent**, **Admin**. Les comptes sont créés uniquement par un admin (pas d'inscription libre) : il choisit la société, le service et le rôle à la création, modifiables ensuite depuis la fiche utilisateur.
+- Structure de groupe : chaque utilisateur appartient à une **société** (Holding ou Filiale, gérées par l'admin) et un **service**, ce qui permet de distinguer les demandes venant de la holding et des différentes filiales.
+- Classification des tickets à trois niveaux : **type de demande** (Incident, Demande de service, Problème, Changement — inspiré d'ITIL), **catégorie** (Matériel, Logiciel, Réseau, Compte & Accès, Téléphonie, Autre) et **sous-catégorie** (ex. Matériel → Imprimante / Scanner), tous gérables par l'admin.
+- Priorités configurables, avec délais de SLA (réponse / résolution)
 - Calcul automatique de l'échéance SLA et détection des tickets en retard
 - Assignation des tickets aux agents, changement de statut (Ouvert → En cours → En attente → Résolu → Fermé)
 - Fil de commentaires par ticket, avec notes internes réservées aux agents/admins
@@ -18,7 +20,7 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Base de connaissances (FAQ) liée aux catégories, avec suggestion d'articles lors de la création d'un ticket
 - Notifications email (création de ticket, assignation, changement de statut, nouveau commentaire) — en dev, les emails sont simplement logués en console si aucun SMTP n'est configuré
 - Tableau de bord avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution)
-- Administration : gestion des catégories, des priorités/SLA et des utilisateurs (rôles, activation)
+- Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés et utilisateurs
 
 ### Canaux d'entrée pris en charge
 
@@ -62,6 +64,8 @@ npm run prisma:migrate   # crée les tables
 npm run seed              # crée catégories, priorités et comptes de démo
 npm run dev                # démarre l'API sur http://localhost:4000
 ```
+
+Il n'y a pas de page d'inscription publique : tout compte doit être créé par un admin depuis Administration > Utilisateurs (nom, email, mot de passe temporaire, rôle, société, service).
 
 Comptes créés par le seed (mot de passe `Password123!`) :
 

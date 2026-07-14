@@ -4,7 +4,12 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { HttpError } from "../middleware/errorHandler";
 import { ensureUserByEmail } from "../services/userProvision.service";
-import { createTicketRecord, resolveDefaultCategoryId, resolveDefaultPriorityId } from "../services/ticket.service";
+import {
+  createTicketRecord,
+  resolveDefaultTicketTypeId,
+  resolveDefaultCategoryId,
+  resolveDefaultPriorityId,
+} from "../services/ticket.service";
 
 function verifySlackSignature(req: Request): boolean {
   if (!env.slack.signingSecret) return true; // vérification désactivée en dev si non configurée
@@ -67,11 +72,16 @@ export async function slackCommand(req: Request, res: Response) {
   const { email, name } = await resolveSlackUserEmail(data.user_id, data.user_name);
   const requester = await ensureUserByEmail(email, name);
 
-  const [categoryId, priorityId] = await Promise.all([resolveDefaultCategoryId(), resolveDefaultPriorityId()]);
+  const [typeId, categoryId, priorityId] = await Promise.all([
+    resolveDefaultTicketTypeId(),
+    resolveDefaultCategoryId(),
+    resolveDefaultPriorityId(),
+  ]);
 
   const ticket = await createTicketRecord({
     title: title.trim().slice(0, 200),
     description,
+    typeId,
     categoryId,
     priorityId,
     requesterId: requester.id,
@@ -89,6 +99,7 @@ const teamsWebhookSchema = z.object({
   description: z.string().min(1).max(5000),
   userEmail: z.string().email(),
   userName: z.string().min(1).max(100),
+  typeName: z.string().optional(),
   categoryName: z.string().optional(),
   priorityName: z.string().optional(),
 });
@@ -104,7 +115,8 @@ export async function teamsWebhook(req: Request, res: Response) {
   const data = teamsWebhookSchema.parse(req.body);
   const requester = await ensureUserByEmail(data.userEmail, data.userName);
 
-  const [categoryId, priorityId] = await Promise.all([
+  const [typeId, categoryId, priorityId] = await Promise.all([
+    resolveDefaultTicketTypeId(data.typeName),
     resolveDefaultCategoryId(data.categoryName),
     resolveDefaultPriorityId(data.priorityName),
   ]);
@@ -112,6 +124,7 @@ export async function teamsWebhook(req: Request, res: Response) {
   const ticket = await createTicketRecord({
     title: data.title,
     description: data.description,
+    typeId,
     categoryId,
     priorityId,
     requesterId: requester.id,

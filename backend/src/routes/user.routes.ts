@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listUsers, listAgents, updateUser } from "../controllers/user.controller";
+import { listUsers, listAgents, createUser, updateUser } from "../controllers/user.controller";
 import { authenticate, authorize } from "../middleware/auth";
 import { asyncHandler } from "../utils/asyncHandler";
 
@@ -9,4 +9,5 @@ userRouter.use(authenticate);
 
 userRouter.get("/", authorize("ADMIN"), asyncHandler(listUsers));
 userRouter.get("/agents", authorize("AGENT", "ADMIN"), asyncHandler(listAgents));
+userRouter.post("/", authorize("ADMIN"), asyncHandler(createUser));
 userRouter.patch("/:id", authorize("ADMIN"), asyncHandler(updateUser));

@@ -22,6 +22,16 @@ export function IconLogoMark(props: IconProps) {
   );
 }
 
+export function IconLayers(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3.5 4 8l8 4.5 8-4.5-8-4.5Z" />
+      <path d="M4 12l8 4.5 8-4.5" />
+      <path d="M4 16l8 4.5 8-4.5" />
+    </svg>
+  );
+}
+
 export function IconDashboard(props: IconProps) {
   return (
     <svg {...base} {...props}>
