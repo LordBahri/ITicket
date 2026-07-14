@@ -14,9 +14,11 @@ const createUserSchema = z.object({
 });
 
 const updateUserSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  email: z.string().email().optional(),
   role: z.enum(["ADMIN", "AGENT", "USER"]).optional(),
   isActive: z.boolean().optional(),
-  service: z.string().max(100).optional(),
+  service: z.string().min(2).max(100).optional(),
   companyId: z.string().optional(),
 });
 
@@ -78,6 +80,11 @@ export async function updateUser(req: Request, res: Response) {
   if (data.companyId) {
     const company = await prisma.company.findUnique({ where: { id: data.companyId } });
     if (!company) throw new HttpError(400, "Société invalide");
+  }
+
+  if (data.email && data.email !== user.email) {
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) throw new HttpError(409, "Un compte existe déjà avec cet email");
   }
 
   const updated = await prisma.user.update({

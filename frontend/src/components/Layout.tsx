@@ -35,15 +35,15 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
-        <div className="mb-6 flex items-center gap-2 px-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <IconLogoMark className="h-[18px] w-[18px]" />
+      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-5">
+        <div className="mb-8 flex items-center gap-2.5 px-1">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
+            <IconLogoMark className="h-5 w-5" />
           </span>
           <span className="text-lg font-bold text-slate-900">ITicket</span>
         </div>
 
-        <nav className="flex-1 space-y-1">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto">
           <NavLink to="/" end className={navLinkClass}>
             <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
           </NavLink>
@@ -58,7 +58,7 @@ export function Layout() {
           </NavLink>
           {user?.role === "ADMIN" && (
             <>
-              <div className="mt-5 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <div className="mb-1.5 mt-7 border-t border-slate-100 px-3 pt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Administration
               </div>
               <NavLink to="/admin/ticket-types" className={navLinkClass}>
@@ -70,17 +70,17 @@ export function Layout() {
               <NavLink to="/admin/priorities" className={navLinkClass}>
                 <IconClock className="h-[18px] w-[18px] shrink-0" /> Priorités &amp; SLA
               </NavLink>
-              <NavLink to="/admin/users" className={navLinkClass}>
-                <IconUsers className="h-[18px] w-[18px] shrink-0" /> Utilisateurs
-              </NavLink>
               <NavLink to="/admin/companies" className={navLinkClass}>
                 <IconBuilding className="h-[18px] w-[18px] shrink-0" /> Sociétés
+              </NavLink>
+              <NavLink to="/admin/users" className={navLinkClass}>
+                <IconUsers className="h-[18px] w-[18px] shrink-0" /> Utilisateurs
               </NavLink>
             </>
           )}
         </nav>
 
-        <div className="mt-4 flex items-center gap-2 rounded-md border border-slate-200 p-2">
+        <div className="mt-6 flex items-center gap-2 rounded-md border border-slate-200 p-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
             {initials(user?.name)}
           </span>

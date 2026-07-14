@@ -10,7 +10,8 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 ## Fonctionnalités (V1)
 
 - Authentification par connexion (JWT) avec rôles **Utilisateur**, **Agent**, **Admin**. Les comptes sont créés uniquement par un admin (pas d'inscription libre) : il choisit la société, le service et le rôle à la création, modifiables ensuite depuis la fiche utilisateur.
-- Structure de groupe : chaque utilisateur appartient à une **société** (Holding ou Filiale, gérées par l'admin) et un **service**, ce qui permet de distinguer les demandes venant de la holding et des différentes filiales.
+- Structure de groupe : chaque utilisateur appartient à une **société** (Holding ou Filiale) et un **service**, ce qui permet de distinguer les demandes venant de la holding et des différentes filiales. Les sociétés peuvent être organisées en hiérarchie (une filiale rattachée à sa société mère), gérée depuis Administration > Sociétés, avec vue arborescente et protection contre les hiérarchies circulaires.
+- Administration complète des utilisateurs et des sociétés : création, modification (nom, email, service, société, rôle, société mère) et activation/désactivation, sans jamais perdre l'historique des tickets liés.
 - Classification des tickets à trois niveaux : **type de demande** (Incident, Demande de service, Problème, Changement — inspiré d'ITIL), **catégorie** (Matériel, Logiciel, Réseau, Compte & Accès, Téléphonie, Autre) et **sous-catégorie** (ex. Matériel → Imprimante / Scanner), tous gérables par l'admin.
 - Priorités configurables, avec délais de SLA (réponse / résolution)
 - Calcul automatique de l'échéance SLA et détection des tickets en retard

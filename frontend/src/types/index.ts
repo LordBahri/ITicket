@@ -11,6 +11,8 @@ export interface Company {
   name: string;
   type: CompanyType;
   isActive: boolean;
+  parentId?: string | null;
+  parent?: { id: string; name: string; type: CompanyType } | null;
 }
 
 export interface User {

@@ -43,7 +43,13 @@ model Company {
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
 
+  parentId String?
+  parent   Company?  @relation("CompanyHierarchy", fields: [parentId], references: [id])
+  children Company[] @relation("CompanyHierarchy")
+
   users User[]
+
+  @@index([parentId])
 }
 
 model User {
