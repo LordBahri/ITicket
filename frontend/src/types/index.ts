@@ -1,15 +1,25 @@
 export type Role = "ADMIN" | "AGENT" | "USER";
 
+export type CompanyType = "HOLDING" | "FILIALE";
+
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CLOSED";
 
 export type TicketChannel = "WEB" | "EMAIL" | "CHAT" | "API" | "PHONE" | "SLACK" | "TEAMS";
+
+export interface Company {
+  id: string;
+  name: string;
+  type: CompanyType;
+  isActive: boolean;
+}
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
-  department: string | null;
+  service: string;
+  company: Company;
   isActive: boolean;
   createdAt?: string;
 }
@@ -56,7 +66,7 @@ export interface Ticket {
   channel: TicketChannel;
   category: Category;
   priority: Priority;
-  requester: { id: string; name: string; email: string };
+  requester: { id: string; name: string; email: string; service: string; company: Company };
   assignee: { id: string; name: string; email: string } | null;
   dueAt: string | null;
   resolvedAt: string | null;

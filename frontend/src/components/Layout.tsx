@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  IconLogoMark,
   IconDashboard,
   IconTicket,
   IconPlus,
@@ -8,6 +9,7 @@ import {
   IconTag,
   IconClock,
   IconUsers,
+  IconBuilding,
   IconLogout,
 } from "./icons";
 
@@ -35,7 +37,7 @@ export function Layout() {
       <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
         <div className="mb-6 flex items-center gap-2 px-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <IconTicket className="h-[18px] w-[18px]" />
+            <IconLogoMark className="h-[18px] w-[18px]" />
           </span>
           <span className="text-lg font-bold text-slate-900">ITicket</span>
         </div>
@@ -66,6 +68,9 @@ export function Layout() {
               </NavLink>
               <NavLink to="/admin/users" className={navLinkClass}>
                 <IconUsers className="h-[18px] w-[18px] shrink-0" /> Utilisateurs
+              </NavLink>
+              <NavLink to="/admin/companies" className={navLinkClass}>
+                <IconBuilding className="h-[18px] w-[18px] shrink-0" /> Sociétés
               </NavLink>
             </>
           )}

@@ -26,30 +26,62 @@ async function main() {
     await prisma.category.upsert({ where: { name: category.name }, update: {}, create: category });
   }
 
+  const companies = [
+    { name: "Meninx Holding", type: "HOLDING" as const },
+    { name: "Meninx Industrie", type: "FILIALE" as const },
+    { name: "Meninx Logistique", type: "FILIALE" as const },
+  ];
+  for (const company of companies) {
+    await prisma.company.upsert({ where: { name: company.name }, update: {}, create: company });
+  }
+  const holding = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Holding" } });
+  const filiale = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Industrie" } });
+
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
   await prisma.user.upsert({
     where: { email: "admin@societe.local" },
     update: {},
-    create: { name: "Admin IT", email: "admin@societe.local", passwordHash, role: "ADMIN", department: "IT" },
+    create: {
+      name: "Admin IT",
+      email: "admin@societe.local",
+      passwordHash,
+      role: "ADMIN",
+      companyId: holding.id,
+      service: "IT",
+    },
   });
 
   await prisma.user.upsert({
     where: { email: "agent@societe.local" },
     update: {},
-    create: { name: "Agent Support", email: "agent@societe.local", passwordHash, role: "AGENT", department: "IT" },
+    create: {
+      name: "Agent Support",
+      email: "agent@societe.local",
+      passwordHash,
+      role: "AGENT",
+      companyId: holding.id,
+      service: "IT",
+    },
   });
 
   await prisma.user.upsert({
     where: { email: "user@societe.local" },
     update: {},
-    create: { name: "Utilisateur Test", email: "user@societe.local", passwordHash, role: "USER", department: "Ventes" },
+    create: {
+      name: "Utilisateur Test",
+      email: "user@societe.local",
+      passwordHash,
+      role: "USER",
+      companyId: filiale.id,
+      service: "Ventes",
+    },
   });
 
   console.log("Seed terminé. Comptes créés (mot de passe : Password123!) :");
-  console.log(" - admin@societe.local (ADMIN)");
-  console.log(" - agent@societe.local (AGENT)");
-  console.log(" - user@societe.local (USER)");
+  console.log(" - admin@societe.local (ADMIN, Meninx Holding)");
+  console.log(" - agent@societe.local (AGENT, Meninx Holding)");
+  console.log(" - user@societe.local (USER, Meninx Industrie)");
 }
 
 main()

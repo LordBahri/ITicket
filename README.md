@@ -100,6 +100,12 @@ frontend/
     api/                    # client HTTP (axios)
 ```
 
+## Logo / identité visuelle
+
+La marque (icône + favicon) est une recréation vectorielle inspirée du logo Meninx Holding, en l'absence d'accès au fichier original. Pour utiliser le vrai logo, remplacez simplement :
+- `frontend/public/logo-mark.svg` (icône seule, fond transparent)
+- `frontend/public/favicon.svg` (icône sur fond bleu marine, utilisée comme favicon)
+
 ## Prochaines étapes possibles
 
 - Liaison OAuth Slack/Teams pour retrouver automatiquement l'email réel de l'utilisateur (au lieu de l'email synthétique par défaut)

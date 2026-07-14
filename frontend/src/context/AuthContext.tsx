@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, department?: string) => Promise<void>;
+  register: (name: string, email: string, password: string, companyId: string, service: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -35,8 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.data.user);
   }
 
-  async function register(name: string, email: string, password: string, department?: string) {
-    const res = await apiClient.post("/auth/register", { name, email, password, department });
+  async function register(name: string, email: string, password: string, companyId: string, service: string) {
+    const res = await apiClient.post("/auth/register", { name, email, password, companyId, service });
     localStorage.setItem("iticket_token", res.data.token);
     setUser(res.data.user);
   }

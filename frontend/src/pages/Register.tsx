@@ -1,26 +1,37 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
-import { apiErrorMessage } from "../api/client";
+import { apiClient, apiErrorMessage } from "../api/client";
 import { Button } from "../components/ui/Button";
 import { AuthBrandPanel } from "../components/AuthBrandPanel";
+import type { Company } from "../types";
 
 export function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [service, setService] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
+  });
+
+  const holdings = companies?.filter((c) => c.isActive && c.type === "HOLDING") ?? [];
+  const filiales = companies?.filter((c) => c.isActive && c.type === "FILIALE") ?? [];
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await register(name, email, password, department || undefined);
+      await register(name, email, password, companyId, service);
       navigate("/");
     } catch (err) {
       setError(apiErrorMessage(err, "Impossible de créer le compte"));
@@ -59,8 +70,37 @@ export function Register() {
             className={inputClass}
           />
 
-          <label className="mb-1 block text-sm font-medium text-slate-700">Département (optionnel)</label>
-          <input value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClass} />
+          <label className="mb-1 block text-sm font-medium text-slate-700">Société</label>
+          <select required value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={inputClass}>
+            <option value="">Sélectionner…</option>
+            {holdings.length > 0 && (
+              <optgroup label="Holding">
+                {holdings.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {filiales.length > 0 && (
+              <optgroup label="Filiales">
+                {filiales.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+
+          <label className="mb-1 block text-sm font-medium text-slate-700">Service</label>
+          <input
+            required
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            placeholder="Ex : Comptabilité, Ventes, Production…"
+            className={inputClass}
+          />
 
           <label className="mb-1 block text-sm font-medium text-slate-700">Mot de passe (8 caractères min.)</label>
           <input

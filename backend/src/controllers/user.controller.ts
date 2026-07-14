@@ -6,7 +6,8 @@ import { HttpError } from "../middleware/errorHandler";
 const updateUserSchema = z.object({
   role: z.enum(["ADMIN", "AGENT", "USER"]).optional(),
   isActive: z.boolean().optional(),
-  department: z.string().max(100).nullable().optional(),
+  service: z.string().max(100).optional(),
+  companyId: z.string().optional(),
 });
 
 const publicSelect = {
@@ -14,9 +15,10 @@ const publicSelect = {
   name: true,
   email: true,
   role: true,
-  department: true,
+  service: true,
   isActive: true,
   createdAt: true,
+  company: true,
 } as const;
 
 export async function listUsers(_req: Request, res: Response) {
@@ -37,6 +39,11 @@ export async function updateUser(req: Request, res: Response) {
   const data = updateUserSchema.parse(req.body);
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  if (data.companyId) {
+    const company = await prisma.company.findUnique({ where: { id: data.companyId } });
+    if (!company) throw new HttpError(400, "Société invalide");
+  }
 
   const updated = await prisma.user.update({
     where: { id: req.params.id },

@@ -8,7 +8,7 @@ import type { TicketChannel } from "@prisma/client";
 export const ticketInclude = {
   category: true,
   priority: true,
-  requester: { select: { id: true, name: true, email: true } },
+  requester: { select: { id: true, name: true, email: true, service: true, company: true } },
   assignee: { select: { id: true, name: true, email: true } },
 };
 

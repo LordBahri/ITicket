@@ -3,9 +3,11 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { Role, User } from "../types";
+import type { Company, Role, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
+const selectClass =
+  "rounded-md border border-slate-300 px-2 py-1 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function AdminUsers() {
   const queryClient = useQueryClient();
@@ -16,8 +18,13 @@ export function AdminUsers() {
     queryFn: async () => (await apiClient.get<{ users: User[] }>("/users")).data.users,
   });
 
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
+  });
+
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<{ role: Role; isActive: boolean }> }) =>
+    mutationFn: async ({ id, data }: { id: string; data: Partial<{ role: Role; isActive: boolean; companyId: string }> }) =>
       apiClient.patch(`/users/${id}`, data),
     onSuccess: () => {
       toast.success("Utilisateur mis à jour");
@@ -27,7 +34,7 @@ export function AdminUsers() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Utilisateurs</h1>
 
       <Card className="overflow-hidden">
@@ -36,23 +43,37 @@ export function AdminUsers() {
             <tr>
               <th className="px-4 py-2">Nom</th>
               <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Département</th>
+              <th className="px-4 py-2">Société</th>
+              <th className="px-4 py-2">Service</th>
               <th className="px-4 py-2">Rôle</th>
               <th className="px-4 py-2">Statut</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={5} />)}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
             {users?.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-2 font-medium text-slate-900">{u.name}</td>
                 <td className="px-4 py-2 text-slate-500">{u.email}</td>
-                <td className="px-4 py-2 text-slate-500">{u.department ?? "—"}</td>
+                <td className="px-4 py-2">
+                  <select
+                    value={u.company.id}
+                    onChange={(e) => updateMutation.mutate({ id: u.id, data: { companyId: e.target.value } })}
+                    className={selectClass}
+                  >
+                    {companies?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-2 text-slate-500">{u.service}</td>
                 <td className="px-4 py-2">
                   <select
                     value={u.role}
                     onChange={(e) => updateMutation.mutate({ id: u.id, data: { role: e.target.value as Role } })}
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    className={selectClass}
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>

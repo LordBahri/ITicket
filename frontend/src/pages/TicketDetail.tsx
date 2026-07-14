@@ -112,6 +112,12 @@ export function TicketDetail() {
         <div className="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-4 text-sm text-slate-500">
           <div>Demandeur : <span className="text-slate-700">{ticket.requester.name}</span></div>
           <div>Assigné à : <span className="text-slate-700">{ticket.assignee?.name ?? "Non assigné"}</span></div>
+          <div>
+            Société : <span className="text-slate-700">{ticket.requester.company.name}</span>
+          </div>
+          <div>
+            Service : <span className="text-slate-700">{ticket.requester.service}</span>
+          </div>
           <div>Créé le : <span className="text-slate-700">{new Date(ticket.createdAt).toLocaleString("fr-FR")}</span></div>
           <div>
             Échéance SLA :{" "}

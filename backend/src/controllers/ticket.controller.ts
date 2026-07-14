@@ -29,6 +29,7 @@ const listQuerySchema = z.object({
   categoryId: z.string().optional(),
   priorityId: z.string().optional(),
   assigneeId: z.string().optional(),
+  companyId: z.string().optional(),
   search: z.string().optional(),
   overdue: z.enum(["true", "false"]).optional(),
 });
@@ -64,6 +65,7 @@ export async function listTickets(req: Request, res: Response) {
   if (query.categoryId) where.categoryId = query.categoryId;
   if (query.priorityId) where.priorityId = query.priorityId;
   if (query.assigneeId) where.assigneeId = query.assigneeId;
+  if (query.companyId) where.requester = { companyId: query.companyId };
   if (query.search) {
     where.OR = [
       { title: { contains: query.search, mode: "insensitive" } },

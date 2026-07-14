@@ -31,22 +31,42 @@ enum TicketChannel {
   TEAMS
 }
 
+enum CompanyType {
+  HOLDING
+  FILIALE
+}
+
+model Company {
+  id        String      @id @default(cuid())
+  name      String      @unique
+  type      CompanyType @default(FILIALE)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  users User[]
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
   role         Role     @default(USER)
-  department   String?
+  service      String
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
   ticketsRequested Ticket[]  @relation("TicketRequester")
   ticketsAssigned  Ticket[]  @relation("TicketAssignee")
   comments         Comment[]
   attachments      Attachment[]
   articles         KnowledgeArticle[]
+
+  @@index([companyId])
 }
 
 model Category {

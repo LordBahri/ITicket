@@ -11,6 +11,17 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
+export function IconLogoMark(props: IconProps) {
+  return (
+    <svg {...base} strokeWidth={1.4} {...props}>
+      <path d="M9.3 5.4c-2-1.7-4.3-1.3-3.9.6.3 1.5 2.4 1 3 2.3v3.6c0 1.3-.9 1.9-1.9 2.5" />
+      <path d="M14.7 5.4c2-1.7 4.3-1.3 3.9.6-.3 1.5-2.4 1-3 2.3v3.6c0 1.3.9 1.9 1.9 2.5" />
+      <path d="M9.6 5.1c1.1-1.1 3.7-1.1 4.8 0" />
+      <path d="M12 7v4.2" />
+    </svg>
+  );
+}
+
 export function IconDashboard(props: IconProps) {
   return (
     <svg {...base} {...props}>
@@ -53,6 +64,17 @@ export function IconTag(props: IconProps) {
     <svg {...base} {...props}>
       <path d="M11.5 3.5H5A1.5 1.5 0 0 0 3.5 5v6.5a1.5 1.5 0 0 0 .44 1.06l9 9a1.5 1.5 0 0 0 2.12 0l6.5-6.5a1.5 1.5 0 0 0 0-2.12l-9-9a1.5 1.5 0 0 0-1.06-.44Z" />
       <circle cx="8" cy="8" r="1.25" />
+    </svg>
+  );
+}
+
+export function IconBuilding(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="4.5" y="3.5" width="10" height="17" rx="1" />
+      <rect x="14.5" y="9.5" width="5" height="11" rx="1" />
+      <path d="M7.5 7h1M10.5 7h1M7.5 10.5h1M10.5 10.5h1M7.5 14h1M10.5 14h1" />
+      <path d="M17 13v.01M17 16v.01" />
     </svg>
   );
 }

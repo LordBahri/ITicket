@@ -9,7 +9,8 @@ import { Button } from "../components/ui/Button";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { IconTicket } from "../components/icons";
-import type { Category, Priority, Ticket, TicketStatus } from "../types";
+import { useAuth } from "../context/AuthContext";
+import type { Category, Company, Priority, Ticket, TicketStatus } from "../types";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 15;
@@ -48,9 +49,13 @@ function SortHeader({
 }
 
 export function TicketList() {
+  const { user } = useAuth();
+  const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
+
   const [status, setStatus] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
+  const [companyId, setCompanyId] = useState("");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -66,8 +71,14 @@ export function TicketList() {
     queryFn: async () => (await apiClient.get<{ priorities: Priority[] }>("/priorities")).data.priorities,
   });
 
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
+    enabled: isStaff,
+  });
+
   const { data: tickets, isLoading } = useQuery({
-    queryKey: ["tickets", { status, categoryId, priorityId, search }],
+    queryKey: ["tickets", { status, categoryId, priorityId, companyId, search }],
     queryFn: async () =>
       (
         await apiClient.get<{ tickets: Ticket[] }>("/tickets", {
@@ -75,6 +86,7 @@ export function TicketList() {
             status: status || undefined,
             categoryId: categoryId || undefined,
             priorityId: priorityId || undefined,
+            companyId: companyId || undefined,
             search: search || undefined,
           },
         })
@@ -173,6 +185,23 @@ export function TicketList() {
             </option>
           ))}
         </select>
+        {isStaff && (
+          <select
+            value={companyId}
+            onChange={(e) => {
+              setCompanyId(e.target.value);
+              setPage(1);
+            }}
+            className={inputClass}
+          >
+            <option value="">Toutes les sociétés</option>
+            {companies?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
@@ -181,6 +210,7 @@ export function TicketList() {
             <tr>
               <SortHeader label="Référence" sortKey="reference" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
               <th className="px-4 py-2">Titre</th>
+              {isStaff && <th className="px-4 py-2">Société</th>}
               <th className="px-4 py-2">Catégorie</th>
               <SortHeader label="Priorité" sortKey="priority" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortHeader label="Statut" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
@@ -190,11 +220,11 @@ export function TicketList() {
           </thead>
           <tbody>
             {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
+              Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={isStaff ? 8 : 7} />)}
 
             {!isLoading && pageItems.length === 0 && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={isStaff ? 8 : 7}>
                   <EmptyState
                     icon={IconTicket}
                     title="Aucun ticket trouvé"
@@ -213,6 +243,7 @@ export function TicketList() {
                   {ticket.isOverdue && <span className="ml-2 text-xs font-medium text-red-600">En retard</span>}
                 </td>
                 <td className="px-4 py-2">{ticket.title}</td>
+                {isStaff && <td className="px-4 py-2 text-slate-500">{ticket.requester.company.name}</td>}
                 <td className="px-4 py-2 text-slate-500">{ticket.category.name}</td>
                 <td className="px-4 py-2">
                   <PriorityBadge priority={ticket.priority} />
