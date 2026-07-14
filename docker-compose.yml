@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iticket
+      POSTGRES_PASSWORD: iticket
+      POSTGRES_DB: iticket
+    ports:
+      - "5432:5432"
+    volumes:
+      - iticket_pg_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://iticket:iticket@postgres:5432/iticket
+      JWT_SECRET: change-me-in-production
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:5173
+      SMTP_HOST: ""
+      SMTP_PORT: 587
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      MAIL_FROM: "IT Support <support@societe.local>"
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    ports:
+      - "5173:5173"
+
+volumes:
+  iticket_pg_data:

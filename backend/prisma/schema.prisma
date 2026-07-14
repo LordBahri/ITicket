@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  USER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+}
+
+enum TicketChannel {
+  WEB
+  EMAIL
+  CHAT
+  API
+  PHONE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  department   String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ticketsRequested Ticket[]  @relation("TicketRequester")
+  ticketsAssigned  Ticket[]  @relation("TicketAssignee")
+  comments         Comment[]
+  attachments      Attachment[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  tickets Ticket[]
+}
+
+model Priority {
+  id                   String   @id @default(cuid())
+  name                 String   @unique
+  level                Int      @default(0)
+  color                String   @default("#6b7280")
+  responseTimeHours    Int
+  resolutionTimeHours  Int
+  createdAt            DateTime @default(now())
+
+  tickets Ticket[]
+}
+
+model Ticket {
+  id          String        @id @default(cuid())
+  reference   String        @unique
+  title       String
+  description String
+  status      TicketStatus  @default(OPEN)
+  channel     TicketChannel @default(WEB)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  priorityId String
+  priority   Priority @relation(fields: [priorityId], references: [id])
+
+  requesterId String
+  requester   User   @relation("TicketRequester", fields: [requesterId], references: [id])
+
+  assigneeId String?
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
+  dueAt      DateTime?
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments    Comment[]
+  attachments Attachment[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([assigneeId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  message    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  ticketId     String
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  filename     String
+  url          String
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([ticketId])
+}
