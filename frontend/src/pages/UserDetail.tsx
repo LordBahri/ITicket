@@ -7,7 +7,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Company, Role, Ticket, User } from "../types";
+import type { Company, Role, Service, Ticket, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
 const inputClass =
@@ -42,7 +42,8 @@ export function UserDetail() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [service, setService] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [managerId, setManagerId] = useState("");
   const [role, setRole] = useState<Role>("USER");
   const [companyId, setCompanyId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,16 @@ export function UserDetail() {
     queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
   });
 
+  const { data: companyMates } = useQuery({
+    queryKey: ["users", { companyId }],
+    queryFn: async () => (await apiClient.get<{ users: User[] }>("/users", { params: { companyId } })).data.users,
+    enabled: editing && Boolean(companyId),
+  });
+
+  const selectedCompany = companies?.find((c) => c.id === companyId);
+  const availableServices: Service[] = selectedCompany?.services ?? [];
+  const availableManagers = (companyMates ?? []).filter((m) => m.id !== id);
+
   const { data: requestedTickets } = useQuery({
     queryKey: ["tickets", { requesterId: id }],
     queryFn: async () => (await apiClient.get<{ tickets: Ticket[] }>("/tickets", { params: { requesterId: id } })).data.tickets,
@@ -71,7 +82,15 @@ export function UserDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async () => apiClient.patch(`/users/${id}`, { name, email, service, role, companyId }),
+    mutationFn: async () =>
+      apiClient.patch(`/users/${id}`, {
+        name,
+        email,
+        role,
+        companyId,
+        serviceId: serviceId || null,
+        managerId: managerId || null,
+      }),
     onSuccess: () => {
       toast.success("Utilisateur mis à jour");
       setEditing(false);
@@ -99,7 +118,8 @@ export function UserDetail() {
     if (!user) return;
     setName(user.name);
     setEmail(user.email);
-    setService(user.service);
+    setServiceId(user.service?.id ?? "");
+    setManagerId(user.manager?.id ?? "");
     setRole(user.role);
     setCompanyId(user.company.id);
     setError(null);
@@ -142,7 +162,16 @@ export function UserDetail() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">Société</label>
-                <select required value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={inputClass}>
+                <select
+                  required
+                  value={companyId}
+                  onChange={(e) => {
+                    setCompanyId(e.target.value);
+                    setServiceId("");
+                    setManagerId("");
+                  }}
+                  className={inputClass}
+                >
                   {companies?.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -152,7 +181,14 @@ export function UserDetail() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">Service</label>
-                <input required value={service} onChange={(e) => setService(e.target.value)} className={inputClass} />
+                <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={inputClass}>
+                  <option value="">—</option>
+                  {availableServices.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-500">Rôle</label>
@@ -160,6 +196,17 @@ export function UserDetail() {
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
                       {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-500">Supérieur hiérarchique</label>
+                <select value={managerId} onChange={(e) => setManagerId(e.target.value)} className={inputClass}>
+                  <option value="">Aucun</option>
+                  {availableManagers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
                     </option>
                   ))}
                 </select>
@@ -202,7 +249,17 @@ export function UserDetail() {
                 </Link>
               </div>
               <div>
-                Service : <span className="text-slate-700">{user.service}</span>
+                Service : <span className="text-slate-700">{user.service?.name ?? "—"}</span>
+              </div>
+              <div>
+                Supérieur hiérarchique :{" "}
+                {user.manager ? (
+                  <Link to={`/admin/users/${user.manager.id}`} className="text-brand-700 hover:underline">
+                    {user.manager.name}
+                  </Link>
+                ) : (
+                  <span className="text-slate-700">—</span>
+                )}
               </div>
               {user.createdAt && (
                 <div>

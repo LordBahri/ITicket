@@ -10,7 +10,7 @@ export const ticketInclude = {
   category: true,
   subCategory: true,
   priority: true,
-  requester: { select: { id: true, name: true, email: true, service: true, company: true } },
+  requester: { select: { id: true, name: true, email: true, service: { select: { id: true, name: true } }, company: true } },
   assignee: { select: { id: true, name: true, email: true } },
 };
 

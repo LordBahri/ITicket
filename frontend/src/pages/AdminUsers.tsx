@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { Company, Role, User } from "../types";
+import type { Company, Role, Service, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
 const inputClass =
@@ -22,7 +22,7 @@ export function AdminUsers() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("USER");
   const [companyId, setCompanyId] = useState("");
-  const [service, setService] = useState("");
+  const [serviceId, setServiceId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery({
@@ -35,15 +35,19 @@ export function AdminUsers() {
     queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
   });
 
+  const selectedCompany = companies?.find((c) => c.id === companyId);
+  const availableServices: Service[] = selectedCompany?.services ?? [];
+
   const createMutation = useMutation({
-    mutationFn: async () => apiClient.post("/users", { name, email, password, role, companyId, service }),
+    mutationFn: async () =>
+      apiClient.post("/users", { name, email, password, role, companyId, serviceId: serviceId || null }),
     onSuccess: () => {
       setName("");
       setEmail("");
       setPassword("");
       setRole("USER");
       setCompanyId("");
-      setService("");
+      setServiceId("");
       setShowForm(false);
       toast.success("Utilisateur créé");
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -84,7 +88,15 @@ export function AdminUsers() {
                 placeholder="Email"
                 className={inputClass}
               />
-              <select required value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={inputClass}>
+              <select
+                required
+                value={companyId}
+                onChange={(e) => {
+                  setCompanyId(e.target.value);
+                  setServiceId("");
+                }}
+                className={inputClass}
+              >
                 <option value="">Société…</option>
                 {companies?.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -92,13 +104,19 @@ export function AdminUsers() {
                   </option>
                 ))}
               </select>
-              <input
-                required
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-                placeholder="Service (ex : Comptabilité)"
+              <select
+                value={serviceId}
+                onChange={(e) => setServiceId(e.target.value)}
+                disabled={!companyId}
                 className={inputClass}
-              />
+              >
+                <option value="">Service…</option>
+                {availableServices.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
               <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputClass}>
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -149,7 +167,7 @@ export function AdminUsers() {
                 </td>
                 <td className="px-4 py-2 text-slate-500">{u.email}</td>
                 <td className="px-4 py-2 text-slate-500">{u.company.name}</td>
-                <td className="px-4 py-2 text-slate-500">{u.service}</td>
+                <td className="px-4 py-2 text-slate-500">{u.service?.name ?? "—"}</td>
                 <td className="px-4 py-2">
                   <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">{u.role}</span>
                 </td>

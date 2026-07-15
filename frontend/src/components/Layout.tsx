@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   IconLogoMark,
@@ -31,7 +31,9 @@ function initials(name?: string) {
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
+  const isAllTicketsActive = location.pathname.startsWith("/tickets") && location.pathname !== "/tickets/new";
 
   return (
     <div className="flex min-h-screen">
@@ -47,7 +49,7 @@ export function Layout() {
           <NavLink to="/" end className={navLinkClass}>
             <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
           </NavLink>
-          <NavLink to="/tickets" className={navLinkClass}>
+          <NavLink to="/tickets" className={() => navLinkClass({ isActive: isAllTicketsActive })}>
             <IconTicket className="h-[18px] w-[18px] shrink-0" /> {isStaff ? "Tous les tickets" : "Mes tickets"}
           </NavLink>
           <NavLink to="/tickets/new" className={navLinkClass}>

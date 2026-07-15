@@ -71,20 +71,46 @@ async function main() {
     }
   }
 
+  const serviceNames = [
+    "Direction générale",
+    "IT",
+    "RH",
+    "Comptabilité & Finance",
+    "Ventes",
+    "Marketing",
+    "Production",
+    "Logistique",
+    "Achats",
+    "Juridique",
+  ];
+  const services = new Map<string, { id: string }>();
+  for (const name of serviceNames) {
+    const s = await prisma.service.upsert({ where: { name }, update: {}, create: { name } });
+    services.set(name, s);
+  }
+
   const companies = [
-    { name: "Meninx Holding", type: "HOLDING" as const },
-    { name: "Meninx Industrie", type: "FILIALE" as const },
-    { name: "Meninx Logistique", type: "FILIALE" as const },
+    { name: "Meninx Holding", type: "HOLDING" as const, services: ["Direction générale", "IT", "RH", "Comptabilité & Finance", "Juridique"] },
+    { name: "Meninx Industrie", type: "FILIALE" as const, services: ["IT", "Production", "Achats", "Ventes", "Logistique"] },
+    { name: "Meninx Logistique", type: "FILIALE" as const, services: ["IT", "Logistique", "Achats", "Ventes"] },
   ];
   for (const company of companies) {
-    await prisma.company.upsert({ where: { name: company.name }, update: {}, create: company });
+    await prisma.company.upsert({
+      where: { name: company.name },
+      update: { services: { set: company.services.map((s) => ({ id: services.get(s)!.id })) } },
+      create: {
+        name: company.name,
+        type: company.type,
+        services: { connect: company.services.map((s) => ({ id: services.get(s)!.id })) },
+      },
+    });
   }
   const holding = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Holding" } });
   const filiale = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Industrie" } });
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: "admin@societe.local" },
     update: {},
     create: {
@@ -93,7 +119,7 @@ async function main() {
       passwordHash,
       role: "ADMIN",
       companyId: holding.id,
-      service: "IT",
+      serviceId: services.get("IT")!.id,
     },
   });
 
@@ -106,7 +132,8 @@ async function main() {
       passwordHash,
       role: "AGENT",
       companyId: holding.id,
-      service: "IT",
+      serviceId: services.get("IT")!.id,
+      managerId: admin.id,
     },
   });
 
@@ -119,7 +146,7 @@ async function main() {
       passwordHash,
       role: "USER",
       companyId: filiale.id,
-      service: "Ventes",
+      serviceId: services.get("Ventes")!.id,
     },
   });
 

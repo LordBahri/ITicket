@@ -8,15 +8,22 @@ const companySchema = z.object({
   type: z.enum(["HOLDING", "FILIALE"]),
   parentId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  serviceIds: z.array(z.string()).optional(),
 });
 
 const companyInclude = {
   parent: { select: { id: true, name: true, type: true } },
+  services: { orderBy: { name: "asc" as const } },
 } as const;
 
 const companyDetailInclude = {
   parent: { select: { id: true, name: true, type: true } },
   children: { select: { id: true, name: true, type: true, isActive: true }, orderBy: { name: "asc" as const } },
+  services: { orderBy: { name: "asc" as const } },
+  users: {
+    select: { id: true, name: true, email: true, role: true, isActive: true, managerId: true, service: { select: { id: true, name: true } } },
+    orderBy: { name: "asc" as const },
+  },
   _count: { select: { users: true } },
 } as const;
 
@@ -54,7 +61,7 @@ export async function getCompany(req: Request, res: Response) {
 }
 
 export async function createCompany(req: Request, res: Response) {
-  const data = companySchema.parse(req.body);
+  const { serviceIds, ...data } = companySchema.parse(req.body);
   const existing = await prisma.company.findUnique({ where: { name: data.name } });
   if (existing) throw new HttpError(409, "Cette société existe déjà");
 
@@ -63,12 +70,15 @@ export async function createCompany(req: Request, res: Response) {
     if (!parent) throw new HttpError(400, "Société parente invalide");
   }
 
-  const company = await prisma.company.create({ data, include: companyInclude });
+  const company = await prisma.company.create({
+    data: { ...data, services: serviceIds ? { connect: serviceIds.map((id) => ({ id })) } : undefined },
+    include: companyInclude,
+  });
   res.status(201).json({ company });
 }
 
 export async function updateCompany(req: Request, res: Response) {
-  const data = companySchema.partial().parse(req.body);
+  const { serviceIds, ...data } = companySchema.partial().parse(req.body);
   const company = await prisma.company.findUnique({ where: { id: req.params.id } });
   if (!company) throw new HttpError(404, "Société introuvable");
 
@@ -82,7 +92,7 @@ export async function updateCompany(req: Request, res: Response) {
 
   const updated = await prisma.company.update({
     where: { id: req.params.id },
-    data,
+    data: { ...data, services: serviceIds ? { set: serviceIds.map((id) => ({ id })) } : undefined },
     include: companyInclude,
   });
   res.json({ company: updated });

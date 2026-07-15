@@ -47,9 +47,20 @@ model Company {
   parent   Company?  @relation("CompanyHierarchy", fields: [parentId], references: [id])
   children Company[] @relation("CompanyHierarchy")
 
-  users User[]
+  users    User[]
+  services Service[]
 
   @@index([parentId])
+}
+
+model Service {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  companies Company[]
+  users     User[]
 }
 
 model User {
@@ -58,13 +69,19 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(USER)
-  service      String
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
+
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+
+  managerId String?
+  manager   User?  @relation("ManagerHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports   User[] @relation("ManagerHierarchy")
 
   ticketsRequested Ticket[]  @relation("TicketRequester")
   ticketsAssigned  Ticket[]  @relation("TicketAssignee")
@@ -73,6 +90,8 @@ model User {
   articles         KnowledgeArticle[]
 
   @@index([companyId])
+  @@index([serviceId])
+  @@index([managerId])
 }
 
 model TicketType {

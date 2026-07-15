@@ -10,14 +10,14 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-const userInclude = { company: true } as const;
+const userInclude = { company: true, service: true } as const;
 
 function toPublicUser(user: {
   id: string;
   name: string;
   email: string;
   role: string;
-  service: string;
+  service: { id: string; name: string } | null;
   isActive: boolean;
   company: { id: string; name: string; type: string };
 }) {

@@ -3,7 +3,6 @@ import { prisma } from "../config/prisma";
 import { hashPassword } from "../utils/password";
 
 const FALLBACK_COMPANY_NAME = "Non renseigné";
-const FALLBACK_SERVICE = "Non renseigné";
 
 async function resolveFallbackCompanyId(): Promise<string> {
   const existing = await prisma.company.findUnique({ where: { name: FALLBACK_COMPANY_NAME } });
@@ -27,6 +26,6 @@ export async function ensureUserByEmail(
   const companyId = await resolveFallbackCompanyId();
 
   return prisma.user.create({
-    data: { name, email, passwordHash, role: "USER", companyId, service: FALLBACK_SERVICE },
+    data: { name, email, passwordHash, role: "USER", companyId },
   });
 }

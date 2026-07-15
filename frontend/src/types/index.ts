@@ -6,6 +6,12 @@ export type TicketStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CL
 
 export type TicketChannel = "WEB" | "EMAIL" | "CHAT" | "API" | "PHONE" | "SLACK" | "TEAMS";
 
+export interface Service {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -13,6 +19,18 @@ export interface Company {
   isActive: boolean;
   parentId?: string | null;
   parent?: { id: string; name: string; type: CompanyType } | null;
+  services?: Service[];
+  users?: OrgUser[];
+}
+
+export interface OrgUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  managerId: string | null;
+  service: Service | null;
 }
 
 export interface User {
@@ -20,7 +38,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  service: string;
+  service: Service | null;
+  manager?: { id: string; name: string } | null;
   company: Company;
   isActive: boolean;
   createdAt?: string;
@@ -85,7 +104,7 @@ export interface Ticket {
   category: Category;
   subCategory: SubCategory | null;
   priority: Priority;
-  requester: { id: string; name: string; email: string; service: string; company: Company };
+  requester: { id: string; name: string; email: string; service: Service | null; company: Company };
   assignee: { id: string; name: string; email: string } | null;
   dueAt: string | null;
   resolvedAt: string | null;

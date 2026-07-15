@@ -6,7 +6,8 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
-import type { Company, CompanyType, User } from "../types";
+import type { Company, CompanyType, OrgUser, Service, User } from "../types";
+import { OrgChart } from "../components/OrgChart";
 
 const TYPE_LABELS: Record<CompanyType, string> = {
   HOLDING: "Holding",
@@ -18,6 +19,7 @@ const inputClass =
 
 interface CompanyDetailData extends Company {
   children: { id: string; name: string; type: CompanyType; isActive: boolean }[];
+  users: OrgUser[];
   _count: { users: number };
 }
 
@@ -31,6 +33,7 @@ export function CompanyDetail() {
   const [name, setName] = useState("");
   const [type, setType] = useState<CompanyType>("FILIALE");
   const [parentId, setParentId] = useState("");
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const { data: company, isLoading } = useQuery({
@@ -44,6 +47,11 @@ export function CompanyDetail() {
     queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
   });
 
+  const { data: allServices } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => (await apiClient.get<{ services: Service[] }>("/services")).data.services,
+  });
+
   const { data: users } = useQuery({
     queryKey: ["users", { companyId: id }],
     queryFn: async () => (await apiClient.get<{ users: User[] }>("/users", { params: { companyId: id } })).data.users,
@@ -51,7 +59,7 @@ export function CompanyDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async () => apiClient.patch(`/companies/${id}`, { name, type, parentId: parentId || null }),
+    mutationFn: async () => apiClient.patch(`/companies/${id}`, { name, type, parentId: parentId || null, serviceIds }),
     onSuccess: () => {
       toast.success("Société mise à jour");
       setEditing(false);
@@ -80,8 +88,13 @@ export function CompanyDetail() {
     setName(company.name);
     setType(company.type);
     setParentId(company.parentId ?? "");
+    setServiceIds((company.services ?? []).map((s) => s.id));
     setError(null);
     setEditing(true);
+  }
+
+  function toggleService(serviceId: string) {
+    setServiceIds((prev) => (prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]));
   }
 
   function handleSubmit(e: FormEvent) {
@@ -133,6 +146,22 @@ export function CompanyDetail() {
                 </select>
               </div>
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Services activés</label>
+              <div className="grid grid-cols-2 gap-1.5 rounded-md border border-slate-200 p-3">
+                {allServices?.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={serviceIds.includes(s.id)}
+                      onChange={() => toggleService(s.id)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button type="submit" loading={updateMutation.isPending}>
                 Enregistrer
@@ -179,6 +208,20 @@ export function CompanyDetail() {
               <div>
                 Utilisateurs : <span className="text-slate-700">{company._count.users}</span>
               </div>
+              <div className="col-span-2">
+                Services activés :{" "}
+                {company.services && company.services.length > 0 ? (
+                  <span className="inline-flex flex-wrap gap-1.5 align-middle">
+                    {company.services.map((s) => (
+                      <span key={s.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                        {s.name}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-slate-700">—</span>
+                )}
+              </div>
             </div>
 
             <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
@@ -209,6 +252,14 @@ export function CompanyDetail() {
         </Card>
       )}
 
+      <Card className="mb-4 p-6">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">Organigramme</h2>
+        <p className="mb-3 text-xs text-slate-400">
+          Construit manuellement via le supérieur hiérarchique renseigné sur chaque fiche utilisateur.
+        </p>
+        <OrgChart users={company.users} />
+      </Card>
+
       <Card className="p-6">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Utilisateurs de cette société</h2>
         {users?.length === 0 && <p className="text-sm text-slate-400">Aucun utilisateur</p>}
@@ -218,7 +269,7 @@ export function CompanyDetail() {
               <Link to={`/admin/users/${u.id}`} className="text-brand-700 hover:underline">
                 {u.name}
               </Link>
-              <span className="text-xs text-slate-400">{u.service}</span>
+              <span className="text-xs text-slate-400">{u.service?.name ?? "—"}</span>
             </li>
           ))}
         </ul>

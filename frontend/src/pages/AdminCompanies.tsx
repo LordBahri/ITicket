@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { Company, CompanyType } from "../types";
+import type { Company, CompanyType, Service } from "../types";
 
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -52,6 +52,7 @@ export function AdminCompanies() {
   const [name, setName] = useState("");
   const [type, setType] = useState<CompanyType>("FILIALE");
   const [parentId, setParentId] = useState("");
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const { data: companies, isLoading } = useQuery({
@@ -59,13 +60,23 @@ export function AdminCompanies() {
     queryFn: async () => (await apiClient.get<{ companies: Company[] }>("/companies")).data.companies,
   });
 
+  const { data: services } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => (await apiClient.get<{ services: Service[] }>("/services")).data.services,
+  });
+
   const rows = useMemo(() => buildTree(companies ?? []), [companies]);
 
+  function toggleService(serviceId: string) {
+    setServiceIds((prev) => (prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]));
+  }
+
   const createMutation = useMutation({
-    mutationFn: async () => apiClient.post("/companies", { name, type, parentId: parentId || null }),
+    mutationFn: async () => apiClient.post("/companies", { name, type, parentId: parentId || null, serviceIds }),
     onSuccess: () => {
       setName("");
       setParentId("");
+      setServiceIds([]);
       toast.success("Société créée");
       queryClient.invalidateQueries({ queryKey: ["companies"] });
     },
@@ -117,6 +128,24 @@ export function AdminCompanies() {
               Ajouter
             </Button>
           </div>
+          {services && services.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-500">Services activés pour cette société</label>
+              <div className="grid grid-cols-2 gap-1.5 rounded-md border border-slate-200 p-3 sm:grid-cols-3">
+                {services.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={serviceIds.includes(s.id)}
+                      onChange={() => toggleService(s.id)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </form>
       </Card>
 

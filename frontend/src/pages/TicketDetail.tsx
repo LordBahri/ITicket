@@ -120,7 +120,7 @@ export function TicketDetail() {
             Société : <span className="text-slate-700">{ticket.requester.company.name}</span>
           </div>
           <div>
-            Service : <span className="text-slate-700">{ticket.requester.service}</span>
+            Service : <span className="text-slate-700">{ticket.requester.service?.name ?? "—"}</span>
           </div>
           <div>Créé le : <span className="text-slate-700">{new Date(ticket.createdAt).toLocaleString("fr-FR")}</span></div>
           <div>
