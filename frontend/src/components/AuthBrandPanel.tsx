@@ -19,9 +19,9 @@ export function AuthBrandPanel() {
       <IconLogoMark className="pointer-events-none absolute -right-16 -top-16 h-96 w-96 text-white/[0.06]" />
 
       <div className="relative">
-        <div className="mb-1 flex items-center gap-2 text-lg font-bold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-            <IconLogoMark className="h-[18px] w-[18px]" />
+        <div className="mb-1 flex items-center gap-2.5 text-lg font-bold">
+          <span className="flex h-10 items-center rounded-lg bg-white px-2 py-1.5">
+            <img src="/logo-meninx.png" alt="Meninx Holding" className="h-7 w-auto" />
           </span>
           ITicket
         </div>

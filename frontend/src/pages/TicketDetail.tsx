@@ -9,14 +9,212 @@ import { PriorityBadge } from "../components/PriorityBadge";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
-import { IconAlertTriangle } from "../components/icons";
-import type { Ticket, User, TicketStatus } from "../types";
+import { IconAlertTriangle, IconWorkflow } from "../components/icons";
+import type { ProcessCategory, Ticket, User, TicketStatus } from "../types";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
 const selectClass =
   "rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
+const PROCESS_CATEGORY_LABELS: Record<ProcessCategory, string> = {
+  CHANGE_ENABLEMENT: "Gestion des changements",
+  REQUEST_FULFILLMENT: "Exécution des demandes",
+  ACCESS_MANAGEMENT: "Gestion des accès",
+  ASSET_MANAGEMENT: "Gestion des actifs",
+  ONBOARDING: "Arrivée (onboarding)",
+  OFFBOARDING: "Départ (offboarding)",
+};
+
+function ProcessPanel({
+  ticket,
+  isStaff,
+  isAdmin,
+  currentUserId,
+}: {
+  ticket: Ticket;
+  isStaff: boolean;
+  isAdmin: boolean;
+  currentUserId?: string;
+}) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [rejectComment, setRejectComment] = useState("");
+  const [showReject, setShowReject] = useState(false);
+
+  const approveMutation = useMutation({
+    mutationFn: async () => apiClient.post(`/tickets/${ticket.id}/approve`, {}),
+    onSuccess: () => {
+      toast.success("Demande validée");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de valider la demande")),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async () => apiClient.post(`/tickets/${ticket.id}/reject`, { comment: rejectComment }),
+    onSuccess: () => {
+      toast.success("Demande refusée");
+      setShowReject(false);
+      setRejectComment("");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de refuser la demande")),
+  });
+
+  const toggleStepMutation = useMutation({
+    mutationFn: async ({ completionId, isDone }: { completionId: string; isDone: boolean }) =>
+      apiClient.patch(`/tickets/${ticket.id}/steps/${completionId}`, { isDone }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] }),
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const archiveFormMutation = useMutation({
+    mutationFn: async () => apiClient.post(`/tickets/${ticket.id}/archive-form`, {}),
+    onSuccess: () => {
+      toast.success("Formulaire physique marqué comme archivé");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  if (!ticket.process) return null;
+
+  const approval = ticket.approval;
+  const isApprover = approval?.approver.id === currentUserId;
+  const canDecide = approval?.status === "PENDING" && (isApprover || isAdmin);
+
+  return (
+    <Card className="mb-4 p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+          <IconWorkflow className="h-4 w-4 text-brand-600" /> Processus IT : {ticket.process.name}
+        </h2>
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+          {PROCESS_CATEGORY_LABELS[ticket.process.category]}
+        </span>
+      </div>
+
+      {approval && (
+        <div className="mb-4 rounded-md border border-slate-200 p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm text-slate-600">
+              Validation hiérarchique — <span className="font-medium">{approval.approver.name}</span>
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                approval.status === "PENDING"
+                  ? "bg-purple-100 text-purple-700"
+                  : approval.status === "APPROVED"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-red-100 text-red-700"
+              }`}
+            >
+              {approval.status === "PENDING" ? "En attente" : approval.status === "APPROVED" ? "Validée" : "Refusée"}
+            </span>
+          </div>
+          {approval.comment && <p className="text-sm text-slate-500">Motif : {approval.comment}</p>}
+
+          {canDecide && (
+            <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+              {!showReject ? (
+                <div className="flex gap-2">
+                  <Button size="sm" loading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
+                    Approuver
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setShowReject(true)}>
+                    Refuser
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <textarea
+                    required
+                    rows={2}
+                    value={rejectComment}
+                    onChange={(e) => setRejectComment(e.target.value)}
+                    placeholder="Motif du refus (obligatoire)…"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      loading={rejectMutation.isPending}
+                      disabled={rejectComment.trim().length < 3}
+                      onClick={() => rejectMutation.mutate()}
+                    >
+                      Confirmer le refus
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setShowReject(false)}>
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isStaff && ticket.stepCompletions && ticket.stepCompletions.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Checklist de traitement</p>
+          <ul className="space-y-1.5">
+            {ticket.stepCompletions.map((sc) => (
+              <li key={sc.id} className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sc.isDone}
+                  onChange={(e) => toggleStepMutation.mutate({ completionId: sc.id, isDone: e.target.checked })}
+                  className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                <span className={sc.isDone ? "text-slate-400 line-through" : "text-slate-700"}>{sc.processStep.name}</span>
+                {sc.isDone && sc.doneBy && <span className="text-xs text-slate-400">— {sc.doneBy.name}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {ticket.process.requiresPhysicalForm && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+          <p className="mb-2 text-sm text-amber-900">
+            Ce processus nécessite un formulaire signé, scanné, puis remis en physique à l'équipe IT pour archivage
+            (traçabilité pour audit).
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            {ticket.process.formTemplateUrl && (
+              <a
+                href={ticket.process.formTemplateUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-brand-700 hover:underline"
+              >
+                Télécharger le modèle de formulaire
+              </a>
+            )}
+            {ticket.physicalFormArchivedAt ? (
+              <span className="text-sm text-emerald-700">
+                Archivé le {new Date(ticket.physicalFormArchivedAt).toLocaleDateString("fr-FR")}
+                {ticket.physicalFormArchivedBy && ` par ${ticket.physicalFormArchivedBy.name}`}
+              </span>
+            ) : (
+              isStaff && (
+                <Button size="sm" variant="secondary" loading={archiveFormMutation.isPending} onClick={() => archiveFormMutation.mutate()}>
+                  Marquer l'original comme archivé
+                </Button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
@@ -131,6 +329,8 @@ export function TicketDetail() {
           </div>
         </div>
       </Card>
+
+      <ProcessPanel ticket={ticket} isStaff={isStaff} isAdmin={user?.role === "ADMIN"} currentUserId={user?.id} />
 
       <AttachmentsPanel ticketId={ticket.id} attachments={ticket.attachments ?? []} />
 

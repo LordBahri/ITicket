@@ -19,6 +19,7 @@ function toPublicUser(user: {
   role: string;
   service: { id: string; name: string } | null;
   isActive: boolean;
+  isDepartmentHead: boolean;
   company: { id: string; name: string; type: string };
 }) {
   return {
@@ -28,6 +29,7 @@ function toPublicUser(user: {
     role: user.role,
     service: user.service,
     isActive: user.isActive,
+    isDepartmentHead: user.isDepartmentHead,
     company: user.company,
   };
 }

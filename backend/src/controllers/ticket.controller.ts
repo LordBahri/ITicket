@@ -7,9 +7,10 @@ import { sendMail } from "../services/email.service";
 import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 
 const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
-const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
+const TICKET_STATUSES = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
 
 const STATUS_LABELS: Record<(typeof TICKET_STATUSES)[number], string> = {
+  PENDING_APPROVAL: "En attente de validation",
   OPEN: "Ouvert",
   IN_PROGRESS: "En cours",
   ON_HOLD: "En attente",
@@ -25,6 +26,7 @@ const createTicketSchema = z.object({
   subCategoryId: z.string().optional(),
   priorityId: z.string(),
   channel: z.enum(TICKET_CHANNELS).optional(),
+  processId: z.string().optional(),
 });
 
 const updateTicketSchema = z.object({
@@ -65,6 +67,7 @@ export async function createTicket(req: Request, res: Response) {
     priorityId: data.priorityId,
     requesterId: req.user!.id,
     channel: data.channel ?? "WEB",
+    processId: data.processId,
   });
 
   res.status(201).json({ ticket: serializeTicket(ticket) });
@@ -75,8 +78,11 @@ export async function listTickets(req: Request, res: Response) {
   const isStaff = req.user!.role === "AGENT" || req.user!.role === "ADMIN";
 
   const where: Record<string, unknown> = {};
+  const andConditions: Record<string, unknown>[] = [];
+
   if (!isStaff) {
-    where.requesterId = req.user!.id;
+    // Un demandeur voit ses propres tickets ; un supérieur hiérarchique voit aussi les demandes en attente de sa validation.
+    andConditions.push({ OR: [{ requesterId: req.user!.id }, { approval: { approverId: req.user!.id } }] });
   } else if (query.requesterId) {
     where.requesterId = query.requesterId;
   }
@@ -88,11 +94,14 @@ export async function listTickets(req: Request, res: Response) {
   if (query.assigneeId) where.assigneeId = query.assigneeId;
   if (query.companyId) where.requester = { companyId: query.companyId };
   if (query.search) {
-    where.OR = [
-      { title: { contains: query.search, mode: "insensitive" } },
-      { reference: { contains: query.search, mode: "insensitive" } },
-    ];
+    andConditions.push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { reference: { contains: query.search, mode: "insensitive" } },
+      ],
+    });
   }
+  if (andConditions.length > 0) where.AND = andConditions;
 
   const tickets = await prisma.ticket.findMany({
     where,
@@ -117,15 +126,20 @@ async function getTicketOr404(id: string) {
         orderBy: { createdAt: "asc" },
       },
       attachments: { orderBy: { createdAt: "asc" } },
+      stepCompletions: {
+        include: { processStep: true, doneBy: { select: { id: true, name: true } } },
+        orderBy: { processStep: { order: "asc" } },
+      },
     },
   });
   if (!ticket) throw new HttpError(404, "Ticket introuvable");
   return ticket;
 }
 
-function assertAccess(req: Request, ticket: { requesterId: string }) {
+function assertAccess(req: Request, ticket: { requesterId: string; approval: { approverId: string } | null }) {
   const isStaff = req.user!.role === "AGENT" || req.user!.role === "ADMIN";
-  if (!isStaff && ticket.requesterId !== req.user!.id) {
+  const isApprover = ticket.approval?.approverId === req.user!.id;
+  if (!isStaff && ticket.requesterId !== req.user!.id && !isApprover) {
     throw new HttpError(403, "Accès refusé");
   }
 }
@@ -258,5 +272,112 @@ export async function updateTicket(req: Request, res: Response) {
     }
   }
 
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+const decisionSchema = z.object({ comment: z.string().max(1000).optional() });
+const rejectSchema = z.object({ comment: z.string().min(3, "Merci d'indiquer le motif du refus").max(1000) });
+
+async function getApprovalOr404(ticketId: string) {
+  const approval = await prisma.processApproval.findUnique({
+    where: { ticketId },
+    include: { approver: { select: { id: true, name: true, email: true } } },
+  });
+  if (!approval) throw new HttpError(404, "Aucune validation en attente pour ce ticket");
+  return approval;
+}
+
+function assertApprover(req: Request, approval: { approverId: string }) {
+  if (approval.approverId !== req.user!.id && req.user!.role !== "ADMIN") {
+    throw new HttpError(403, "Seul le supérieur hiérarchique désigné peut traiter cette demande");
+  }
+}
+
+export async function approveTicketProcess(req: Request, res: Response) {
+  const { comment } = decisionSchema.parse(req.body);
+  const approval = await getApprovalOr404(req.params.id);
+  assertApprover(req, approval);
+  if (approval.status !== "PENDING") throw new HttpError(400, "Cette demande a déjà été traitée");
+
+  await prisma.processApproval.update({
+    where: { id: approval.id },
+    data: { status: "APPROVED", comment, decidedAt: new Date() },
+  });
+  const updated = await prisma.ticket.update({
+    where: { id: approval.ticketId },
+    data: { status: "OPEN" },
+    include: ticketInclude,
+  });
+
+  void sendMail({
+    to: updated.requester.email,
+    subject: `[${updated.reference}] Demande validée : ${updated.title}`,
+    text: `Votre demande "${updated.title}" a été validée par ${req.user!.id === approval.approverId ? approval.approver.name : "un administrateur"}.\nElle est maintenant prise en charge par l'équipe IT.`,
+  });
+  const agents = await prisma.user.findMany({ where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true }, select: { email: true } });
+  for (const agent of agents) {
+    void sendMail({
+      to: agent.email,
+      subject: `[${updated.reference}] Demande de processus validée : ${updated.title}`,
+      text: `La demande "${updated.title}" (${updated.process?.name ?? ""}) a été validée par le supérieur hiérarchique et peut être traitée.`,
+    });
+  }
+
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+export async function rejectTicketProcess(req: Request, res: Response) {
+  const { comment } = rejectSchema.parse(req.body);
+  const approval = await getApprovalOr404(req.params.id);
+  assertApprover(req, approval);
+  if (approval.status !== "PENDING") throw new HttpError(400, "Cette demande a déjà été traitée");
+
+  await prisma.processApproval.update({
+    where: { id: approval.id },
+    data: { status: "REJECTED", comment, decidedAt: new Date() },
+  });
+  const updated = await prisma.ticket.update({
+    where: { id: approval.ticketId },
+    data: { status: "CLOSED", closedAt: new Date() },
+    include: ticketInclude,
+  });
+
+  void sendMail({
+    to: updated.requester.email,
+    subject: `[${updated.reference}] Demande refusée : ${updated.title}`,
+    text: `Votre demande "${updated.title}" a été refusée par votre supérieur hiérarchique.\n\nMotif : ${comment}`,
+  });
+
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+const toggleStepSchema = z.object({ isDone: z.boolean() });
+
+export async function toggleProcessStep(req: Request, res: Response) {
+  const { isDone } = toggleStepSchema.parse(req.body);
+  const completion = await prisma.processStepCompletion.findUnique({ where: { id: req.params.completionId } });
+  if (!completion || completion.ticketId !== req.params.id) throw new HttpError(404, "Étape introuvable");
+
+  const updated = await prisma.processStepCompletion.update({
+    where: { id: completion.id },
+    data: {
+      isDone,
+      doneAt: isDone ? new Date() : null,
+      doneById: isDone ? req.user!.id : null,
+    },
+    include: { processStep: true, doneBy: { select: { id: true, name: true } } },
+  });
+  res.json({ step: updated });
+}
+
+export async function archiveTicketForm(req: Request, res: Response) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: req.params.id } });
+  if (!ticket) throw new HttpError(404, "Ticket introuvable");
+
+  const updated = await prisma.ticket.update({
+    where: { id: req.params.id },
+    data: { physicalFormArchivedAt: new Date(), physicalFormArchivedById: req.user!.id },
+    include: ticketInclude,
+  });
   res.json({ ticket: serializeTicket(updated) });
 }

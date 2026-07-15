@@ -23,7 +23,8 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Tableau de bord avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution)
 - Gestion du matériel informatique (PC, écrans, imprimantes, switchs, onduleurs, serveurs...) : catalogue de types administrable, affectation de chaque équipement à une **société** (matériel partagé : switch, onduleur, serveur...) ou à un **utilisateur** (PC, imprimante...), avec numéro de série, statut, dates d'achat/garantie. Visible depuis Administration > Matériel ainsi que sur les fiches société et utilisateur.
 - Gestion des licences logicielles : nom, éditeur, clé, nombre de sièges, dates de début/expiration, affectation optionnelle à une société. Rappels automatiques par email aux administrateurs à J-30, J-7 et J-1 avant expiration.
-- Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés, utilisateurs, matériel et licences
+- Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés, utilisateurs, matériel, licences et processus IT
+- **Processus IT formalisés (ITIL)** : certaines demandes (remplacement de matériel, préparation de poste pour un nouvel employé, départ d'un collaborateur, acquisition de licence, demande d'accès applicatif) suivent un processus dédié — catalogue administrable dans Administration > Processus IT (catégorie ITIL, checklist d'étapes, validation hiérarchique requise ou non, formulaire papier requis ou non). Voir la section [Processus IT](#processus-it-itil) ci-dessous.
 
 ### Canaux d'entrée pris en charge
 
@@ -138,7 +139,8 @@ npm run dev                # démarre l'app sur http://localhost:5173
 
 ```
 backend/
-  prisma/schema.prisma   # modèle de données (User, Category, Priority, Ticket, Comment, Attachment, KnowledgeArticle)
+  prisma/schema.prisma   # modèle de données (User, Company, Service, Category, Priority, Ticket, Comment, Attachment,
+                          # KnowledgeArticle, Asset, License, Process/ProcessStep/ProcessApproval)
   src/
     routes/               # définition des routes Express (dont /integrations pour Slack/Teams)
     controllers/          # logique métier par ressource
@@ -154,9 +156,29 @@ frontend/
 
 ## Logo / identité visuelle
 
-La marque (icône + favicon) est une recréation vectorielle inspirée du logo Meninx Holding, en l'absence d'accès au fichier original. Pour utiliser le vrai logo, remplacez simplement :
-- `frontend/public/logo-mark.svg` (icône seule, fond transparent)
-- `frontend/public/favicon.svg` (icône sur fond bleu marine, utilisée comme favicon)
+Le logo réel de Meninx Holding (`frontend/public/logo-meninx.png`) est utilisé dans le bandeau latéral et l'écran de connexion. Le favicon et le motif décoratif en filigrane restent une recréation vectorielle simplifiée (`frontend/public/favicon.svg`, `frontend/public/logo-mark.svg`) — remplacez-les si besoin par une déclinaison officielle du logo.
+
+## Processus IT (ITIL)
+
+Certaines demandes ne sont pas de simples tickets : elles suivent un **processus formalisé**, inspiré des bonnes pratiques ITIL (Change Enablement, Request Fulfilment, Access Management, Onboarding/Offboarding, Software Asset Management). Le catalogue est géré depuis **Administration > Processus IT**.
+
+- **Catalogue seedé par défaut** : Remplacement de matériel, Préparation de poste — Nouvel employé, Départ collaborateur — Offboarding IT, Acquisition de licence logicielle, Demande d'accès applicatif (AD / Email / VPN / ERP-Sage). Chaque processus a sa propre checklist d'étapes, éditable dans l'admin.
+- **Accès restreint** : seuls les utilisateurs marqués **« Responsable de service »** (case à cocher sur la fiche utilisateur) peuvent rattacher une demande à un processus, depuis le formulaire de création de ticket (`/tickets/new`).
+- **Validation hiérarchique** : si le processus le requiert, la demande passe au statut *En attente de validation* et un email est envoyé au **supérieur hiérarchique** (`managerId` de la fiche utilisateur). Le valideur (ou un admin) approuve ou refuse directement depuis la fiche du ticket ; le refus exige un motif et ferme le ticket, l'approbation le repasse en `Ouvert` et prévient l'équipe IT.
+- **Checklist de traitement** : une fois validée, l'équipe IT coche les étapes réalisées (achat matériel, création de compte AD, boîte email, VPN OpenVPN, accès Sage/ERP, licences…) directement sur le ticket.
+- **Formulaire papier + archivage** : certains processus exigent un formulaire signé — modèle téléchargeable depuis le ticket et l'admin (`frontend/public/forms/*.docx`, sources dans `docs/formulaires/`). Une fois le document scanné et transmis à l'IT, puis l'original remis en physique, un agent/admin marque le ticket comme « archivé » (traçabilité en cas d'audit).
+
+### Formulaires fournis
+
+| Fichier | Processus |
+|---|---|
+| `formulaire-engagement-equipements.docx` | Remplacement de matériel |
+| `formulaire-preparation-poste-nouvel-employe.docx` | Préparation de poste — Nouvel employé |
+| `formulaire-restitution-materiel-depart.docx` | Départ collaborateur — Offboarding IT |
+| `formulaire-demande-acces-applicatif.docx` | Demande d'accès applicatif |
+| `formulaire-demande-acquisition-licence.docx` | Acquisition de licence logicielle |
+
+Ces modèles reprennent la mise en forme du formulaire d'engagement fourni par l'entreprise (logo Meninx Holding, titres bleu marine, clauses numérotées, bloc de signatures). Ils peuvent être remplacés directement par vos propres modèles Word tant que le nom de fichier référencé dans `formTemplateUrl` (catalogue des processus) reste identique.
 
 ## Prochaines étapes possibles
 

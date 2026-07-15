@@ -1,6 +1,7 @@
 import type { TicketStatus } from "../types";
 
 const STYLES: Record<TicketStatus, string> = {
+  PENDING_APPROVAL: "bg-purple-100 text-purple-700",
   OPEN: "bg-blue-100 text-blue-700",
   IN_PROGRESS: "bg-amber-100 text-amber-700",
   ON_HOLD: "bg-slate-200 text-slate-700",
@@ -9,6 +10,7 @@ const STYLES: Record<TicketStatus, string> = {
 };
 
 const LABELS: Record<TicketStatus, string> = {
+  PENDING_APPROVAL: "En attente de validation",
   OPEN: "Ouvert",
   IN_PROGRESS: "En cours",
   ON_HOLD: "En attente",

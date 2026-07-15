@@ -66,6 +66,7 @@ export function UserDetail() {
   const [managerId, setManagerId] = useState("");
   const [role, setRole] = useState<Role>("USER");
   const [companyId, setCompanyId] = useState("");
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: user, isLoading } = useQuery({
@@ -116,6 +117,7 @@ export function UserDetail() {
         companyId,
         serviceId: serviceId || null,
         managerId: managerId || null,
+        isDepartmentHead,
       }),
     onSuccess: () => {
       toast.success("Utilisateur mis à jour");
@@ -148,6 +150,7 @@ export function UserDetail() {
     setManagerId(user.manager?.id ?? "");
     setRole(user.role);
     setCompanyId(user.company.id);
+    setIsDepartmentHead(user.isDepartmentHead ?? false);
     setError(null);
     setEditing(true);
   }
@@ -238,6 +241,15 @@ export function UserDetail() {
                 </select>
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={isDepartmentHead}
+                onChange={(e) => setIsDepartmentHead(e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              Responsable de service / directeur (peut lancer des demandes de processus IT)
+            </label>
             <div className="flex gap-2">
               <Button type="submit" loading={updateMutation.isPending}>
                 Enregistrer
@@ -256,6 +268,11 @@ export function UserDetail() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">{user.role}</span>
+                {user.isDepartmentHead && (
+                  <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+                    Responsable de service
+                  </span>
+                )}
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                     user.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"

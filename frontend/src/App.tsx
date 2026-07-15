@@ -17,6 +17,7 @@ import { AdminCompanies } from "./pages/AdminCompanies";
 import { CompanyDetail } from "./pages/CompanyDetail";
 import { AdminAssets } from "./pages/AdminAssets";
 import { AdminLicenses } from "./pages/AdminLicenses";
+import { AdminProcesses } from "./pages/AdminProcesses";
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/admin/companies/:id" element={<CompanyDetail />} />
             <Route path="/admin/assets" element={<AdminAssets />} />
             <Route path="/admin/licenses" element={<AdminLicenses />} />
+            <Route path="/admin/processes" element={<AdminProcesses />} />
           </Route>
         </Route>
       </Route>

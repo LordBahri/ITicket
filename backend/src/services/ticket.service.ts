@@ -12,6 +12,9 @@ export const ticketInclude = {
   priority: true,
   requester: { select: { id: true, name: true, email: true, service: { select: { id: true, name: true } }, company: true } },
   assignee: { select: { id: true, name: true, email: true } },
+  process: { select: { id: true, name: true, category: true, requiresManagerApproval: true, requiresPhysicalForm: true, formTemplateUrl: true } },
+  approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
+  physicalFormArchivedBy: { select: { id: true, name: true } },
 };
 
 interface CreateTicketParams {
@@ -23,6 +26,7 @@ interface CreateTicketParams {
   priorityId: string;
   requesterId: string;
   channel: TicketChannel;
+  processId?: string | null;
   notify?: boolean;
 }
 
@@ -43,6 +47,28 @@ export async function createTicketRecord(params: CreateTicketParams) {
     }
   }
 
+  let process: { id: string; name: string; requiresManagerApproval: boolean } | null = null;
+  let approverId: string | null = null;
+
+  if (params.processId) {
+    const [requester, proc] = await Promise.all([
+      prisma.user.findUnique({ where: { id: params.requesterId } }),
+      prisma.process.findUnique({ where: { id: params.processId } }),
+    ]);
+    if (!requester) throw new HttpError(400, "Demandeur invalide");
+    if (!proc || !proc.isActive) throw new HttpError(400, "Processus invalide");
+    if (!requester.isDepartmentHead) {
+      throw new HttpError(403, "Seuls les responsables de service peuvent lancer une demande de ce processus IT");
+    }
+    if (proc.requiresManagerApproval) {
+      if (!requester.managerId) {
+        throw new HttpError(400, "Aucun supérieur hiérarchique n'est défini sur votre fiche : impossible de soumettre cette demande");
+      }
+      approverId = requester.managerId;
+    }
+    process = proc;
+  }
+
   const reference = await generateTicketReference();
   const dueAt = computeDueAt(priority);
 
@@ -57,28 +83,61 @@ export async function createTicketRecord(params: CreateTicketParams) {
       subCategoryId: params.subCategoryId ?? null,
       priorityId: params.priorityId,
       requesterId: params.requesterId,
+      processId: process?.id ?? null,
+      status: approverId ? "PENDING_APPROVAL" : undefined,
       dueAt,
     },
     include: ticketInclude,
   });
 
+  if (process) {
+    const steps = await prisma.processStep.findMany({
+      where: { processId: process.id, isActive: true },
+      orderBy: { order: "asc" },
+    });
+    if (steps.length > 0) {
+      await prisma.processStepCompletion.createMany({
+        data: steps.map((s) => ({ ticketId: ticket.id, processStepId: s.id })),
+      });
+    }
+
+    if (approverId) {
+      await prisma.processApproval.create({ data: { ticketId: ticket.id, approverId } });
+      if (params.notify !== false) {
+        const approver = await prisma.user.findUnique({ where: { id: approverId } });
+        if (approver) {
+          void sendMail({
+            to: approver.email,
+            subject: `[${ticket.reference}] Validation requise : ${process.name}`,
+            text: `Bonjour ${approver.name},\n\n${ticket.requester.name} a soumis une demande "${process.name}" (${ticket.title}) qui nécessite votre validation en tant que supérieur hiérarchique.\n\nConnectez-vous à ITicket pour l'approuver ou la refuser (ticket ${ticket.reference}).`,
+          });
+        }
+      }
+    }
+  }
+
   if (params.notify !== false) {
+    const pending = ticket.status === "PENDING_APPROVAL";
     void sendMail({
       to: ticket.requester.email,
       subject: `[${ticket.reference}] Ticket créé : ${ticket.title}`,
-      text: `Bonjour ${ticket.requester.name},\n\nVotre ticket "${ticket.title}" a bien été créé (référence ${ticket.reference}) via le canal ${ticket.channel}.\nNotre équipe support va le traiter dans les meilleurs délais.\n\nCordialement,\nSupport IT`,
+      text: pending
+        ? `Bonjour ${ticket.requester.name},\n\nVotre demande "${ticket.title}" (référence ${ticket.reference}) a bien été créée et est en attente de validation de votre supérieur hiérarchique avant prise en charge par l'IT.\n\nCordialement,\nSupport IT`
+        : `Bonjour ${ticket.requester.name},\n\nVotre ticket "${ticket.title}" a bien été créé (référence ${ticket.reference}) via le canal ${ticket.channel}.\nNotre équipe support va le traiter dans les meilleurs délais.\n\nCordialement,\nSupport IT`,
     });
 
-    const agents = await prisma.user.findMany({
-      where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true },
-      select: { email: true },
-    });
-    for (const agent of agents) {
-      void sendMail({
-        to: agent.email,
-        subject: `[${ticket.reference}] Nouveau ticket (${ticket.channel}) : ${ticket.title}`,
-        text: `Un nouveau ticket a été créé par ${ticket.requester.name} via ${ticket.channel}.\nType : ${type.name}\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
+    if (!pending) {
+      const agents = await prisma.user.findMany({
+        where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true },
+        select: { email: true },
       });
+      for (const agent of agents) {
+        void sendMail({
+          to: agent.email,
+          subject: `[${ticket.reference}] Nouveau ticket (${ticket.channel}) : ${ticket.title}`,
+          text: `Un nouveau ticket a été créé par ${ticket.requester.name} via ${ticket.channel}.\nType : ${type.name}\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
+        });
+      }
     }
   }
 

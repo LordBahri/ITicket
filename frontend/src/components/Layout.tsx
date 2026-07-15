@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
-  IconLogoMark,
   IconDashboard,
   IconTicket,
   IconPlus,
@@ -14,6 +13,7 @@ import {
   IconLogout,
   IconMonitor,
   IconKey,
+  IconWorkflow,
 } from "./icons";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -41,9 +41,7 @@ export function Layout() {
     <div className="flex min-h-screen">
       <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-5">
         <div className="mb-8 flex items-center gap-2.5 px-1">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <IconLogoMark className="h-5 w-5" />
-          </span>
+          <img src="/logo-meninx.png" alt="Meninx Holding" className="h-9 w-auto" />
           <span className="text-lg font-bold text-slate-900">ITicket</span>
         </div>
 
@@ -85,6 +83,9 @@ export function Layout() {
               </NavLink>
               <NavLink to="/admin/licenses" className={navLinkClass}>
                 <IconKey className="h-[18px] w-[18px] shrink-0" /> Licences
+              </NavLink>
+              <NavLink to="/admin/processes" className={navLinkClass}>
+                <IconWorkflow className="h-[18px] w-[18px] shrink-0" /> Processus IT
               </NavLink>
             </>
           )}

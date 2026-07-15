@@ -213,3 +213,16 @@ export function IconKey(props: IconProps) {
     </svg>
   );
 }
+
+export function IconWorkflow(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="3.5" width="6" height="5" rx="1.2" />
+      <rect x="15" y="3.5" width="6" height="5" rx="1.2" />
+      <rect x="9" y="15.5" width="6" height="5" rx="1.2" />
+      <path d="M6 8.5v3a2 2 0 0 0 2 2h1" />
+      <path d="M18 8.5v3a2 2 0 0 1-2 2h-1" />
+      <path d="M12 13.5v2" />
+    </svg>
+  );
+}

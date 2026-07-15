@@ -12,6 +12,7 @@ const createUserSchema = z.object({
   companyId: z.string().min(1, "La société est requise"),
   serviceId: z.string().nullable().optional(),
   managerId: z.string().nullable().optional(),
+  isDepartmentHead: z.boolean().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -22,6 +23,7 @@ const updateUserSchema = z.object({
   serviceId: z.string().nullable().optional(),
   managerId: z.string().nullable().optional(),
   companyId: z.string().optional(),
+  isDepartmentHead: z.boolean().optional(),
 });
 
 const publicSelect = {
@@ -32,6 +34,7 @@ const publicSelect = {
   service: { select: { id: true, name: true } },
   manager: { select: { id: true, name: true } },
   isActive: true,
+  isDepartmentHead: true,
   createdAt: true,
   company: true,
 } as const;
@@ -117,6 +120,7 @@ export async function createUser(req: Request, res: Response) {
       companyId: data.companyId,
       serviceId: data.serviceId || null,
       managerId: data.managerId || null,
+      isDepartmentHead: data.isDepartmentHead ?? false,
     },
     select: publicSelect,
   });

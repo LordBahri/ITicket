@@ -2,7 +2,7 @@ export type Role = "ADMIN" | "AGENT" | "USER";
 
 export type CompanyType = "HOLDING" | "FILIALE";
 
-export type TicketStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CLOSED";
+export type TicketStatus = "PENDING_APPROVAL" | "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "RESOLVED" | "CLOSED";
 
 export type TicketChannel = "WEB" | "EMAIL" | "CHAT" | "API" | "PHONE" | "SLACK" | "TEAMS";
 
@@ -42,6 +42,7 @@ export interface User {
   manager?: { id: string; name: string } | null;
   company: Company;
   isActive: boolean;
+  isDepartmentHead?: boolean;
   createdAt?: string;
 }
 
@@ -93,6 +94,53 @@ export interface Attachment {
   createdAt: string;
 }
 
+export type ProcessCategory =
+  | "CHANGE_ENABLEMENT"
+  | "REQUEST_FULFILLMENT"
+  | "ACCESS_MANAGEMENT"
+  | "ASSET_MANAGEMENT"
+  | "ONBOARDING"
+  | "OFFBOARDING";
+
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface ProcessStep {
+  id: string;
+  name: string;
+  order: number;
+  isActive: boolean;
+  processId: string;
+}
+
+export interface Process {
+  id: string;
+  name: string;
+  category: ProcessCategory;
+  description: string | null;
+  requiresManagerApproval: boolean;
+  requiresPhysicalForm: boolean;
+  formTemplateUrl: string | null;
+  isActive: boolean;
+  steps: ProcessStep[];
+}
+
+export interface ProcessApproval {
+  id: string;
+  status: ApprovalStatus;
+  comment: string | null;
+  decidedAt: string | null;
+  approver: { id: string; name: string; email: string };
+}
+
+export interface ProcessStepCompletion {
+  id: string;
+  isDone: boolean;
+  doneAt: string | null;
+  note: string | null;
+  processStep: ProcessStep;
+  doneBy: { id: string; name: string } | null;
+}
+
 export interface Ticket {
   id: string;
   reference: string;
@@ -106,6 +154,11 @@ export interface Ticket {
   priority: Priority;
   requester: { id: string; name: string; email: string; service: Service | null; company: Company };
   assignee: { id: string; name: string; email: string } | null;
+  process?: { id: string; name: string; category: ProcessCategory; requiresManagerApproval: boolean; requiresPhysicalForm: boolean; formTemplateUrl: string | null } | null;
+  approval?: ProcessApproval | null;
+  stepCompletions?: ProcessStepCompletion[];
+  physicalFormArchivedAt?: string | null;
+  physicalFormArchivedBy?: { id: string; name: string } | null;
   dueAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;

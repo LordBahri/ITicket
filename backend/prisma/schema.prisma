@@ -14,6 +14,7 @@ enum Role {
 }
 
 enum TicketStatus {
+  PENDING_APPROVAL
   OPEN
   IN_PROGRESS
   ON_HOLD
@@ -72,6 +73,7 @@ model User {
   passwordHash String
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
+  isDepartmentHead Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -85,12 +87,15 @@ model User {
   manager   User?  @relation("ManagerHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
   reports   User[] @relation("ManagerHierarchy")
 
-  ticketsRequested Ticket[]  @relation("TicketRequester")
-  ticketsAssigned  Ticket[]  @relation("TicketAssignee")
-  comments         Comment[]
-  attachments      Attachment[]
-  articles         KnowledgeArticle[]
-  assets           Asset[]
+  ticketsRequested     Ticket[]                 @relation("TicketRequester")
+  ticketsAssigned      Ticket[]                 @relation("TicketAssignee")
+  formArchivedTickets  Ticket[]                 @relation("TicketFormArchivedBy")
+  comments             Comment[]
+  attachments          Attachment[]
+  articles             KnowledgeArticle[]
+  assets               Asset[]
+  processApprovals     ProcessApproval[]
+  stepCompletionsDone  ProcessStepCompletion[]
 
   @@index([companyId])
   @@index([serviceId])
@@ -191,6 +196,13 @@ model Ticket {
   assigneeId String?
   assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
 
+  processId String?
+  process   Process? @relation(fields: [processId], references: [id])
+
+  physicalFormArchivedAt   DateTime?
+  physicalFormArchivedById String?
+  physicalFormArchivedBy   User?     @relation("TicketFormArchivedBy", fields: [physicalFormArchivedById], references: [id])
+
   dueAt      DateTime?
   resolvedAt DateTime?
   closedAt   DateTime?
@@ -198,12 +210,15 @@ model Ticket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  comments    Comment[]
-  attachments Attachment[]
+  comments        Comment[]
+  attachments     Attachment[]
+  approval        ProcessApproval?
+  stepCompletions ProcessStepCompletion[]
 
   @@index([status])
   @@index([requesterId])
   @@index([assigneeId])
+  @@index([processId])
 }
 
 model Comment {
@@ -294,4 +309,88 @@ model License {
 
   @@index([companyId])
   @@index([expiryDate])
+}
+
+// --- Processus IT (ITIL : Change Enablement, Request Fulfilment, Access
+// Management, Onboarding, Offboarding, Software Asset Management) ---
+// Certaines demandes (remplacement de matériel, préparation de poste pour
+// un nouvel employé, acquisition de licence...) nécessitent d'entrer dans un
+// processus formalisé : réservé aux responsables de service, avec
+// validation du supérieur hiérarchique et, pour certains, un formulaire
+// papier signé/scanné puis archivé physiquement (traçabilité pour audit).
+
+enum ProcessCategory {
+  CHANGE_ENABLEMENT
+  REQUEST_FULFILLMENT
+  ACCESS_MANAGEMENT
+  ASSET_MANAGEMENT
+  ONBOARDING
+  OFFBOARDING
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Process {
+  id                      String          @id @default(cuid())
+  name                    String          @unique
+  category                ProcessCategory
+  description             String?
+  requiresManagerApproval Boolean         @default(true)
+  requiresPhysicalForm    Boolean         @default(false)
+  formTemplateUrl         String?
+  isActive                Boolean         @default(true)
+  createdAt               DateTime        @default(now())
+
+  steps   ProcessStep[]
+  tickets Ticket[]
+}
+
+model ProcessStep {
+  id       String  @id @default(cuid())
+  name     String
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  processId String
+  process   Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  completions ProcessStepCompletion[]
+
+  @@index([processId])
+}
+
+model ProcessApproval {
+  id        String         @id @default(cuid())
+  status    ApprovalStatus @default(PENDING)
+  comment   String?
+  decidedAt DateTime?
+  createdAt DateTime       @default(now())
+
+  ticketId String @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  approverId String
+  approver   User   @relation(fields: [approverId], references: [id])
+}
+
+model ProcessStepCompletion {
+  id     String    @id @default(cuid())
+  isDone Boolean   @default(false)
+  doneAt DateTime?
+  note   String?
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  processStepId String
+  processStep   ProcessStep @relation(fields: [processStepId], references: [id])
+
+  doneById String?
+  doneBy   User?   @relation(fields: [doneById], references: [id])
+
+  @@index([ticketId])
 }

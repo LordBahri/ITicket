@@ -3,10 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { IconLightbulb } from "../components/icons";
-import type { Category, KnowledgeArticle, Priority, SubCategory, Ticket, TicketType } from "../types";
+import { IconLightbulb, IconWorkflow } from "../components/icons";
+import type { Category, KnowledgeArticle, Priority, Process, SubCategory, Ticket, TicketType } from "../types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -15,14 +16,24 @@ export function NewTicket() {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
   const [priorityId, setPriorityId] = useState("");
+  const [processId, setProcessId] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: processes } = useQuery({
+    queryKey: ["processes"],
+    queryFn: async () => (await apiClient.get<{ processes: Process[] }>("/processes")).data.processes,
+    enabled: Boolean(user?.isDepartmentHead),
+  });
+  const activeProcesses = processes?.filter((p) => p.isActive) ?? [];
+  const selectedProcess = activeProcesses.find((p) => p.id === processId) ?? null;
 
   const { data: ticketTypes } = useQuery({
     queryKey: ["ticket-types"],
@@ -74,6 +85,7 @@ export function NewTicket() {
           categoryId,
           subCategoryId: subCategoryId || undefined,
           priorityId,
+          processId: processId || undefined,
         })
       ).data.ticket,
     onSuccess: async (ticket) => {
@@ -86,7 +98,11 @@ export function NewTicket() {
           toast.info("Ticket créé, mais l'envoi des pièces jointes a échoué — réessayez depuis la page du ticket");
         }
       }
-      toast.success(`Ticket ${ticket.reference} créé`);
+      toast.success(
+        ticket.status === "PENDING_APPROVAL"
+          ? `Demande ${ticket.reference} créée — en attente de validation de votre supérieur hiérarchique`
+          : `Ticket ${ticket.reference} créé`
+      );
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       navigate(`/tickets/${ticket.id}`);
     },
@@ -126,6 +142,30 @@ export function NewTicket() {
               className={inputClass}
             />
           </div>
+
+          {user?.isDepartmentHead && activeProcesses.length > 0 && (
+            <div className="rounded-md border border-brand-200 bg-brand-50 p-3">
+              <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-brand-900">
+                <IconWorkflow className="h-4 w-4" /> Processus IT (optionnel)
+              </label>
+              <select value={processId} onChange={(e) => setProcessId(e.target.value)} className={`${inputClass} bg-white`}>
+                <option value="">Aucun — demande standard</option>
+                {activeProcesses.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {selectedProcess && (
+                <p className="mt-2 text-xs text-brand-800">
+                  {selectedProcess.requiresManagerApproval &&
+                    "Cette demande nécessitera la validation de votre supérieur hiérarchique avant prise en charge par l'IT. "}
+                  {selectedProcess.requiresPhysicalForm &&
+                    "Un formulaire signé devra être scanné puis remis en physique à l'équipe IT pour archivage."}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>

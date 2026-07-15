@@ -12,7 +12,7 @@ import { IconTicket } from "../components/icons";
 import { useAuth } from "../context/AuthContext";
 import type { Category, Company, Priority, Ticket, TicketStatus, TicketType } from "../types";
 
-const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
+const STATUS_OPTIONS: TicketStatus[] = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 15;
 
 type SortKey = "reference" | "priority" | "status" | "createdAt";

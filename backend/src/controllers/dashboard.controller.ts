@@ -11,7 +11,7 @@ export async function getDashboard(req: Request, res: Response) {
     select: { id: true, status: true, dueAt: true, priorityId: true, priority: { select: { name: true } }, createdAt: true, resolvedAt: true },
   });
 
-  const byStatus: Record<string, number> = { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, RESOLVED: 0, CLOSED: 0 };
+  const byStatus: Record<string, number> = { PENDING_APPROVAL: 0, OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, RESOLVED: 0, CLOSED: 0 };
   const byPriority: Record<string, number> = {};
   let overdueCount = 0;
 
