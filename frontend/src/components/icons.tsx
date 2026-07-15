@@ -192,3 +192,24 @@ export function IconFile(props: IconProps) {
     </svg>
   );
 }
+
+export function IconMonitor(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="4.5" width="18" height="12" rx="1.5" />
+      <path d="M9 20.5h6" />
+      <path d="M12 16.5v4" />
+    </svg>
+  );
+}
+
+export function IconKey(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="7.5" cy="14.5" r="4" />
+      <path d="M10.5 11.5 19 3" />
+      <path d="M15.5 7 18 9.5" />
+      <path d="M18.5 5.5 21 8" />
+    </svg>
+  );
+}

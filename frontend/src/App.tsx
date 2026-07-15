@@ -15,6 +15,8 @@ import { AdminUsers } from "./pages/AdminUsers";
 import { UserDetail } from "./pages/UserDetail";
 import { AdminCompanies } from "./pages/AdminCompanies";
 import { CompanyDetail } from "./pages/CompanyDetail";
+import { AdminAssets } from "./pages/AdminAssets";
+import { AdminLicenses } from "./pages/AdminLicenses";
 
 export default function App() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
             <Route path="/admin/users/:id" element={<UserDetail />} />
             <Route path="/admin/companies" element={<AdminCompanies />} />
             <Route path="/admin/companies/:id" element={<CompanyDetail />} />
+            <Route path="/admin/assets" element={<AdminAssets />} />
+            <Route path="/admin/licenses" element={<AdminLicenses />} />
           </Route>
         </Route>
       </Route>

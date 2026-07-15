@@ -41,4 +41,7 @@ export const env = {
   teams: {
     webhookSecret: process.env.TEAMS_WEBHOOK_SECRET ?? "",
   },
+  licenseReminder: {
+    intervalMs: Number(process.env.LICENSE_REMINDER_INTERVAL_MS ?? 24 * 60 * 60 * 1000),
+  },
 };

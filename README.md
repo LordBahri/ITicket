@@ -21,7 +21,9 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Base de connaissances (FAQ) liée aux catégories, avec suggestion d'articles lors de la création d'un ticket
 - Notifications email complètes : ouverture (confirmation au demandeur + alerte aux agents), assignation (à l'assigné et au demandeur), changement de statut, fermeture (message dédié), modification (type/catégorie/sous-catégorie/priorité) et nouveau commentaire — en dev, les emails sont simplement logués en console si aucun SMTP n'est configuré
 - Tableau de bord avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution)
-- Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés et utilisateurs
+- Gestion du matériel informatique (PC, écrans, imprimantes, switchs, onduleurs, serveurs...) : catalogue de types administrable, affectation de chaque équipement à une **société** (matériel partagé : switch, onduleur, serveur...) ou à un **utilisateur** (PC, imprimante...), avec numéro de série, statut, dates d'achat/garantie. Visible depuis Administration > Matériel ainsi que sur les fiches société et utilisateur.
+- Gestion des licences logicielles : nom, éditeur, clé, nombre de sièges, dates de début/expiration, affectation optionnelle à une société. Rappels automatiques par email aux administrateurs à J-30, J-7 et J-1 avant expiration.
+- Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés, utilisateurs, matériel et licences
 
 ### Canaux d'entrée pris en charge
 

@@ -13,6 +13,9 @@ import { userRouter } from "./routes/user.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { knowledgeArticleRouter } from "./routes/knowledgeArticle.routes";
 import { integrationRouter } from "./routes/integration.routes";
+import { assetTypeRouter } from "./routes/assetType.routes";
+import { assetRouter } from "./routes/asset.routes";
+import { licenseRouter } from "./routes/license.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 export const app = express();
@@ -39,5 +42,8 @@ app.use("/api/users", userRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/knowledge", knowledgeArticleRouter);
 app.use("/api/integrations", integrationRouter);
+app.use("/api/asset-types", assetTypeRouter);
+app.use("/api/assets", assetRouter);
+app.use("/api/licenses", licenseRouter);
 
 app.use(errorHandler);

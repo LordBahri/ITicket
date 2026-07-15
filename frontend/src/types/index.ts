@@ -128,6 +128,42 @@ export interface KnowledgeArticle {
   updatedAt: string;
 }
 
+export type AssetStatus = "EN_SERVICE" | "EN_STOCK" | "EN_MAINTENANCE" | "RETIRE";
+
+export interface AssetType {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface Asset {
+  id: string;
+  name: string;
+  serialNumber: string | null;
+  model: string | null;
+  status: AssetStatus;
+  purchaseDate: string | null;
+  warrantyEndDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  assetType: AssetType;
+  company: { id: string; name: string } | null;
+  assignee: { id: string; name: string; email: string } | null;
+}
+
+export interface License {
+  id: string;
+  name: string;
+  vendor: string | null;
+  licenseKey: string | null;
+  seats: number;
+  startDate: string | null;
+  expiryDate: string;
+  notes: string | null;
+  createdAt: string;
+  company: { id: string; name: string } | null;
+}
+
 export interface DashboardStats {
   total: number;
   byStatus: Record<TicketStatus, number>;

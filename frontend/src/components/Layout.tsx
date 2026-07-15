@@ -12,6 +12,8 @@ import {
   IconUsers,
   IconBuilding,
   IconLogout,
+  IconMonitor,
+  IconKey,
 } from "./icons";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -77,6 +79,12 @@ export function Layout() {
               </NavLink>
               <NavLink to="/admin/users" className={navLinkClass}>
                 <IconUsers className="h-[18px] w-[18px] shrink-0" /> Utilisateurs
+              </NavLink>
+              <NavLink to="/admin/assets" className={navLinkClass}>
+                <IconMonitor className="h-[18px] w-[18px] shrink-0" /> Matériel
+              </NavLink>
+              <NavLink to="/admin/licenses" className={navLinkClass}>
+                <IconKey className="h-[18px] w-[18px] shrink-0" /> Licences
               </NavLink>
             </>
           )}

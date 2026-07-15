@@ -89,6 +89,22 @@ async function main() {
     services.set(name, s);
   }
 
+  const assetTypeNames = [
+    "Ordinateur portable",
+    "Ordinateur de bureau",
+    "Écran",
+    "Imprimante / Scanner",
+    "Téléphone mobile",
+    "Serveur",
+    "Switch réseau",
+    "Onduleur (UPS)",
+    "Point d'accès Wi-Fi",
+    "Autre",
+  ];
+  for (const name of assetTypeNames) {
+    await prisma.assetType.upsert({ where: { name }, update: {}, create: { name } });
+  }
+
   const companies = [
     { name: "Meninx Holding", type: "HOLDING" as const, services: ["Direction générale", "IT", "RH", "Comptabilité & Finance", "Juridique"] },
     { name: "Meninx Industrie", type: "FILIALE" as const, services: ["IT", "Production", "Achats", "Ventes", "Logistique"] },

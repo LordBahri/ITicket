@@ -7,7 +7,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Company, Role, Service, Ticket, User } from "../types";
+import type { Asset, Company, Role, Service, Ticket, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
 const inputClass =
@@ -26,6 +26,26 @@ function TicketMiniList({ title, tickets }: { title: string; tickets?: Ticket[] 
               {t.reference} — {t.title}
             </Link>
             <StatusBadge status={t.status} />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function AssetMiniList({ assets }: { assets?: Asset[] }) {
+  return (
+    <Card className="p-6">
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">Matériel affecté</h2>
+      {!assets && <p className="text-sm text-slate-400">Chargement…</p>}
+      {assets?.length === 0 && <p className="text-sm text-slate-400">Aucun matériel affecté</p>}
+      <ul className="space-y-1.5">
+        {assets?.map((a) => (
+          <li key={a.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="truncate text-slate-700">
+              {a.name} <span className="text-xs text-slate-400">({a.assetType.name})</span>
+            </span>
+            {a.serialNumber && <span className="text-xs text-slate-400">{a.serialNumber}</span>}
           </li>
         ))}
       </ul>
@@ -79,6 +99,12 @@ export function UserDetail() {
     queryKey: ["tickets", { assigneeId: id }],
     queryFn: async () => (await apiClient.get<{ tickets: Ticket[] }>("/tickets", { params: { assigneeId: id } })).data.tickets,
     enabled: Boolean(id) && (user?.role === "AGENT" || user?.role === "ADMIN"),
+  });
+
+  const { data: assignedAssets } = useQuery({
+    queryKey: ["assets", { assigneeId: id }],
+    queryFn: async () => (await apiClient.get<{ assets: Asset[] }>("/assets", { params: { assigneeId: id } })).data.assets,
+    enabled: Boolean(id),
   });
 
   const updateMutation = useMutation({
@@ -281,6 +307,7 @@ export function UserDetail() {
       </Card>
 
       <div className="space-y-4">
+        <AssetMiniList assets={assignedAssets} />
         <TicketMiniList title="Tickets créés" tickets={requestedTickets} />
         {isStaff && <TicketMiniList title="Tickets assignés" tickets={assignedTickets} />}
       </div>

@@ -49,6 +49,8 @@ model Company {
 
   users    User[]
   services Service[]
+  assets   Asset[]
+  licenses License[]
 
   @@index([parentId])
 }
@@ -88,6 +90,7 @@ model User {
   comments         Comment[]
   attachments      Attachment[]
   articles         KnowledgeArticle[]
+  assets           Asset[]
 
   @@index([companyId])
   @@index([serviceId])
@@ -227,4 +230,68 @@ model Attachment {
   createdAt    DateTime @default(now())
 
   @@index([ticketId])
+}
+
+enum AssetStatus {
+  EN_SERVICE
+  EN_STOCK
+  EN_MAINTENANCE
+  RETIRE
+}
+
+model AssetType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  assets Asset[]
+}
+
+model Asset {
+  id              String      @id @default(cuid())
+  name            String
+  serialNumber    String?     @unique
+  model           String?
+  status          AssetStatus @default(EN_STOCK)
+  purchaseDate    DateTime?
+  warrantyEndDate DateTime?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  assetTypeId String
+  assetType   AssetType @relation(fields: [assetTypeId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  assigneeId String?
+  assignee   User?   @relation(fields: [assigneeId], references: [id])
+
+  @@index([assetTypeId])
+  @@index([companyId])
+  @@index([assigneeId])
+}
+
+model License {
+  id             String    @id @default(cuid())
+  name           String
+  vendor         String?
+  licenseKey     String?
+  seats          Int       @default(1)
+  startDate      DateTime?
+  expiryDate     DateTime
+  notes          String?
+  reminder30Sent Boolean   @default(false)
+  reminder7Sent  Boolean   @default(false)
+  reminder1Sent  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([expiryDate])
 }

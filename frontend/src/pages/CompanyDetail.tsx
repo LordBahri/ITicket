@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
-import type { Company, CompanyType, OrgUser, Service, User } from "../types";
+import type { Asset, Company, CompanyType, License, OrgUser, Service, User } from "../types";
 import { OrgChart } from "../components/OrgChart";
 
 const TYPE_LABELS: Record<CompanyType, string> = {
@@ -55,6 +55,18 @@ export function CompanyDetail() {
   const { data: users } = useQuery({
     queryKey: ["users", { companyId: id }],
     queryFn: async () => (await apiClient.get<{ users: User[] }>("/users", { params: { companyId: id } })).data.users,
+    enabled: Boolean(id),
+  });
+
+  const { data: assets } = useQuery({
+    queryKey: ["assets", { companyId: id }],
+    queryFn: async () => (await apiClient.get<{ assets: Asset[] }>("/assets", { params: { companyId: id } })).data.assets,
+    enabled: Boolean(id),
+  });
+
+  const { data: licenses } = useQuery({
+    queryKey: ["licenses", { companyId: id }],
+    queryFn: async () => (await apiClient.get<{ licenses: License[] }>("/licenses", { params: { companyId: id } })).data.licenses,
     enabled: Boolean(id),
   });
 
@@ -258,6 +270,36 @@ export function CompanyDetail() {
           Construit manuellement via le supérieur hiérarchique renseigné sur chaque fiche utilisateur.
         </p>
         <OrgChart users={company.users} />
+      </Card>
+
+      <Card className="mb-4 p-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Matériel affecté</h2>
+        {assets?.length === 0 && <p className="text-sm text-slate-400">Aucun matériel affecté à cette société</p>}
+        <ul className="space-y-1.5">
+          {assets?.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-3 text-sm">
+              <Link to="/admin/assets" className="truncate text-brand-700 hover:underline">
+                {a.name} <span className="text-xs text-slate-400">({a.assetType.name})</span>
+              </Link>
+              {a.serialNumber && <span className="text-xs text-slate-400">{a.serialNumber}</span>}
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card className="mb-4 p-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Licences</h2>
+        {licenses?.length === 0 && <p className="text-sm text-slate-400">Aucune licence affectée à cette société</p>}
+        <ul className="space-y-1.5">
+          {licenses?.map((l) => (
+            <li key={l.id} className="flex items-center justify-between gap-3 text-sm">
+              <Link to="/admin/licenses" className="truncate text-brand-700 hover:underline">
+                {l.name}
+              </Link>
+              <span className="text-xs text-slate-400">expire le {new Date(l.expiryDate).toLocaleDateString("fr-FR")}</span>
+            </li>
+          ))}
+        </ul>
       </Card>
 
       <Card className="p-6">
