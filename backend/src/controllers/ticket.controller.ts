@@ -43,6 +43,7 @@ const listQuerySchema = z.object({
   subCategoryId: z.string().optional(),
   priorityId: z.string().optional(),
   assigneeId: z.string().optional(),
+  requesterId: z.string().optional(),
   companyId: z.string().optional(),
   search: z.string().optional(),
   overdue: z.enum(["true", "false"]).optional(),
@@ -76,6 +77,8 @@ export async function listTickets(req: Request, res: Response) {
   const where: Record<string, unknown> = {};
   if (!isStaff) {
     where.requesterId = req.user!.id;
+  } else if (query.requesterId) {
+    where.requesterId = query.requesterId;
   }
   if (query.status) where.status = query.status;
   if (query.typeId) where.typeId = query.typeId;

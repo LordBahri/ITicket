@@ -33,9 +33,20 @@ const publicSelect = {
   company: true,
 } as const;
 
-export async function listUsers(_req: Request, res: Response) {
-  const users = await prisma.user.findMany({ select: publicSelect, orderBy: { name: "asc" } });
+export async function listUsers(req: Request, res: Response) {
+  const { companyId } = req.query as { companyId?: string };
+  const users = await prisma.user.findMany({
+    where: companyId ? { companyId } : undefined,
+    select: publicSelect,
+    orderBy: { name: "asc" },
+  });
   res.json({ users });
+}
+
+export async function getUser(req: Request, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: publicSelect });
+  if (!user) throw new HttpError(404, "Utilisateur introuvable");
+  res.json({ user });
 }
 
 export async function listAgents(_req: Request, res: Response) {

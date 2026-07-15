@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -8,8 +9,6 @@ import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Company, Role, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
-const selectClass =
-  "rounded-md border border-slate-300 px-2 py-1 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
@@ -25,12 +24,6 @@ export function AdminUsers() {
   const [companyId, setCompanyId] = useState("");
   const [service, setService] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editService, setEditService] = useState("");
-  const [editError, setEditError] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -62,48 +55,10 @@ export function AdminUsers() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: Partial<{ role: Role; isActive: boolean; companyId: string; name: string; email: string; service: string }>;
-    }) => apiClient.patch(`/users/${id}`, data),
-    onSuccess: () => {
-      toast.success("Utilisateur mis à jour");
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
-  });
-
-  const editMutation = useMutation({
-    mutationFn: async (id: string) =>
-      apiClient.patch(`/users/${id}`, { name: editName, email: editEmail, service: editService }),
-    onSuccess: () => {
-      toast.success("Utilisateur mis à jour");
-      setEditingId(null);
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: (err) => {
-      const msg = apiErrorMessage(err, "Impossible de mettre à jour l'utilisateur");
-      setEditError(msg);
-      toast.error(msg);
-    },
-  });
-
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     createMutation.mutate();
-  }
-
-  function startEdit(u: User) {
-    setEditingId(u.id);
-    setEditName(u.name);
-    setEditEmail(u.email);
-    setEditService(u.service);
-    setEditError(null);
   }
 
   return (
@@ -181,102 +136,35 @@ export function AdminUsers() {
               <th className="px-4 py-2">Service</th>
               <th className="px-4 py-2">Rôle</th>
               <th className="px-4 py-2">Statut</th>
-              <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
-            {users?.map((u) =>
-              editingId === u.id ? (
-                <tr key={u.id} className="border-b border-slate-100 last:border-0 bg-slate-50">
-                  <td className="px-4 py-2" colSpan={7}>
-                    {editError && (
-                      <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
-                        {editError}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        placeholder="Nom"
-                        className={`${inputClass} py-1.5`}
-                      />
-                      <input
-                        type="email"
-                        value={editEmail}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                        placeholder="Email"
-                        className={`${inputClass} py-1.5`}
-                      />
-                      <input
-                        value={editService}
-                        onChange={(e) => setEditService(e.target.value)}
-                        placeholder="Service"
-                        className={`${inputClass} py-1.5`}
-                      />
-                      <Button size="sm" loading={editMutation.isPending} onClick={() => editMutation.mutate(u.id)}>
-                        Enregistrer
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
-                        Annuler
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={u.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2 font-medium text-slate-900">{u.name}</td>
-                  <td className="px-4 py-2 text-slate-500">{u.email}</td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={u.company.id}
-                      onChange={(e) => updateMutation.mutate({ id: u.id, data: { companyId: e.target.value } })}
-                      className={selectClass}
-                    >
-                      {companies?.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">{u.service}</td>
-                  <td className="px-4 py-2">
-                    <select
-                      value={u.role}
-                      onChange={(e) => updateMutation.mutate({ id: u.id, data: { role: e.target.value as Role } })}
-                      className={selectClass}
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                        u.isActive ? "text-emerald-600" : "text-slate-400"
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${u.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
-                      {u.isActive ? "Actif" : "Désactivé"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => startEdit(u)}
-                      className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
-                    >
-                      Modifier
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
+            {users?.map((u) => (
+              <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <td className="px-4 py-2 font-medium">
+                  <Link to={`/admin/users/${u.id}`} className="text-brand-700 hover:underline">
+                    {u.name}
+                  </Link>
+                </td>
+                <td className="px-4 py-2 text-slate-500">{u.email}</td>
+                <td className="px-4 py-2 text-slate-500">{u.company.name}</td>
+                <td className="px-4 py-2 text-slate-500">{u.service}</td>
+                <td className="px-4 py-2">
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">{u.role}</span>
+                </td>
+                <td className="px-4 py-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                      u.isActive ? "text-emerald-600" : "text-slate-400"
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${u.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
+                    {u.isActive ? "Actif" : "Désactivé"}
+                  </span>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </Card>

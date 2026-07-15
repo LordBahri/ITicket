@@ -14,6 +14,12 @@ const companyInclude = {
   parent: { select: { id: true, name: true, type: true } },
 } as const;
 
+const companyDetailInclude = {
+  parent: { select: { id: true, name: true, type: true } },
+  children: { select: { id: true, name: true, type: true, isActive: true }, orderBy: { name: "asc" as const } },
+  _count: { select: { users: true } },
+} as const;
+
 async function wouldCreateCycle(companyId: string, newParentId: string): Promise<boolean> {
   let current: string | null = newParentId;
   const seen = new Set<string>();
@@ -36,6 +42,15 @@ export async function listCompanies(_req: Request, res: Response) {
     orderBy: [{ type: "asc" }, { name: "asc" }],
   });
   res.json({ companies });
+}
+
+export async function getCompany(req: Request, res: Response) {
+  const company = await prisma.company.findUnique({
+    where: { id: req.params.id },
+    include: companyDetailInclude,
+  });
+  if (!company) throw new HttpError(404, "Société introuvable");
+  res.json({ company });
 }
 
 export async function createCompany(req: Request, res: Response) {

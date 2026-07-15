@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { listCompanies, createCompany, updateCompany } from "../controllers/company.controller";
+import { listCompanies, getCompany, createCompany, updateCompany } from "../controllers/company.controller";
 import { authenticate, authorize } from "../middleware/auth";
 import { asyncHandler } from "../utils/asyncHandler";
 
 export const companyRouter = Router();
 
-// Liste publique : nécessaire pour peupler le sélecteur de société à l'inscription
-companyRouter.get("/", asyncHandler(listCompanies));
+companyRouter.use(authenticate);
 
-companyRouter.post("/", authenticate, authorize("ADMIN"), asyncHandler(createCompany));
-companyRouter.patch("/:id", authenticate, authorize("ADMIN"), asyncHandler(updateCompany));
+companyRouter.get("/", asyncHandler(listCompanies));
+companyRouter.get("/:id", asyncHandler(getCompany));
+companyRouter.post("/", authorize("ADMIN"), asyncHandler(createCompany));
+companyRouter.patch("/:id", authorize("ADMIN"), asyncHandler(updateCompany));

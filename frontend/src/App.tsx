@@ -12,7 +12,9 @@ import { AdminTicketTypes } from "./pages/AdminTicketTypes";
 import { AdminCategories } from "./pages/AdminCategories";
 import { AdminPriorities } from "./pages/AdminPriorities";
 import { AdminUsers } from "./pages/AdminUsers";
+import { UserDetail } from "./pages/UserDetail";
 import { AdminCompanies } from "./pages/AdminCompanies";
+import { CompanyDetail } from "./pages/CompanyDetail";
 
 export default function App() {
   return (
@@ -33,7 +35,9 @@ export default function App() {
             <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/priorities" element={<AdminPriorities />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/users/:id" element={<UserDetail />} />
             <Route path="/admin/companies" element={<AdminCompanies />} />
+            <Route path="/admin/companies/:id" element={<CompanyDetail />} />
           </Route>
         </Route>
       </Route>
