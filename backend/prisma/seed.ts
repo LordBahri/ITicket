@@ -82,6 +82,10 @@ async function main() {
     "Logistique",
     "Achats",
     "Juridique",
+    "MOA",
+    "Contrôle de gestion",
+    "Contrôle & audit interne",
+    "PMO",
   ];
   const services = new Map<string, { id: string }>();
   for (const name of serviceNames) {
