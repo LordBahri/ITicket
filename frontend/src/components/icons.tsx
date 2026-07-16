@@ -263,6 +263,68 @@ export function IconMail(props: IconProps) {
   );
 }
 
+export function IconTrash(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 7h15" />
+      <path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2" />
+      <path d="M6.5 7l.7 12a1.5 1.5 0 0 0 1.5 1.4h6.6a1.5 1.5 0 0 0 1.5-1.4l.7-12" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
+export function IconLock(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="1.5" />
+      <path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5" />
+      <circle cx="12" cy="15" r="1.4" />
+    </svg>
+  );
+}
+
+export function IconPhone(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5.5 4.5h3l1.3 4.2-2 1.5a12 12 0 0 0 5.7 5.7l1.5-2 4.2 1.3v3a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 4 6.1a1.5 1.5 0 0 1 1.5-1.6Z" />
+    </svg>
+  );
+}
+
+export function IconIdCard(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="2.5" y="5" width="19" height="14" rx="1.8" />
+      <circle cx="8" cy="12" r="2" />
+      <path d="M5 16.5c.5-1.7 1.7-2.5 3-2.5s2.5.8 3 2.5" />
+      <path d="M14 9.5h4.5M14 12.5h4.5M14 15.5h3" />
+    </svg>
+  );
+}
+
+export function IconRefresh(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 12a7.5 7.5 0 0 1 12.6-5.4M19.5 12a7.5 7.5 0 0 1-12.6 5.4" />
+      <path d="M16.3 4.8v3.6h-3.6" />
+      <path d="M7.7 19.2v-3.6h3.6" />
+    </svg>
+  );
+}
+
+export function IconRemote(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="4.5" width="18" height="12" rx="1.5" />
+      <path d="M9 20.5h6M12 16.5v4" />
+      <path d="M9 10.2a4.2 4.2 0 0 1 6 0" />
+      <path d="M10.6 11.8a2 2 0 0 1 2.8 0" />
+      <circle cx="12" cy="13.2" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function IconWhatsApp(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>

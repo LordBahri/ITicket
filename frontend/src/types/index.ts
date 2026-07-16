@@ -44,6 +44,24 @@ export interface User {
   isActive: boolean;
   isDepartmentHead?: boolean;
   createdAt?: string;
+  matricule?: string | null;
+  phone?: string | null;
+  pcName?: string | null;
+  anydeskId?: string | null;
+  teamviewerId?: string | null;
+  ultraviewerId?: string | null;
+}
+
+export interface RemoteAccessUser {
+  id: string;
+  name: string;
+  email: string;
+  pcName: string | null;
+  anydeskId: string | null;
+  teamviewerId: string | null;
+  ultraviewerId: string | null;
+  company: { id: string; name: string };
+  service: { id: string; name: string } | null;
 }
 
 export interface TicketType {

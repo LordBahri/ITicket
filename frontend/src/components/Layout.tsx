@@ -17,6 +17,8 @@ import {
   IconWorkflow,
   IconMail,
   IconWhatsApp,
+  IconRemote,
+  IconLock,
 } from "./icons";
 
 const SUPPORT_EMAIL = "support@meninx.tn";
@@ -68,6 +70,11 @@ export function Layout() {
           <NavLink to="/knowledge" className={navLinkClass}>
             <IconBook className="h-[18px] w-[18px] shrink-0" /> Base de connaissances
           </NavLink>
+          {isStaff && (
+            <NavLink to="/remote-access" className={navLinkClass}>
+              <IconRemote className="h-[18px] w-[18px] shrink-0" /> Accès à distance
+            </NavLink>
+          )}
           {user?.role === "ADMIN" && (
             <>
               <div className="mb-1.5 mt-7 border-t border-slate-100 px-3 pt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -109,6 +116,13 @@ export function Layout() {
             <p className="truncate text-sm font-medium text-slate-700">{user?.name}</p>
             <p className="truncate text-xs text-slate-400">{user?.role}</p>
           </div>
+          <NavLink
+            to="/account"
+            title="Mon compte"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            <IconLock className="h-[18px] w-[18px]" />
+          </NavLink>
           <button
             onClick={logout}
             title="Déconnexion"
@@ -120,7 +134,7 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 px-6 py-3">
+        <header className="flex shrink-0 items-center justify-end bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 px-6 py-3">
           <div className="flex items-center gap-5 text-sm text-white/90">
             <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-1.5 transition hover:text-white">
               <IconMail className="h-4 w-4 shrink-0" />

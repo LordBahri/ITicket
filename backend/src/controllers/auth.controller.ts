@@ -1,13 +1,18 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
-import { comparePassword } from "../utils/password";
+import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { HttpError } from "../middleware/errorHandler";
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100),
 });
 
 const userInclude = { company: true, service: true } as const;
@@ -57,4 +62,19 @@ export async function me(req: Request, res: Response) {
     throw new HttpError(404, "Utilisateur introuvable");
   }
   res.json({ user: toPublicUser(user) });
+}
+
+export async function changePassword(req: Request, res: Response) {
+  const data = changePasswordSchema.parse(req.body);
+
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  const valid = await comparePassword(data.currentPassword, user.passwordHash);
+  if (!valid) throw new HttpError(400, "Mot de passe actuel incorrect");
+
+  const passwordHash = await hashPassword(data.newPassword);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  res.status(204).send();
 }

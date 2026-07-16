@@ -5,7 +5,9 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
+import { IconTrash } from "../components/icons";
 import type { Company, Role, Service, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
@@ -17,13 +19,21 @@ export function AdminUsers() {
   const toast = useToast();
 
   const [showForm, setShowForm] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("USER");
   const [companyId, setCompanyId] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [matricule, setMatricule] = useState("");
+  const [phone, setPhone] = useState("");
+  const [pcName, setPcName] = useState("");
+  const [anydeskId, setAnydeskId] = useState("");
+  const [teamviewerId, setTeamviewerId] = useState("");
+  const [ultraviewerId, setUltraviewerId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<{ email: string; password: string } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -38,17 +48,40 @@ export function AdminUsers() {
   const selectedCompany = companies?.find((c) => c.id === companyId);
   const availableServices: Service[] = selectedCompany?.services ?? [];
 
+  function resetForm() {
+    setName("");
+    setEmail("");
+    setRole("USER");
+    setCompanyId("");
+    setServiceId("");
+    setMatricule("");
+    setPhone("");
+    setPcName("");
+    setAnydeskId("");
+    setTeamviewerId("");
+    setUltraviewerId("");
+    setShowDetails(false);
+    setShowForm(false);
+  }
+
   const createMutation = useMutation({
     mutationFn: async () =>
-      apiClient.post("/users", { name, email, password, role, companyId, serviceId: serviceId || null }),
-    onSuccess: () => {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRole("USER");
-      setCompanyId("");
-      setServiceId("");
-      setShowForm(false);
+      apiClient.post<{ user: User; generatedPassword: string }>("/users", {
+        name,
+        email,
+        role,
+        companyId,
+        serviceId: serviceId || null,
+        matricule: matricule || null,
+        phone: phone || null,
+        pcName: pcName || null,
+        anydeskId: anydeskId || null,
+        teamviewerId: teamviewerId || null,
+        ultraviewerId: ultraviewerId || null,
+      }),
+    onSuccess: (res) => {
+      setGeneratedPassword({ email: res.data.user.email, password: res.data.generatedPassword });
+      resetForm();
       toast.success("Utilisateur créé");
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
@@ -59,10 +92,31 @@ export function AdminUsers() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/users/${id}`),
+    onSuccess: () => {
+      toast.success("Utilisateur supprimé");
+      setUserToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err) => {
+      toast.error(apiErrorMessage(err, "Impossible de supprimer l'utilisateur"));
+      setUserToDelete(null);
+    },
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     createMutation.mutate();
+  }
+
+  function copyPassword() {
+    if (!generatedPassword) return;
+    navigator.clipboard?.writeText(generatedPassword.password).then(
+      () => toast.success("Mot de passe copié"),
+      () => undefined
+    );
   }
 
   return (
@@ -124,23 +178,65 @@ export function AdminUsers() {
                   </option>
                 ))}
               </select>
-              <input
-                required
-                type="text"
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe temporaire (8 car. min.)"
-                className={inputClass}
-              />
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              className="text-xs font-medium text-brand-700 hover:underline"
+            >
+              {showDetails ? "− Masquer les détails supplémentaires" : "+ Détails supplémentaires (matricule, téléphone, accès distant…)"}
+            </button>
+
+            {showDetails && (
+              <div className="grid grid-cols-2 gap-3 rounded-md border border-slate-100 bg-slate-50 p-3">
+                <input value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Matricule" className={inputClass} />
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className={inputClass} />
+                <input value={pcName} onChange={(e) => setPcName(e.target.value)} placeholder="Nom du poste (PC)" className={inputClass} />
+                <input value={anydeskId} onChange={(e) => setAnydeskId(e.target.value)} placeholder="ID AnyDesk" className={inputClass} />
+                <input
+                  value={teamviewerId}
+                  onChange={(e) => setTeamviewerId(e.target.value)}
+                  placeholder="ID TeamViewer"
+                  className={inputClass}
+                />
+                <input
+                  value={ultraviewerId}
+                  onChange={(e) => setUltraviewerId(e.target.value)}
+                  placeholder="ID UltraViewer"
+                  className={inputClass}
+                />
+              </div>
+            )}
+
             <p className="text-xs text-slate-400">
-              Communiquez ce mot de passe temporaire à l'utilisateur ; il n'y a pas encore de changement de mot de passe en libre-service.
+              Un mot de passe temporaire sera généré automatiquement et envoyé par email à l'utilisateur. Il pourra le
+              modifier depuis « Mon compte ».
             </p>
             <Button type="submit" loading={createMutation.isPending}>
               Créer le compte
             </Button>
           </form>
+        </Card>
+      )}
+
+      {generatedPassword && (
+        <Card className="mb-6 border-emerald-200 bg-emerald-50 p-4">
+          <p className="mb-2 text-sm font-medium text-emerald-800">
+            Compte créé pour {generatedPassword.email}. Mot de passe temporaire généré :
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700">
+              {generatedPassword.password}
+            </code>
+            <Button size="sm" variant="secondary" onClick={copyPassword}>
+              Copier
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setGeneratedPassword(null)}>
+              Fermer
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-emerald-700">Un email avec ces identifiants a également été envoyé à l'utilisateur.</p>
         </Card>
       )}
 
@@ -154,10 +250,11 @@ export function AdminUsers() {
               <th className="px-4 py-2">Service</th>
               <th className="px-4 py-2">Rôle</th>
               <th className="px-4 py-2">Statut</th>
+              <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
+            {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
             {users?.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2 font-medium">
@@ -181,11 +278,34 @@ export function AdminUsers() {
                     {u.isActive ? "Actif" : "Désactivé"}
                   </span>
                 </td>
+                <td className="px-4 py-2 text-right">
+                  <button
+                    onClick={() => setUserToDelete(u)}
+                    title="Supprimer"
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <IconTrash className="h-4 w-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(userToDelete)}
+        title="Supprimer cet utilisateur ?"
+        description={
+          userToDelete
+            ? `${userToDelete.name} (${userToDelete.email}) sera définitivement supprimé. Si des tickets ou du matériel lui sont liés, désactivez plutôt son compte.`
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        loading={deleteMutation.isPending}
+        onConfirm={() => userToDelete && deleteMutation.mutate(userToDelete.id)}
+        onCancel={() => setUserToDelete(null)}
+      />
     </div>
   );
 }

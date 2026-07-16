@@ -3,16 +3,31 @@ import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { hashPassword } from "../utils/password";
+import { generatePassword } from "../utils/generatePassword";
+import { sendMail } from "../services/email.service";
+
+const optionalText = () =>
+  z
+    .string()
+    .max(120)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? v.trim() || null : null));
 
 const createUserSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
-  password: z.string().min(8).max(100),
   role: z.enum(["ADMIN", "AGENT", "USER"]).default("USER"),
   companyId: z.string().min(1, "La société est requise"),
   serviceId: z.string().nullable().optional(),
   managerId: z.string().nullable().optional(),
   isDepartmentHead: z.boolean().optional(),
+  matricule: optionalText(),
+  phone: optionalText(),
+  pcName: optionalText(),
+  anydeskId: optionalText(),
+  teamviewerId: optionalText(),
+  ultraviewerId: optionalText(),
 });
 
 const updateUserSchema = z.object({
@@ -24,6 +39,12 @@ const updateUserSchema = z.object({
   managerId: z.string().nullable().optional(),
   companyId: z.string().optional(),
   isDepartmentHead: z.boolean().optional(),
+  matricule: optionalText(),
+  phone: optionalText(),
+  pcName: optionalText(),
+  anydeskId: optionalText(),
+  teamviewerId: optionalText(),
+  ultraviewerId: optionalText(),
 });
 
 const publicSelect = {
@@ -37,6 +58,12 @@ const publicSelect = {
   isDepartmentHead: true,
   createdAt: true,
   company: true,
+  matricule: true,
+  phone: true,
+  pcName: true,
+  anydeskId: true,
+  teamviewerId: true,
+  ultraviewerId: true,
 } as const;
 
 async function wouldCreateManagerCycle(userId: string, newManagerId: string): Promise<boolean> {
@@ -110,7 +137,8 @@ export async function createUser(req: Request, res: Response) {
     }
   }
 
-  const passwordHash = await hashPassword(data.password);
+  const generatedPassword = generatePassword();
+  const passwordHash = await hashPassword(generatedPassword);
   const user = await prisma.user.create({
     data: {
       name: data.name,
@@ -121,11 +149,23 @@ export async function createUser(req: Request, res: Response) {
       serviceId: data.serviceId || null,
       managerId: data.managerId || null,
       isDepartmentHead: data.isDepartmentHead ?? false,
+      matricule: data.matricule ?? null,
+      phone: data.phone ?? null,
+      pcName: data.pcName ?? null,
+      anydeskId: data.anydeskId ?? null,
+      teamviewerId: data.teamviewerId ?? null,
+      ultraviewerId: data.ultraviewerId ?? null,
     },
     select: publicSelect,
   });
 
-  res.status(201).json({ user });
+  await sendMail({
+    to: user.email,
+    subject: "Votre compte ITicket a été créé",
+    text: `Bonjour ${user.name},\n\nVotre compte ITicket a été créé.\n\nEmail : ${user.email}\nMot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
+  });
+
+  res.status(201).json({ user, generatedPassword });
 }
 
 export async function updateUser(req: Request, res: Response) {
@@ -172,4 +212,63 @@ export async function updateUser(req: Request, res: Response) {
     select: publicSelect,
   });
   res.json({ user: updated });
+}
+
+export async function deleteUser(req: Request, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  if (req.user!.id === user.id) {
+    throw new HttpError(400, "Vous ne pouvez pas supprimer votre propre compte");
+  }
+
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+  } catch {
+    throw new HttpError(
+      409,
+      "Impossible de supprimer cet utilisateur : des tickets, du matériel ou d'autres éléments lui sont liés. Désactivez son compte à la place."
+    );
+  }
+
+  res.status(204).send();
+}
+
+export async function resetUserPassword(req: Request, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  const generatedPassword = generatePassword();
+  const passwordHash = await hashPassword(generatedPassword);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  await sendMail({
+    to: user.email,
+    subject: "Votre mot de passe ITicket a été réinitialisé",
+    text: `Bonjour ${user.name},\n\nVotre mot de passe ITicket a été réinitialisé par un administrateur.\n\nEmail : ${user.email}\nNouveau mot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
+  });
+
+  res.json({ generatedPassword });
+}
+
+export async function listRemoteAccess(_req: Request, res: Response) {
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [{ anydeskId: { not: null } }, { teamviewerId: { not: null } }, { ultraviewerId: { not: null } }],
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      pcName: true,
+      anydeskId: true,
+      teamviewerId: true,
+      ultraviewerId: true,
+      company: { select: { id: true, name: true } },
+      service: { select: { id: true, name: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+  res.json({ users });
 }

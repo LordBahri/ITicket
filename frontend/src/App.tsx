@@ -19,6 +19,8 @@ import { CompanyDetail } from "./pages/CompanyDetail";
 import { AdminAssets } from "./pages/AdminAssets";
 import { AdminLicenses } from "./pages/AdminLicenses";
 import { AdminProcesses } from "./pages/AdminProcesses";
+import { Account } from "./pages/Account";
+import { RemoteAccess } from "./pages/RemoteAccess";
 
 export default function App() {
   return (
@@ -34,6 +36,11 @@ export default function App() {
           <Route path="/tickets/:id" element={<TicketDetail />} />
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/knowledge/:id" element={<KnowledgeArticleDetail />} />
+          <Route path="/account" element={<Account />} />
+
+          <Route element={<ProtectedRoute roles={["AGENT", "ADMIN"]} />}>
+            <Route path="/remote-access" element={<RemoteAccess />} />
+          </Route>
 
           <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
             <Route path="/admin/ticket-types" element={<AdminTicketTypes />} />
