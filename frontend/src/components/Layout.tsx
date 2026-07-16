@@ -15,7 +15,13 @@ import {
   IconMonitor,
   IconKey,
   IconWorkflow,
+  IconMail,
+  IconWhatsApp,
 } from "./icons";
+
+const SUPPORT_EMAIL = "support@meninx.tn";
+const SUPPORT_PHONE_DISPLAY = "+216 58 94 44 17";
+const SUPPORT_WHATSAPP_LINK = "https://wa.me/21658944417";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -114,8 +120,22 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
-          <div className="text-sm text-slate-500">Service IT — Ticketing</div>
+        <header className="flex shrink-0 items-center justify-between bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 px-6 py-3">
+          <div className="flex items-center gap-5 text-sm text-white/90">
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-1.5 transition hover:text-white">
+              <IconMail className="h-4 w-4 shrink-0" />
+              {SUPPORT_EMAIL}
+            </a>
+            <a
+              href={SUPPORT_WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 transition hover:text-white"
+            >
+              <IconWhatsApp className="h-4 w-4 shrink-0" />
+              {SUPPORT_PHONE_DISPLAY}
+            </a>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <Outlet />
