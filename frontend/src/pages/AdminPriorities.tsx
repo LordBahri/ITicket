@@ -47,10 +47,10 @@ export function AdminPriorities() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <h1 className="mb-6 text-xl font-bold text-slate-900">Priorités &amp; SLA</h1>
 
-      <Card className="mb-6 p-5">
+      <Card className="mb-6 max-w-2xl p-5">
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="grid grid-cols-2 gap-3">

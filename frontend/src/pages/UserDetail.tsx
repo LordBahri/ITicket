@@ -211,7 +211,7 @@ export function UserDetail() {
   const isStaff = user.role === "AGENT" || user.role === "ADMIN";
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <button
         onClick={() => navigate("/admin/users")}
         className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"

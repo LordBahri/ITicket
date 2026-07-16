@@ -193,7 +193,7 @@ export function AdminLicenses() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Licences</h1>
@@ -205,7 +205,7 @@ export function AdminLicenses() {
       </div>
 
       {showForm && (
-        <Card className="mb-6 p-5">
+        <Card className="mb-6 max-w-2xl p-5">
           <LicenseForm companies={companies ?? []} initial={emptyForm()} submitLabel="Créer" loading={createMutation.isPending} onSubmit={(form) => createMutation.mutate(form)} />
         </Card>
       )}

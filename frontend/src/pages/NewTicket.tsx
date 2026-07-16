@@ -122,7 +122,7 @@ export function NewTicket() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Nouveau ticket</h1>
 
       <Card className="p-6">

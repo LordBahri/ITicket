@@ -55,13 +55,13 @@ export function AdminTicketTypes() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <h1 className="mb-1 text-xl font-bold text-slate-900">Types de demande</h1>
       <p className="mb-6 text-sm text-slate-500">
         Classification de premier niveau des tickets (Incident, Demande de service, Problème, Changement…).
       </p>
 
-      <Card className="mb-6 p-5">
+      <Card className="mb-6 max-w-2xl p-5">
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="flex gap-3">

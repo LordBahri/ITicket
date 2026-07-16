@@ -43,7 +43,7 @@ export function RemoteAccess() {
   }, [users, search]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Accès à distance</h1>
         <input

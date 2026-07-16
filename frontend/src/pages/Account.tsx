@@ -49,7 +49,7 @@ export function Account() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-bold text-slate-900">Mon compte</h1>
 
       <Card className="mb-6 p-5">

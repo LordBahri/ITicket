@@ -334,7 +334,7 @@ export function AdminAssets() {
   const activeAssetTypes = assetTypes?.filter((t) => t.isActive) ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Matériel informatique</h1>
@@ -348,7 +348,7 @@ export function AdminAssets() {
       {assetTypes && <AssetTypeManager assetTypes={assetTypes} />}
 
       {showForm && (
-        <Card className="mb-6 p-5">
+        <Card className="mb-6 max-w-2xl p-5">
           <AssetForm
             assetTypes={activeAssetTypes}
             companies={companies ?? []}
