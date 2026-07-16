@@ -27,10 +27,12 @@ export function NewTicket() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const canUseProcesses = Boolean(user?.isDepartmentHead) || user?.role === "ADMIN";
+
   const { data: processes } = useQuery({
     queryKey: ["processes"],
     queryFn: async () => (await apiClient.get<{ processes: Process[] }>("/processes")).data.processes,
-    enabled: Boolean(user?.isDepartmentHead),
+    enabled: canUseProcesses,
   });
   const activeProcesses = processes?.filter((p) => p.isActive) ?? [];
   const selectedProcess = activeProcesses.find((p) => p.id === processId) ?? null;
@@ -143,7 +145,7 @@ export function NewTicket() {
             />
           </div>
 
-          {user?.isDepartmentHead && activeProcesses.length > 0 && (
+          {canUseProcesses && activeProcesses.length > 0 && (
             <div className="rounded-md border border-brand-200 bg-brand-50 p-3">
               <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-brand-900">
                 <IconWorkflow className="h-4 w-4" /> Processus IT (optionnel)
@@ -165,6 +167,15 @@ export function NewTicket() {
                 </p>
               )}
             </div>
+          )}
+
+          {!canUseProcesses && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-400">
+              <IconWorkflow className="h-3.5 w-3.5 shrink-0" />
+              Certaines demandes (remplacement de matériel, arrivée d'un collaborateur, acquisition de licence…) suivent un
+              processus dédié réservé aux responsables de service. Un administrateur peut activer ce statut depuis votre
+              fiche utilisateur.
+            </p>
           )}
 
           <div>
