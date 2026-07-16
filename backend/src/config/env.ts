@@ -46,7 +46,8 @@ export const env = {
   },
   newsFeed: {
     urls: (
-      process.env.NEWS_FEED_URLS ?? "https://www.cert.ssi.gouv.fr/avis/feed/,https://www.cert.ssi.gouv.fr/alerte/feed/"
+      process.env.NEWS_FEED_URLS ??
+      "https://www.numerama.com/feed/,https://www.01net.com/actualites/feed/,https://www.presse-citron.net/feed/"
     )
       .split(",")
       .map((u) => u.trim())

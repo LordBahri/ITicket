@@ -26,17 +26,28 @@ const parser: Parser<Record<string, unknown>, FeedItem> = new Parser({
 });
 
 const IMG_TAG_REGEX = /<img[^>]+src=["']([^"']+)["']/i;
+const IMAGE_EXTENSION_REGEX = /\.(jpe?g|png|gif|webp|avif)(\?.*)?$/i;
+
+function resolveUrl(maybeRelative: string, baseUrl?: string): string | null {
+  try {
+    return new URL(maybeRelative, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
 
 function extractImage(item: FeedItem): string | null {
-  if (item.enclosure?.url && (item.enclosure.type ?? "").startsWith("image")) {
-    return item.enclosure.url;
+  const base = item.link;
+  const enclosureUrl = item.enclosure?.url;
+  if (enclosureUrl && ((item.enclosure?.type ?? "").startsWith("image") || IMAGE_EXTENSION_REGEX.test(enclosureUrl))) {
+    return resolveUrl(enclosureUrl, base);
   }
-  if (item.media?.$?.url) return item.media.$.url;
-  if (item.mediaThumbnail?.$?.url) return item.mediaThumbnail.$.url;
+  if (item.media?.$?.url) return resolveUrl(item.media.$.url, base);
+  if (item.mediaThumbnail?.$?.url) return resolveUrl(item.mediaThumbnail.$.url, base);
 
   const html = item["content:encoded"] ?? item.content ?? "";
   const match = html.match(IMG_TAG_REGEX);
-  return match ? match[1] : null;
+  return match ? resolveUrl(match[1], base) : null;
 }
 
 function sourceNameFromUrl(url: string): string {

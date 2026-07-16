@@ -39,8 +39,8 @@ export function Layout() {
   const isAllTicketsActive = location.pathname.startsWith("/tickets") && location.pathname !== "/tickets/new";
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-5">
+    <div className="flex h-screen overflow-hidden">
+      <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white p-5">
         <div className="mb-8 flex items-center gap-2.5 px-1">
           <img src="/logo-meninx.png" alt="Meninx Holding" className="h-9 w-auto" />
           <span className="text-lg font-bold text-slate-900">ITicket</span>
@@ -113,11 +113,11 @@ export function Layout() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
           <div className="text-sm text-slate-500">Service IT — Ticketing</div>
         </header>
-        <main className="flex-1 bg-slate-50 p-6">
+        <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <Outlet />
         </main>
       </div>
