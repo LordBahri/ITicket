@@ -83,7 +83,7 @@ export function KnowledgeBase() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Base de connaissances</h1>
         {isStaff && (
@@ -94,7 +94,7 @@ export function KnowledgeBase() {
       </div>
 
       {showForm && (
-        <Card className="mb-6 p-5">
+        <Card className="mb-6 max-w-2xl p-5">
           <form onSubmit={handleSubmit} className="space-y-3">
             {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
             <input
@@ -153,7 +153,7 @@ export function KnowledgeBase() {
         </select>
       </Card>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {isLoading &&
           Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="p-4">
@@ -163,14 +163,14 @@ export function KnowledgeBase() {
           ))}
 
         {!isLoading && articles?.length === 0 && (
-          <Card>
+          <Card className="md:col-span-2 xl:col-span-3">
             <EmptyState icon={IconBook} title="Aucun article trouvé" description="Essayez une autre recherche ou catégorie." />
           </Card>
         )}
 
         {articles?.map((a) => (
           <Link key={a.id} to={`/knowledge/${a.id}`}>
-            <Card className="p-4 transition hover:border-brand-300 hover:shadow-md">
+            <Card className="h-full p-4 transition hover:border-brand-300 hover:shadow-md">
               <div className="mb-1 flex items-center justify-between">
                 <h2 className="font-medium text-slate-900">{a.title}</h2>
                 {!a.isPublished && (

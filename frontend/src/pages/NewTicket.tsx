@@ -122,10 +122,10 @@ export function NewTicket() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <h1 className="mb-6 text-xl font-bold text-slate-900">Nouveau ticket</h1>
 
-      <Card className="p-6">
+      <Card className="max-w-2xl p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="animate-fade-in rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
