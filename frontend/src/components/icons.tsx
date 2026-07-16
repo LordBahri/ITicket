@@ -13,11 +13,17 @@ const base = {
 
 export function IconLogoMark(props: IconProps) {
   return (
-    <svg {...base} strokeWidth={1.4} {...props}>
-      <path d="M9.3 5.4c-2-1.7-4.3-1.3-3.9.6.3 1.5 2.4 1 3 2.3v3.6c0 1.3-.9 1.9-1.9 2.5" />
-      <path d="M14.7 5.4c2-1.7 4.3-1.3 3.9.6-.3 1.5-2.4 1-3 2.3v3.6c0 1.3.9 1.9 1.9 2.5" />
-      <path d="M9.6 5.1c1.1-1.1 3.7-1.1 4.8 0" />
-      <path d="M12 7v4.2" />
+    <svg viewBox="0 0 24 24" fill="none" {...props}>
+      <g stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3.5v1.6" />
+        <path d="M10.4 4.4 12 2l1.6 2.4" />
+        <path d="M12 18.9v1.6" />
+        <path d="M10.4 19.6 12 22l1.6-2.4" />
+      </g>
+      <polygon
+        points="12.00,6.80 12.77,10.15 15.68,8.32 13.85,11.23 17.20,12.00 13.85,12.77 15.68,15.68 12.77,13.85 12.00,17.20 11.23,13.85 8.32,15.68 10.15,12.77 6.80,12.00 10.15,11.23 8.32,8.32 11.23,10.15"
+        fill="currentColor"
+      />
     </svg>
   );
 }

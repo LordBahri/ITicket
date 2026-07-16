@@ -50,7 +50,7 @@ export function Layout() {
     <div className="flex h-screen overflow-hidden">
       <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white p-5">
         <div className="mb-8 flex items-center gap-2.5 px-1">
-          <img src="/logo-meninx.png" alt="Meninx Holding" className="h-9 w-auto" />
+          <img src="/logo-iticket-mark.svg" alt="ITicket System" className="h-9 w-9" />
           <span className="text-lg font-bold text-slate-900">ITicket</span>
         </div>
 

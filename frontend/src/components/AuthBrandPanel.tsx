@@ -20,9 +20,7 @@ export function AuthBrandPanel() {
 
       <div className="relative">
         <div className="mb-1 flex items-center gap-2.5 text-lg font-bold">
-          <span className="flex h-10 items-center rounded-lg bg-white px-2 py-1.5">
-            <img src="/logo-meninx.png" alt="Meninx Holding" className="h-7 w-auto" />
-          </span>
+          <img src="/logo-iticket-mark.svg" alt="ITicket System" className="h-10 w-10" />
           ITicket
         </div>
       </div>
