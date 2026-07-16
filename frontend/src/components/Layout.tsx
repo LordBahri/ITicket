@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  IconHome,
   IconDashboard,
   IconTicket,
   IconPlus,
@@ -47,6 +48,9 @@ export function Layout() {
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto">
           <NavLink to="/" end className={navLinkClass}>
+            <IconHome className="h-[18px] w-[18px] shrink-0" /> Accueil
+          </NavLink>
+          <NavLink to="/dashboard" className={navLinkClass}>
             <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
           </NavLink>
           <NavLink to="/tickets" className={() => navLinkClass({ isActive: isAllTicketsActive })}>

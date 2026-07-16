@@ -226,3 +226,30 @@ export function IconWorkflow(props: IconProps) {
     </svg>
   );
 }
+
+export function IconHome(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 11.5 12 4l8 7.5" />
+      <path d="M6 9.5V19a1 1 0 0 0 1 1h3.5v-5.5h3V20H17a1 1 0 0 0 1-1V9.5" />
+    </svg>
+  );
+}
+
+export function IconNewspaper(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 6.5A1.5 1.5 0 0 1 6 5h9.5a1.5 1.5 0 0 1 1.5 1.5V17a2 2 0 0 0 2 2M6 5a1.5 1.5 0 0 1 1.5 1.5V19a2 2 0 0 1-2 2h11" />
+      <path d="M8 9h5M8 12h5M8 15h3" />
+    </svg>
+  );
+}
+
+export function IconSparkle(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21M5.5 5.5l2.5 2.5M16 16l2.5 2.5M5.5 18.5 8 16M16 8l2.5-2.5" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}

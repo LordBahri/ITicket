@@ -14,6 +14,17 @@ import type { Category, KnowledgeArticle } from "../types";
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_`>~]/g, "")
+    .replace(/^\s*[-\d.]+\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+}
+
 export function KnowledgeBase() {
   const { user } = useAuth();
   const toast = useToast();
@@ -106,9 +117,13 @@ export function KnowledgeBase() {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-slate-400">
+              Format Markdown pris en charge (titres <code>##</code>, listes <code>-</code>/<code>1.</code>, images{" "}
+              <code>![alt](url)</code>, liens, gras <code>**texte**</code>).
+            </p>
             <textarea
               required
-              rows={6}
+              rows={8}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Contenu de l'article…"
@@ -164,7 +179,7 @@ export function KnowledgeBase() {
                   </span>
                 )}
               </div>
-              <p className="line-clamp-2 text-sm text-slate-500">{a.content}</p>
+              <p className="line-clamp-2 text-sm text-slate-500">{stripMarkdown(a.content)}</p>
               {a.category && (
                 <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                   {a.category.name}

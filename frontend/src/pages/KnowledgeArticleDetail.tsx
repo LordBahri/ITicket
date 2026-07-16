@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useState, type ComponentPropsWithoutRef, type FormEvent } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -12,6 +14,29 @@ import type { KnowledgeArticle } from "../types";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
+const markdownComponents = {
+  h1: (props: ComponentPropsWithoutRef<"h1">) => <h2 className="mb-2 mt-5 text-lg font-bold text-slate-900" {...props} />,
+  h2: (props: ComponentPropsWithoutRef<"h2">) => <h3 className="mb-2 mt-5 text-base font-bold text-slate-900" {...props} />,
+  h3: (props: ComponentPropsWithoutRef<"h3">) => <h4 className="mb-1.5 mt-4 text-sm font-bold text-slate-900" {...props} />,
+  p: (props: ComponentPropsWithoutRef<"p">) => <p className="mb-3 text-sm leading-relaxed text-slate-700" {...props} />,
+  ul: (props: ComponentPropsWithoutRef<"ul">) => <ul className="mb-3 list-disc space-y-1 pl-5 text-sm text-slate-700" {...props} />,
+  ol: (props: ComponentPropsWithoutRef<"ol">) => <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm text-slate-700" {...props} />,
+  li: (props: ComponentPropsWithoutRef<"li">) => <li className="pl-1" {...props} />,
+  strong: (props: ComponentPropsWithoutRef<"strong">) => <strong className="font-semibold text-slate-900" {...props} />,
+  a: (props: ComponentPropsWithoutRef<"a">) => (
+    <a className="text-brand-700 underline hover:text-brand-800" target="_blank" rel="noreferrer" {...props} />
+  ),
+  img: (props: ComponentPropsWithoutRef<"img">) => (
+    <img className="my-3 max-w-full rounded-md border border-slate-200" {...props} />
+  ),
+  code: (props: ComponentPropsWithoutRef<"code">) => (
+    <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700" {...props} />
+  ),
+  blockquote: (props: ComponentPropsWithoutRef<"blockquote">) => (
+    <blockquote className="mb-3 border-l-2 border-brand-200 pl-3 text-sm italic text-slate-500" {...props} />
+  ),
+};
 
 export function KnowledgeArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -99,7 +124,11 @@ export function KnowledgeArticleDetail() {
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-3">
             <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
-            <textarea required rows={10} value={content} onChange={(e) => setContent(e.target.value)} className={inputClass} />
+            <p className="text-xs text-slate-400">
+              Format Markdown pris en charge (titres <code>##</code>, listes <code>-</code>/<code>1.</code>, images{" "}
+              <code>![alt](url)</code>, liens, gras <code>**texte**</code>).
+            </p>
+            <textarea required rows={14} value={content} onChange={(e) => setContent(e.target.value)} className={inputClass} />
             <div className="flex gap-2">
               <Button type="submit" loading={updateMutation.isPending}>
                 Enregistrer
@@ -143,7 +172,9 @@ export function KnowledgeArticleDetail() {
             )}
           </div>
           <h1 className="mb-4 text-xl font-bold text-slate-900">{article.title}</h1>
-          <p className="whitespace-pre-wrap text-sm text-slate-700">{article.content}</p>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {article.content}
+          </ReactMarkdown>
           <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-400">
             Par {article.author.name} · Mis à jour le {new Date(article.updatedAt).toLocaleDateString("fr-FR")}
           </p>

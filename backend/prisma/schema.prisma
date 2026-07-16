@@ -394,3 +394,32 @@ model ProcessStepCompletion {
 
   @@index([ticketId])
 }
+
+// --- Page d'accueil : historique des mises à jour de l'app + actualités IT ---
+
+enum ChangelogType {
+  FEATURE
+  IMPROVEMENT
+  FIX
+}
+
+model ChangelogEntry {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  type        ChangelogType @default(FEATURE)
+  createdAt   DateTime      @default(now())
+}
+
+model NewsArticle {
+  id          String    @id @default(cuid())
+  title       String
+  summary     String?
+  imageUrl    String?
+  sourceUrl   String    @unique
+  sourceName  String
+  publishedAt DateTime?
+  fetchedAt   DateTime  @default(now())
+
+  @@index([publishedAt])
+}

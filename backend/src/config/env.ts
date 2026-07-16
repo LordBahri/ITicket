@@ -44,4 +44,14 @@ export const env = {
   licenseReminder: {
     intervalMs: Number(process.env.LICENSE_REMINDER_INTERVAL_MS ?? 24 * 60 * 60 * 1000),
   },
+  newsFeed: {
+    urls: (
+      process.env.NEWS_FEED_URLS ?? "https://www.cert.ssi.gouv.fr/avis/feed/,https://www.cert.ssi.gouv.fr/alerte/feed/"
+    )
+      .split(",")
+      .map((u) => u.trim())
+      .filter(Boolean),
+    intervalMs: Number(process.env.NEWS_FEED_INTERVAL_MS ?? 6 * 60 * 60 * 1000),
+    maxArticles: Number(process.env.NEWS_FEED_MAX_ARTICLES ?? 24),
+  },
 };

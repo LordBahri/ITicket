@@ -25,6 +25,8 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Gestion des licences logicielles : nom, éditeur, clé, nombre de sièges, dates de début/expiration, affectation optionnelle à une société. Rappels automatiques par email aux administrateurs à J-30, J-7 et J-1 avant expiration.
 - Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés, utilisateurs, matériel, licences et processus IT
 - **Processus IT formalisés (ITIL)** : certaines demandes (remplacement de matériel, préparation de poste pour un nouvel employé, départ d'un collaborateur, acquisition de licence, demande d'accès applicatif) suivent un processus dédié — catalogue administrable dans Administration > Processus IT (catégorie ITIL, checklist d'étapes, validation hiérarchique requise ou non, formulaire papier requis ou non). Voir la section [Processus IT](#processus-it-itil) ci-dessous.
+- **Page d'accueil** : historique des évolutions de l'application (« quoi de neuf ») et actualités IT/cybersécurité récupérées automatiquement depuis des flux RSS (avec image), configurable via `NEWS_FEED_URLS`. Voir la section [Page d'accueil](#page-daccueil) ci-dessous.
+- **Base de connaissances en Markdown avec images** : les articles supportent la mise en forme Markdown (titres, listes, gras, images, liens). 8 guides de dépannage libre-service sont fournis par défaut (imprimante, Wi-Fi/Internet, PC lent, écran noir, pas de son, mot de passe oublié, périphérique USB, boîte email pleine) pour les cas ne nécessitant pas forcément l'intervention de l'IT.
 
 ### Canaux d'entrée pris en charge
 
@@ -140,15 +142,20 @@ npm run dev                # démarre l'app sur http://localhost:5173
 ```
 backend/
   prisma/schema.prisma   # modèle de données (User, Company, Service, Category, Priority, Ticket, Comment, Attachment,
-                          # KnowledgeArticle, Asset, License, Process/ProcessStep/ProcessApproval)
+                          # KnowledgeArticle, Asset, License, Process/ProcessStep/ProcessApproval,
+                          # ChangelogEntry, NewsArticle)
   src/
     routes/               # définition des routes Express (dont /integrations pour Slack/Teams)
     controllers/          # logique métier par ressource
-    services/              # SLA, référence de ticket, email, ingestion IMAP, provisioning utilisateur
+    services/              # SLA, référence de ticket, email, ingestion IMAP, provisioning utilisateur,
+                            # rappel de licences, synchronisation des actualités IT (RSS)
     middleware/            # authentification JWT, gestion des rôles, upload, erreurs
+docs/formulaires/         # sources des formulaires Word générés (processus IT)
 frontend/
+  public/kb-images/       # illustrations des guides de dépannage libre-service
+  public/forms/           # formulaires Word téléchargeables (copie servie statiquement)
   src/
-    pages/                 # écrans (Login, Dashboard, Tickets, Base de connaissances, Admin…)
+    pages/                 # écrans (Login, Accueil, Dashboard, Tickets, Base de connaissances, Admin…)
     components/            # Layout, badges, pièces jointes, route protégée
     context/                # contexte d'authentification
     api/                    # client HTTP (axios)
@@ -179,6 +186,20 @@ Certaines demandes ne sont pas de simples tickets : elles suivent un **processus
 | `formulaire-demande-acquisition-licence.docx` | Acquisition de licence logicielle |
 
 Ces modèles reprennent la mise en forme du formulaire d'engagement fourni par l'entreprise (logo Meninx Holding, titres bleu marine, clauses numérotées, bloc de signatures). Ils peuvent être remplacés directement par vos propres modèles Word tant que le nom de fichier référencé dans `formTemplateUrl` (catalogue des processus) reste identique.
+
+## Page d'accueil
+
+La page d'accueil (`/`, nouvelle route racine — le tableau de bord statistique est désormais sur `/dashboard`) regroupe deux blocs :
+
+- **Quoi de neuf dans ITicket** : historique des évolutions de l'application (nouveauté / amélioration / correction), alimenté par la table `ChangelogEntry`. Ajoutez une entrée à chaque mise à jour notable via `POST /api/changelog` (admin) ou directement en base.
+- **Actualités IT** : articles récupérés automatiquement depuis des flux RSS IT/cybersécurité, avec image, résumé et lien vers la source. Un job planifié (`newsFeed.service.ts`, même mécanisme que le rappel de licences) interroge les flux toutes les `NEWS_FEED_INTERVAL_MS` (6h par défaut) au démarrage du serveur puis en continu, et déduplique par URL source. Un bouton « Synchroniser » (admin) permet de forcer une actualisation manuelle.
+  - Flux configurables via `NEWS_FEED_URLS` (liste séparée par des virgules) — par défaut les avis et alertes du CERT-FR. Chaque flux est traité indépendamment : l'échec d'un flux n'empêche pas les autres de se synchroniser, et une absence totale de connectivité réseau du serveur est gérée sans faire planter l'application (message d'erreur affiché, réessai automatique au prochain cycle).
+  - L'image de chaque article est extraite du flux RSS (`media:content`, `media:thumbnail`, `enclosure`, ou première image du contenu HTML) ; en son absence, une icône générique est affichée à la place.
+  - **Important** : cette synchronisation nécessite que le serveur backend ait un accès sortant à Internet (comme pour le SMTP/IMAP Office 365). Si votre environnement de déploiement restreint les connexions sortantes, autorisez les domaines des flux configurés ou désactivez la fonctionnalité en laissant `NEWS_FEED_URLS` vide.
+
+## Base de connaissances
+
+Les articles de la base de connaissances supportent le format **Markdown** (titres, listes, gras/italique, liens, images) et sont rendus avec mise en forme sur la fiche article ; la liste affiche un extrait en texte brut (Markdown nettoyé). 8 guides de dépannage libre-service sont fournis par défaut, chacun avec une illustration dédiée (`frontend/public/kb-images/*.svg`) : imprimante, Wi-Fi/Internet, PC lent, écran noir, absence de son, mot de passe oublié, périphérique USB non reconnu, boîte email pleine. Ce sont des cas volontairement choisis pour ne **pas** nécessiter l'intervention de l'équipe IT dans la majorité des situations — chaque guide invite à ouvrir un ticket seulement si les étapes proposées ne résolvent pas le problème.
 
 ## Prochaines étapes possibles
 

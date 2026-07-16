@@ -217,6 +217,27 @@ export interface License {
   company: { id: string; name: string } | null;
 }
 
+export type ChangelogType = "FEATURE" | "IMPROVEMENT" | "FIX";
+
+export interface ChangelogEntry {
+  id: string;
+  title: string;
+  description: string;
+  type: ChangelogType;
+  createdAt: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string | null;
+  imageUrl: string | null;
+  sourceUrl: string;
+  sourceName: string;
+  publishedAt: string | null;
+  fetchedAt: string;
+}
+
 export interface DashboardStats {
   total: number;
   byStatus: Record<TicketStatus, number>;
