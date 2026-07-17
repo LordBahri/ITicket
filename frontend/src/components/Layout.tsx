@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useChat } from "../context/ChatContext";
 import {
   IconHome,
   IconDashboard,
@@ -19,6 +20,7 @@ import {
   IconWhatsApp,
   IconRemote,
   IconLock,
+  IconChat,
 } from "./icons";
 import { Avatar } from "./ui/Avatar";
 
@@ -33,6 +35,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const { totalUnread } = useChat();
   const location = useLocation();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
   const isAllTicketsActive = location.pathname.startsWith("/tickets") && location.pathname !== "/tickets/new";
@@ -60,6 +63,15 @@ export function Layout() {
           </NavLink>
           <NavLink to="/knowledge" className={navLinkClass}>
             <IconBook className="h-[18px] w-[18px] shrink-0" /> Base de connaissances
+          </NavLink>
+          <NavLink to="/chat" className={navLinkClass}>
+            <IconChat className="h-[18px] w-[18px] shrink-0" />
+            <span className="flex-1">Chat</span>
+            {totalUnread > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white">
+                {totalUnread}
+              </span>
+            )}
           </NavLink>
           {isStaff && (
             <NavLink to="/remote-access" className={navLinkClass}>

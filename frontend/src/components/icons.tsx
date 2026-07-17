@@ -169,6 +169,15 @@ export function IconXCircle(props: IconProps) {
   );
 }
 
+export function IconChat(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 4v-4H5.5A1.5 1.5 0 0 1 4 14.5v-9Z" />
+      <path d="M8 8.5h8M8 12h5" />
+    </svg>
+  );
+}
+
 export function IconInfo(props: IconProps) {
   return (
     <svg {...base} {...props}>

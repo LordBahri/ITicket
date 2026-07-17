@@ -264,3 +264,28 @@ export interface DashboardStats {
   overdueCount: number;
   avgResolutionHours: number | null;
 }
+
+export interface ChatUser {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  role: Role;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  sender: ChatUser;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChatThreadSummary {
+  id: string;
+  user: ChatUser;
+  lastMessage: ChatMessage | null;
+  unreadCount: number;
+  updatedAt: string;
+}
