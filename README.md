@@ -44,7 +44,7 @@ Chaque canal auto-provisionne l'utilisateur demandeur (par email) s'il n'existe 
 
 La boîte peut servir à la fois à **envoyer** les notifications (SMTP) et à **recevoir** des emails qui créent automatiquement des tickets (IMAP). Les deux utilisent les mêmes identifiants.
 
-**Paramètres dans `backend/.env`** (voir les exemples commentés dans `.env.example`) :
+**Paramètres à renseigner** — dans `backend/.env` (démarrage sans Docker) ou `backend/.env.docker` (démarrage avec Docker, voir plus haut) ; les deux fichiers sont ignorés par git et ne doivent jamais être commités :
 
 ```bash
 # Envoi des notifications
@@ -88,11 +88,25 @@ IMAP_PASS="<mot de passe ou mot de passe d'application>"
 ## Démarrage rapide (avec Docker)
 
 ```bash
+cp .env.example .env                                   # PUBLIC_HOST : adresse/domaine par lequel on accède au serveur
+cp backend/.env.docker.example backend/.env.docker      # JWT_SECRET, SMTP, IMAP, Slack/Teams (jamais commité)
 docker compose up --build
 ```
 
-- Frontend : http://localhost:5173
+- Frontend : http://localhost:5173 (ou `http://<PUBLIC_HOST>:5173` si accédé depuis un autre poste)
 - Backend : http://localhost:4000
+
+`PUBLIC_HOST` (dans `.env`, à la racine) doit être l'adresse ou le nom de domaine par lequel les navigateurs accèdent réellement au serveur — par exemple l'IP de la machine sur le réseau local. Le frontend l'utilise pour joindre l'API et le backend l'utilise pour l'origine CORS autorisée ; laissez `localhost` uniquement si le serveur n'est accédé que depuis lui-même.
+
+`backend/.env.docker` contient les secrets (mot de passe SMTP, `JWT_SECRET`, etc.) : ce fichier est ignoré par git et ne doit jamais être commité. `DATABASE_URL`, `PORT` et `CORS_ORIGIN` restent définis dans `docker-compose.yml` (spécifiques à l'environnement Docker) et n'ont pas besoin d'être répétés dans ce fichier.
+
+Après une modification de `PUBLIC_HOST` ou `backend/.env.docker`, reconstruisez les services concernés :
+
+```bash
+docker compose up -d --build backend frontend
+```
+
+(`VITE_API_URL` est injecté dans le frontend à la compilation de l'image : un `docker compose restart` seul ne suffit pas après un changement de `PUBLIC_HOST`, il faut `--build`.)
 
 ## Démarrage en local (sans Docker)
 
