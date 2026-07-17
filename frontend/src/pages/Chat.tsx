@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -8,7 +8,8 @@ import { Avatar } from "../components/ui/Avatar";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { EmptyState } from "../components/ui/EmptyState";
-import { IconInbox, IconSparkle } from "../components/icons";
+import { EmojiPicker } from "../components/ui/EmojiPicker";
+import { IconInbox, IconSparkle, IconPaperclip, IconFile } from "../components/icons";
 import type { ChatMessage, ChatThreadSummary, User } from "../types";
 
 function formatChatTime(dateStr: string) {
@@ -17,6 +18,84 @@ function formatChatTime(dateStr: string) {
   const sameDay = date.toDateString() === now.toDateString();
   if (sameDay) return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+function attachmentDownloadUrl(message: ChatMessage) {
+  return `/chat/threads/${message.threadId}/messages/${message.id}/attachment`;
+}
+
+async function downloadBlob(url: string, filename: string) {
+  const res = await apiClient.get(url, { responseType: "blob" });
+  const objectUrl = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(objectUrl);
+}
+
+function ChatAttachment({ message, isSupportSide }: { message: ChatMessage; isSupportSide: boolean }) {
+  const toast = useToast();
+  const isImage = message.attachmentMime?.startsWith("image/") ?? false;
+  const url = attachmentDownloadUrl(message);
+
+  const { data: imageBlobUrl } = useQuery({
+    queryKey: ["chat-attachment-blob", message.id],
+    queryFn: async () => {
+      const res = await apiClient.get(url, { responseType: "blob" });
+      return URL.createObjectURL(res.data);
+    },
+    enabled: isImage,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  async function handleDownload() {
+    try {
+      await downloadBlob(url, message.attachmentName ?? "fichier");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Impossible de télécharger le fichier"));
+    }
+  }
+
+  if (isImage) {
+    return (
+      <button onClick={handleDownload} className="mt-1 block overflow-hidden rounded-lg" title="Télécharger">
+        {imageBlobUrl ? (
+          <img src={imageBlobUrl} alt={message.attachmentName ?? "Image"} className="max-h-56 max-w-full object-cover" />
+        ) : (
+          <span className="flex h-28 w-40 items-center justify-center bg-slate-100 text-xs text-slate-400">Chargement…</span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      className={`mt-1 flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition ${
+        isSupportSide
+          ? "border-white/20 bg-white/10 hover:bg-white/20"
+          : "border-slate-200 bg-white hover:bg-slate-50"
+      }`}
+    >
+      <IconFile className={`h-4 w-4 shrink-0 ${isSupportSide ? "text-white/80" : "text-slate-400"}`} />
+      <span className="min-w-0">
+        <span className={`block max-w-[180px] truncate font-medium ${isSupportSide ? "text-white" : "text-slate-700"}`}>
+          {message.attachmentName}
+        </span>
+        {message.attachmentSize != null && (
+          <span className={isSupportSide ? "text-white/70" : "text-slate-400"}>{formatFileSize(message.attachmentSize)}</span>
+        )}
+      </span>
+    </button>
+  );
 }
 
 function ThreadRow({ thread, active, onClick }: { thread: ChatThreadSummary; active: boolean; onClick: () => void }) {
@@ -38,7 +117,7 @@ function ThreadRow({ thread, active, onClick }: { thread: ChatThreadSummary; act
           )}
         </div>
         <p className={`truncate text-xs ${thread.unreadCount > 0 ? "font-medium text-slate-600" : "text-slate-400"}`}>
-          {thread.lastMessage?.body ?? "Aucun message"}
+          {thread.lastMessage?.body ?? (thread.lastMessage?.attachmentName ? `📎 ${thread.lastMessage.attachmentName}` : "Aucun message")}
         </p>
       </div>
       {thread.unreadCount > 0 && (
@@ -61,7 +140,8 @@ function MessageBubble({ message, isSupportSide }: { message: ChatMessage; isSup
           }`}
         >
           {isSupportSide && <p className="mb-0.5 text-[11px] font-medium text-brand-100">{message.sender.name}</p>}
-          <p className="whitespace-pre-wrap break-words">{message.body}</p>
+          {message.body && <p className="whitespace-pre-wrap break-words">{message.body}</p>}
+          {message.attachmentUrl && <ChatAttachment message={message} isSupportSide={isSupportSide} />}
         </div>
         <span className="mt-1 px-1 text-[11px] text-slate-400">{formatChatTime(message.createdAt)}</span>
       </div>
@@ -143,6 +223,7 @@ export function Chat() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isStaff && threads.length > 0 && !selectedThreadId) {
@@ -197,10 +278,33 @@ export function Chat() {
     onError: (err) => toast.error(apiErrorMessage(err, "Impossible d'envoyer le message")),
   });
 
+  const attachmentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const caption = messageText.trim();
+      setMessageText("");
+      const formData = new FormData();
+      formData.append("file", file);
+      if (caption) formData.append("caption", caption);
+      return apiClient.post(`/chat/threads/${selectedThreadId}/attachment`, formData);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-threads"] }),
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible d'envoyer la pièce jointe")),
+  });
+
   function handleSend(e: FormEvent) {
     e.preventDefault();
     if (!messageText.trim() || !selectedThreadId) return;
     sendMutation.mutate();
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) attachmentMutation.mutate(file);
+    e.target.value = "";
+  }
+
+  function handleEmojiSelect(emoji: string) {
+    setMessageText((prev) => `${prev}${emoji}`);
   }
 
   const selectedThread = threads.find((t) => t.id === selectedThreadId);
@@ -258,7 +362,30 @@ export function Chat() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="flex shrink-0 items-center gap-2 border-t border-slate-100 p-3">
+            <form onSubmit={handleSend} className="flex shrink-0 items-center gap-1.5 border-t border-slate-100 p-3">
+              <EmojiPicker onSelect={handleEmojiSelect} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                title="Joindre un fichier"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={attachmentMutation.isPending}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+              >
+                {attachmentMutation.isPending ? (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                ) : (
+                  <IconPaperclip className="h-4 w-4" />
+                )}
+              </button>
               <input
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}

@@ -268,6 +268,16 @@ export function IconNewspaper(props: IconProps) {
   );
 }
 
+export function IconSmile(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 13.5c.7 1.3 1.9 2 3.5 2s2.8-.7 3.5-2" />
+      <path d="M9 9.5h.01M15 9.5h.01" />
+    </svg>
+  );
+}
+
 export function IconSparkle(props: IconProps) {
   return (
     <svg {...base} {...props}>

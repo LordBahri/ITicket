@@ -454,7 +454,12 @@ model ChatMessage {
   thread   ChatThread @relation(fields: [threadId], references: [id])
   senderId String
   sender   User       @relation("ChatMessageSender", fields: [senderId], references: [id])
-  body     String
+  body     String?
+
+  attachmentUrl  String?
+  attachmentName String?
+  attachmentMime String?
+  attachmentSize Int?
 
   createdAt DateTime @default(now())
 

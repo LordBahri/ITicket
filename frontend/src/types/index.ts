@@ -278,7 +278,11 @@ export interface ChatMessage {
   threadId: string;
   senderId: string;
   sender: ChatUser;
-  body: string;
+  body: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
+  attachmentMime: string | null;
+  attachmentSize: number | null;
   createdAt: string;
 }
 
