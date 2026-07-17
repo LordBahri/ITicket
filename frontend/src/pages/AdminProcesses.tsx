@@ -4,6 +4,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Process, ProcessCategory, ProcessStep } from "../types";
 
@@ -154,69 +155,71 @@ export function AdminProcesses() {
             licence, accès applicatif. Réservés aux responsables de service, avec validation du supérieur hiérarchique.
           </p>
         </div>
-        <Button variant={showForm ? "secondary" : "primary"} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Annuler" : "+ Nouveau processus"}
-        </Button>
+        <Button onClick={() => setShowForm(true)}>+ Nouveau processus</Button>
       </div>
 
-      {showForm && (
-        <Card className="mb-6 max-w-2xl p-5">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-            <div className="grid grid-cols-2 gap-3">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouveau processus" size="lg">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              required
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nom (ex : Remplacement de matériel)"
+              className={inputClass}
+            />
+            <select value={category} onChange={(e) => setCategory(e.target.value as ProcessCategory)} className={inputClass}>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optionnel)"
+            className={`w-full ${inputClass}`}
+          />
+          <input
+            value={formTemplateUrl}
+            onChange={(e) => setFormTemplateUrl(e.target.value)}
+            placeholder="Lien du formulaire (ex : /forms/formulaire-xxx.docx)"
+            className={`w-full ${inputClass}`}
+          />
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nom (ex : Remplacement de matériel)"
-                className={inputClass}
+                type="checkbox"
+                checked={requiresManagerApproval}
+                onChange={(e) => setRequiresManagerApproval(e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
               />
-              <select value={category} onChange={(e) => setCategory(e.target.value as ProcessCategory)} className={inputClass}>
-                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optionnel)"
-              className={`w-full ${inputClass}`}
-            />
-            <input
-              value={formTemplateUrl}
-              onChange={(e) => setFormTemplateUrl(e.target.value)}
-              placeholder="Lien du formulaire (ex : /forms/formulaire-xxx.docx)"
-              className={`w-full ${inputClass}`}
-            />
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={requiresManagerApproval}
-                  onChange={(e) => setRequiresManagerApproval(e.target.checked)}
-                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                Nécessite la validation du supérieur hiérarchique
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={requiresPhysicalForm}
-                  onChange={(e) => setRequiresPhysicalForm(e.target.checked)}
-                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                Nécessite un formulaire signé, scanné puis archivé physiquement
-              </label>
-            </div>
+              Nécessite la validation du supérieur hiérarchique
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={requiresPhysicalForm}
+                onChange={(e) => setRequiresPhysicalForm(e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              Nécessite un formulaire signé, scanné puis archivé physiquement
+            </label>
+          </div>
+          <div className="flex gap-2">
             <Button type="submit" loading={createMutation.isPending}>
               Créer le processus
             </Button>
-          </form>
-        </Card>
-      )}
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">

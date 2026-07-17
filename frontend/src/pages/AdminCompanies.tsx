@@ -5,6 +5,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Company, CompanyType, Service } from "../types";
 
@@ -49,6 +50,7 @@ function buildTree(companies: Company[]): TreeRow[] {
 export function AdminCompanies() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<CompanyType>("FILIALE");
   const [parentId, setParentId] = useState("");
@@ -77,6 +79,7 @@ export function AdminCompanies() {
       setName("");
       setParentId("");
       setServiceIds([]);
+      setShowForm(false);
       toast.success("Société créée");
       queryClient.invalidateQueries({ queryKey: ["companies"] });
     },
@@ -96,27 +99,34 @@ export function AdminCompanies() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-slate-900">Sociétés du groupe</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Rattachez une filiale à sa société mère pour construire la hiérarchie du groupe. Cliquez sur une société pour voir sa fiche.
-      </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="mb-1 text-xl font-bold text-slate-900">Sociétés du groupe</h1>
+          <p className="text-sm text-slate-500">
+            Rattachez une filiale à sa société mère pour construire la hiérarchie du groupe. Cliquez sur une société pour voir
+            sa fiche.
+          </p>
+        </div>
+        <Button onClick={() => setShowForm(true)}>+ Nouvelle société</Button>
+      </div>
 
-      <Card className="mb-6 max-w-2xl p-5">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle société">
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-          <div className="flex flex-wrap gap-3">
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nom (ex : Meninx Agro)"
-              className={`flex-1 ${inputClass}`}
-            />
-            <select value={type} onChange={(e) => setType(e.target.value as CompanyType)} className={inputClass}>
+          <input
+            required
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom (ex : Meninx Agro)"
+            className={`w-full ${inputClass}`}
+          />
+          <div className="flex gap-3">
+            <select value={type} onChange={(e) => setType(e.target.value as CompanyType)} className={`flex-1 ${inputClass}`}>
               <option value="FILIALE">Filiale</option>
               <option value="HOLDING">Holding</option>
             </select>
-            <select value={parentId} onChange={(e) => setParentId(e.target.value)} className={inputClass}>
+            <select value={parentId} onChange={(e) => setParentId(e.target.value)} className={`flex-1 ${inputClass}`}>
               <option value="">Aucune société mère</option>
               {companies?.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -124,14 +134,11 @@ export function AdminCompanies() {
                 </option>
               ))}
             </select>
-            <Button type="submit" loading={createMutation.isPending}>
-              Ajouter
-            </Button>
           </div>
           {services && services.length > 0 && (
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-500">Services activés pour cette société</label>
-              <div className="grid grid-cols-2 gap-1.5 rounded-md border border-slate-200 p-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-1.5 rounded-md border border-slate-200 p-3">
                 {services.map((s) => (
                   <label key={s.id} className="flex items-center gap-2 text-sm text-slate-600">
                     <input
@@ -146,8 +153,16 @@ export function AdminCompanies() {
               </div>
             </div>
           )}
+          <div className="flex gap-2">
+            <Button type="submit" loading={createMutation.isPending}>
+              Ajouter
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Annuler
+            </Button>
+          </div>
         </form>
-      </Card>
+      </Modal>
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">

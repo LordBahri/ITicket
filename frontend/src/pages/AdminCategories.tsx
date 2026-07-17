@@ -4,6 +4,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Category, SubCategory } from "../types";
 
@@ -98,6 +99,7 @@ function SubCategoryManager({ categoryId }: { categoryId: string }) {
 export function AdminCategories() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export function AdminCategories() {
     onSuccess: () => {
       setName("");
       setDescription("");
+      setShowForm(false);
       toast.success("Catégorie créée");
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
@@ -142,32 +145,41 @@ export function AdminCategories() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-slate-900">Catégories &amp; sous-catégories</h1>
-      <p className="mb-6 text-sm text-slate-500">Cliquez sur une catégorie pour gérer ses sous-catégories.</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="mb-1 text-xl font-bold text-slate-900">Catégories &amp; sous-catégories</h1>
+          <p className="text-sm text-slate-500">Cliquez sur une catégorie pour gérer ses sous-catégories.</p>
+        </div>
+        <Button onClick={() => setShowForm(true)}>+ Nouvelle catégorie</Button>
+      </div>
 
-      <Card className="mb-6 max-w-2xl p-5">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle catégorie">
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-          <div className="flex gap-3">
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nom (ex : Matériel)"
-              className={`flex-1 ${inputClass}`}
-            />
-            <Button type="submit" loading={createMutation.isPending}>
-              Ajouter
-            </Button>
-          </div>
+          <input
+            required
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom (ex : Matériel)"
+            className={`w-full ${inputClass}`}
+          />
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Description (optionnel)"
             className={`w-full ${inputClass}`}
           />
+          <div className="flex gap-2">
+            <Button type="submit" loading={createMutation.isPending}>
+              Ajouter
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Annuler
+            </Button>
+          </div>
         </form>
-      </Card>
+      </Modal>
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">

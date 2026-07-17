@@ -4,6 +4,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Priority } from "../types";
 
@@ -13,6 +14,7 @@ const inputClass =
 export function AdminPriorities() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [responseTimeHours, setResponseTimeHours] = useState(8);
   const [resolutionTimeHours, setResolutionTimeHours] = useState(48);
@@ -29,6 +31,7 @@ export function AdminPriorities() {
       apiClient.post("/priorities", { name, responseTimeHours, resolutionTimeHours, color }),
     onSuccess: () => {
       setName("");
+      setShowForm(false);
       toast.success("Priorité créée");
       queryClient.invalidateQueries({ queryKey: ["priorities"] });
     },
@@ -48,14 +51,18 @@ export function AdminPriorities() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-bold text-slate-900">Priorités &amp; SLA</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-900">Priorités &amp; SLA</h1>
+        <Button onClick={() => setShowForm(true)}>+ Nouvelle priorité</Button>
+      </div>
 
-      <Card className="mb-6 max-w-2xl p-5">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle priorité">
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <input
               required
+              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nom (ex : Haute)"
@@ -90,11 +97,16 @@ export function AdminPriorities() {
               />
             </div>
           </div>
-          <Button type="submit" loading={createMutation.isPending}>
-            Ajouter
-          </Button>
+          <div className="flex gap-2">
+            <Button type="submit" loading={createMutation.isPending}>
+              Ajouter
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Annuler
+            </Button>
+          </div>
         </form>
-      </Card>
+      </Modal>
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">

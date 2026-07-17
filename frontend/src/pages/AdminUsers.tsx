@@ -5,6 +5,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import { IconTrash } from "../components/icons";
@@ -123,102 +124,103 @@ export function AdminUsers() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Utilisateurs</h1>
-        <Button variant={showForm ? "secondary" : "primary"} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Annuler" : "+ Nouvel utilisateur"}
-        </Button>
+        <Button onClick={() => setShowForm(true)}>+ Nouvel utilisateur</Button>
       </div>
 
-      {showForm && (
-        <Card className="mb-6 max-w-2xl p-5">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-            <div className="grid grid-cols-2 gap-3">
-              <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom complet" className={inputClass} />
+      <Modal open={showForm} onClose={resetForm} title="Nouvel utilisateur" size="lg">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          <div className="grid grid-cols-2 gap-3">
+            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom complet" className={inputClass} />
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className={inputClass}
+            />
+            <select
+              required
+              value={companyId}
+              onChange={(e) => {
+                setCompanyId(e.target.value);
+                setServiceId("");
+              }}
+              className={inputClass}
+            >
+              <option value="">Société…</option>
+              {companies?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              disabled={!companyId}
+              className={inputClass}
+            >
+              <option value="">Service…</option>
+              {availableServices.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputClass}>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="text-xs font-medium text-brand-700 hover:underline"
+          >
+            {showDetails ? "− Masquer les détails supplémentaires" : "+ Détails supplémentaires (matricule, téléphone, accès distant…)"}
+          </button>
+
+          {showDetails && (
+            <div className="grid grid-cols-2 gap-3 rounded-md border border-slate-100 bg-slate-50 p-3">
+              <input value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Matricule" className={inputClass} />
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className={inputClass} />
+              <input value={pcName} onChange={(e) => setPcName(e.target.value)} placeholder="Nom du poste (PC)" className={inputClass} />
+              <input value={anydeskId} onChange={(e) => setAnydeskId(e.target.value)} placeholder="ID AnyDesk" className={inputClass} />
               <input
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                value={teamviewerId}
+                onChange={(e) => setTeamviewerId(e.target.value)}
+                placeholder="ID TeamViewer"
                 className={inputClass}
               />
-              <select
-                required
-                value={companyId}
-                onChange={(e) => {
-                  setCompanyId(e.target.value);
-                  setServiceId("");
-                }}
+              <input
+                value={ultraviewerId}
+                onChange={(e) => setUltraviewerId(e.target.value)}
+                placeholder="ID UltraViewer"
                 className={inputClass}
-              >
-                <option value="">Société…</option>
-                {companies?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                disabled={!companyId}
-                className={inputClass}
-              >
-                <option value="">Service…</option>
-                {availableServices.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputClass}>
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
+          )}
 
-            <button
-              type="button"
-              onClick={() => setShowDetails((v) => !v)}
-              className="text-xs font-medium text-brand-700 hover:underline"
-            >
-              {showDetails ? "− Masquer les détails supplémentaires" : "+ Détails supplémentaires (matricule, téléphone, accès distant…)"}
-            </button>
-
-            {showDetails && (
-              <div className="grid grid-cols-2 gap-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-                <input value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Matricule" className={inputClass} />
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone" className={inputClass} />
-                <input value={pcName} onChange={(e) => setPcName(e.target.value)} placeholder="Nom du poste (PC)" className={inputClass} />
-                <input value={anydeskId} onChange={(e) => setAnydeskId(e.target.value)} placeholder="ID AnyDesk" className={inputClass} />
-                <input
-                  value={teamviewerId}
-                  onChange={(e) => setTeamviewerId(e.target.value)}
-                  placeholder="ID TeamViewer"
-                  className={inputClass}
-                />
-                <input
-                  value={ultraviewerId}
-                  onChange={(e) => setUltraviewerId(e.target.value)}
-                  placeholder="ID UltraViewer"
-                  className={inputClass}
-                />
-              </div>
-            )}
-
-            <p className="text-xs text-slate-400">
-              Un mot de passe temporaire sera généré automatiquement et envoyé par email à l'utilisateur. Il pourra le
-              modifier depuis « Mon compte ».
-            </p>
+          <p className="text-xs text-slate-400">
+            Un mot de passe temporaire sera généré automatiquement et envoyé par email à l'utilisateur. Il pourra le
+            modifier depuis « Mon compte ».
+          </p>
+          <div className="flex gap-2">
             <Button type="submit" loading={createMutation.isPending}>
               Créer le compte
             </Button>
-          </form>
-        </Card>
-      )}
+            <Button type="button" variant="secondary" onClick={resetForm}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {generatedPassword && (
         <Card className="mb-6 border-emerald-200 bg-emerald-50 p-4">

@@ -4,6 +4,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Company, License } from "../types";
 
@@ -199,16 +200,12 @@ export function AdminLicenses() {
           <h1 className="text-xl font-bold text-slate-900">Licences</h1>
           <p className="text-sm text-slate-500">Suivi des licences logicielles et rappels automatiques avant expiration.</p>
         </div>
-        <Button variant={showForm ? "secondary" : "primary"} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Annuler" : "+ Nouvelle licence"}
-        </Button>
+        <Button onClick={() => setShowForm(true)}>+ Nouvelle licence</Button>
       </div>
 
-      {showForm && (
-        <Card className="mb-6 max-w-2xl p-5">
-          <LicenseForm companies={companies ?? []} initial={emptyForm()} submitLabel="Créer" loading={createMutation.isPending} onSubmit={(form) => createMutation.mutate(form)} />
-        </Card>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle licence" size="lg">
+        <LicenseForm companies={companies ?? []} initial={emptyForm()} submitLabel="Créer" loading={createMutation.isPending} onSubmit={(form) => createMutation.mutate(form)} />
+      </Modal>
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">

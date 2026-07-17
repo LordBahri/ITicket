@@ -5,6 +5,7 @@ import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
 import type { Asset, AssetStatus, AssetType, Company, User } from "../types";
 
@@ -340,26 +341,22 @@ export function AdminAssets() {
           <h1 className="text-xl font-bold text-slate-900">Matériel informatique</h1>
           <p className="text-sm text-slate-500">Affectez chaque équipement à une société (switch, onduleur, serveur…) ou à un utilisateur (PC, imprimante…).</p>
         </div>
-        <Button variant={showForm ? "secondary" : "primary"} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Annuler" : "+ Nouveau matériel"}
-        </Button>
+        <Button onClick={() => setShowForm(true)}>+ Nouveau matériel</Button>
       </div>
 
       {assetTypes && <AssetTypeManager assetTypes={assetTypes} />}
 
-      {showForm && (
-        <Card className="mb-6 max-w-2xl p-5">
-          <AssetForm
-            assetTypes={activeAssetTypes}
-            companies={companies ?? []}
-            users={users ?? []}
-            initial={emptyForm(activeAssetTypes[0]?.id ?? "")}
-            submitLabel="Ajouter"
-            loading={createMutation.isPending}
-            onSubmit={(form) => createMutation.mutate(form)}
-          />
-        </Card>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouveau matériel" size="lg">
+        <AssetForm
+          assetTypes={activeAssetTypes}
+          companies={companies ?? []}
+          users={users ?? []}
+          initial={emptyForm(activeAssetTypes[0]?.id ?? "")}
+          submitLabel="Ajouter"
+          loading={createMutation.isPending}
+          onSubmit={(form) => createMutation.mutate(form)}
+        />
+      </Modal>
 
       <div className="mb-3 flex flex-wrap gap-3">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputClass}>
