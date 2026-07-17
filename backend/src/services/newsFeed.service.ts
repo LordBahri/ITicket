@@ -106,7 +106,11 @@ export async function refreshNewsFeeds(): Promise<{ ok: number; failed: number }
       console.error(`[news-feed] Échec de récupération du flux ${url} :`, err instanceof Error ? err.message : err);
     }
   }
-  await pruneOldArticles();
+  try {
+    await pruneOldArticles();
+  } catch (err) {
+    console.error("[news-feed] Échec du nettoyage des anciens articles :", err instanceof Error ? err.message : err);
+  }
   return { ok, failed };
 }
 
@@ -116,8 +120,12 @@ export function startNewsFeed(): void {
     return;
   }
   console.log(`[news-feed] Démarrage de la synchronisation des actualités IT (toutes les ${env.newsFeed.intervalMs}ms)`);
-  void refreshNewsFeeds().then(({ ok, failed }) => console.log(`[news-feed] Synchronisation initiale : ${ok} flux OK, ${failed} en échec`));
+  void refreshNewsFeeds()
+    .then(({ ok, failed }) => console.log(`[news-feed] Synchronisation initiale : ${ok} flux OK, ${failed} en échec`))
+    .catch((err) => console.error("[news-feed] Erreur inattendue :", err));
   setInterval(() => {
-    void refreshNewsFeeds().then(({ ok, failed }) => console.log(`[news-feed] Synchronisation : ${ok} flux OK, ${failed} en échec`));
+    void refreshNewsFeeds()
+      .then(({ ok, failed }) => console.log(`[news-feed] Synchronisation : ${ok} flux OK, ${failed} en échec`))
+      .catch((err) => console.error("[news-feed] Erreur inattendue :", err));
   }, env.newsFeed.intervalMs);
 }
