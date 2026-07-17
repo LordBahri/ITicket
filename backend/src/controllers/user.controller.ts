@@ -64,6 +64,7 @@ const publicSelect = {
   anydeskId: true,
   teamviewerId: true,
   ultraviewerId: true,
+  avatarUrl: true,
 } as const;
 
 async function wouldCreateManagerCycle(userId: string, newManagerId: string): Promise<boolean> {

@@ -1,8 +1,17 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:4000/api",
+  baseURL: API_BASE_URL,
 });
+
+export function resolveAssetUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (/^https?:\/\//.test(path)) return path;
+  return `${API_ORIGIN}${path}`;
+}
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("iticket_token");

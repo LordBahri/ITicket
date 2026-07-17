@@ -20,6 +20,7 @@ import {
   IconRemote,
   IconLock,
 } from "./icons";
+import { Avatar } from "./ui/Avatar";
 
 const SUPPORT_EMAIL = "support@meninx.tn";
 const SUPPORT_PHONE_DISPLAY = "+216 58 94 44 17";
@@ -29,16 +30,6 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
     isActive ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
   }`;
-
-function initials(name?: string) {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -109,9 +100,7 @@ export function Layout() {
         </nav>
 
         <div className="mt-6 flex items-center gap-2 rounded-md border border-slate-200 p-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-            {initials(user?.name)}
-          </span>
+          <Avatar name={user?.name} avatarUrl={user?.avatarUrl} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-700">{user?.name}</p>
             <p className="truncate text-xs text-slate-400">{user?.role}</p>

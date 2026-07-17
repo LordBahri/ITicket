@@ -1,9 +1,11 @@
 import type { Request, Response } from "express";
+import fs from "fs";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { HttpError } from "../middleware/errorHandler";
+import { avatarPath } from "../middleware/avatarUpload";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -13,6 +15,16 @@ const loginSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(100),
+});
+
+const updateProfileSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  phone: z
+    .string()
+    .max(40)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? v.trim() || null : null)),
 });
 
 const userInclude = { company: true, service: true } as const;
@@ -26,6 +38,8 @@ function toPublicUser(user: {
   isActive: boolean;
   isDepartmentHead: boolean;
   company: { id: string; name: string; type: string };
+  phone: string | null;
+  avatarUrl: string | null;
 }) {
   return {
     id: user.id,
@@ -36,6 +50,8 @@ function toPublicUser(user: {
     isActive: user.isActive,
     isDepartmentHead: user.isDepartmentHead,
     company: user.company,
+    phone: user.phone,
+    avatarUrl: user.avatarUrl,
   };
 }
 
@@ -77,4 +93,55 @@ export async function changePassword(req: Request, res: Response) {
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
 
   res.status(204).send();
+}
+
+export async function updateProfile(req: Request, res: Response) {
+  const data = updateProfileSchema.parse(req.body);
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data,
+    include: userInclude,
+  });
+
+  res.json({ user: toPublicUser(user) });
+}
+
+export async function uploadMyAvatar(req: Request, res: Response) {
+  if (!req.file) throw new HttpError(400, "Aucune image fournie");
+
+  const existing = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (existing?.avatarUrl) {
+    const previousFilename = existing.avatarUrl.split("/").pop();
+    if (previousFilename) {
+      fs.promises.unlink(avatarPath(previousFilename)).catch(() => undefined);
+    }
+  }
+
+  const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { avatarUrl },
+    include: userInclude,
+  });
+
+  res.json({ user: toPublicUser(user) });
+}
+
+export async function deleteMyAvatar(req: Request, res: Response) {
+  const existing = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (existing?.avatarUrl) {
+    const previousFilename = existing.avatarUrl.split("/").pop();
+    if (previousFilename) {
+      fs.promises.unlink(avatarPath(previousFilename)).catch(() => undefined);
+    }
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { avatarUrl: null },
+    include: userInclude,
+  });
+
+  res.json({ user: toPublicUser(user) });
 }

@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { env } from "./config/env";
 import { authRouter } from "./routes/auth.routes";
 import { ticketRouter } from "./routes/ticket.routes";
@@ -32,6 +33,8 @@ app.use(express.json({ verify: captureRawBody }));
 app.use(express.urlencoded({ extended: true, verify: captureRawBody }));
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+app.use("/uploads/avatars", express.static(path.join(process.cwd(), env.uploads.dir, "avatars")));
 
 app.use("/api/auth", authRouter);
 app.use("/api/tickets", ticketRouter);

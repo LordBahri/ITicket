@@ -50,6 +50,7 @@ export interface User {
   anydeskId?: string | null;
   teamviewerId?: string | null;
   ultraviewerId?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface RemoteAccessUser {

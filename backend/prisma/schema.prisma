@@ -83,6 +83,7 @@ model User {
   anydeskId      String?
   teamviewerId   String?
   ultraviewerId  String?
+  avatarUrl    String?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
@@ -103,6 +104,9 @@ model User {
   assets               Asset[]
   processApprovals     ProcessApproval[]
   stepCompletionsDone  ProcessStepCompletion[]
+  chatThread           ChatThread?             @relation("ChatThreadOwner")
+  chatMessagesSent     ChatMessage[]           @relation("ChatMessageSender")
+  chatReadStates       ChatReadState[]         @relation("ChatReadStateUser")
 
   @@index([companyId])
   @@index([serviceId])
@@ -429,4 +433,41 @@ model NewsArticle {
   fetchedAt   DateTime  @default(now())
 
   @@index([publishedAt])
+}
+
+// --- Chat interne avec l'équipe support ---
+
+model ChatThread {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation("ChatThreadOwner", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages   ChatMessage[]
+  readStates ChatReadState[]
+}
+
+model ChatMessage {
+  id       String     @id @default(cuid())
+  threadId String
+  thread   ChatThread @relation(fields: [threadId], references: [id])
+  senderId String
+  sender   User       @relation("ChatMessageSender", fields: [senderId], references: [id])
+  body     String
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId])
+}
+
+model ChatReadState {
+  id         String     @id @default(cuid())
+  threadId   String
+  thread     ChatThread @relation(fields: [threadId], references: [id])
+  userId     String
+  user       User       @relation("ChatReadStateUser", fields: [userId], references: [id])
+  lastReadAt DateTime   @default(now())
+
+  @@unique([threadId, userId])
 }
