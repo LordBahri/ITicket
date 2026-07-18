@@ -19,55 +19,157 @@ async function main() {
     { name: "Demande de service", description: "Demande standard : accès, matériel, information, changement mineur" },
     { name: "Problème", description: "Cause récurrente ou sous-jacente à plusieurs incidents" },
     { name: "Changement", description: "Demande de modification planifiée d'un système ou service" },
+    {
+      name: "Demande de processus IT",
+      description:
+        "Réservé aux processus IT formalisés (onboarding, offboarding, remplacement de matériel...) : uniquement accessible via la sélection d'un processus, jamais en création de ticket libre.",
+    },
   ];
   for (const type of ticketTypes) {
     await prisma.ticketType.upsert({ where: { name: type.name }, update: {}, create: type });
+  }
+  const typeIncident = await prisma.ticketType.findUniqueOrThrow({ where: { name: "Incident" } });
+  const typeService = await prisma.ticketType.findUniqueOrThrow({ where: { name: "Demande de service" } });
+  const typeProbleme = await prisma.ticketType.findUniqueOrThrow({ where: { name: "Problème" } });
+  const typeChangement = await prisma.ticketType.findUniqueOrThrow({ where: { name: "Changement" } });
+  const typeProcessus = await prisma.ticketType.findUniqueOrThrow({ where: { name: "Demande de processus IT" } });
+
+  const priorityIds = new Map<string, string>();
+  for (const priority of priorities) {
+    const p = await prisma.priority.findUniqueOrThrow({ where: { name: priority.name } });
+    priorityIds.set(priority.name, p.id);
   }
 
   const categories = [
     {
       name: "Matériel",
+      ticketTypeId: typeIncident.id,
       description: "Panne ou demande liée au matériel informatique (PC, imprimante, périphériques)",
-      subCategories: ["Ordinateur portable", "Ordinateur de bureau", "Imprimante / Scanner", "Écran / Périphérique", "Autre matériel"],
+      subCategories: [
+        { name: "Ordinateur portable", priority: "Haute" },
+        { name: "Ordinateur de bureau", priority: "Haute" },
+        { name: "Imprimante / Scanner", priority: "Moyenne" },
+        { name: "Écran / Périphérique", priority: "Moyenne" },
+        { name: "Autre matériel", priority: "Basse" },
+      ],
     },
     {
       name: "Logiciel",
+      ticketTypeId: typeIncident.id,
       description: "Installation, bug ou demande liée à un logiciel",
-      subCategories: ["Installation logicielle", "Bug / Dysfonctionnement", "Mise à jour", "Licence logicielle", "Autre logiciel"],
+      subCategories: [
+        { name: "Installation logicielle", priority: "Basse" },
+        { name: "Bug / Dysfonctionnement", priority: "Haute" },
+        { name: "Mise à jour", priority: "Basse" },
+        { name: "Licence logicielle", priority: "Moyenne" },
+        { name: "Autre logiciel", priority: "Basse" },
+      ],
     },
     {
       name: "Réseau",
+      ticketTypeId: typeIncident.id,
       description: "Problème de connexion réseau, VPN, Wi-Fi",
-      subCategories: ["Wi-Fi", "VPN", "Réseau local (LAN)", "Accès Internet", "Autre réseau"],
+      subCategories: [
+        { name: "Wi-Fi", priority: "Haute" },
+        { name: "VPN", priority: "Haute" },
+        { name: "Réseau local (LAN)", priority: "Haute" },
+        { name: "Accès Internet", priority: "Critique" },
+        { name: "Autre réseau", priority: "Moyenne" },
+      ],
     },
     {
       name: "Compte & Accès",
+      ticketTypeId: typeService.id,
       description: "Création de compte, réinitialisation de mot de passe, droits d'accès",
-      subCategories: ["Création de compte", "Réinitialisation de mot de passe", "Modification des droits d'accès", "Désactivation de compte"],
+      subCategories: [
+        { name: "Création de compte", priority: "Moyenne" },
+        { name: "Réinitialisation de mot de passe", priority: "Haute" },
+        { name: "Modification des droits d'accès", priority: "Moyenne" },
+        { name: "Désactivation de compte", priority: "Haute" },
+      ],
     },
     {
       name: "Téléphonie",
+      ticketTypeId: typeService.id,
       description: "Demandes liées à la téléphonie fixe ou mobile",
-      subCategories: ["Téléphone fixe", "Mobile professionnel", "Ligne / Standard téléphonique"],
+      subCategories: [
+        { name: "Téléphone fixe", priority: "Basse" },
+        { name: "Mobile professionnel", priority: "Moyenne" },
+        { name: "Ligne / Standard téléphonique", priority: "Haute" },
+      ],
     },
     {
       name: "Autre",
+      ticketTypeId: typeIncident.id,
       description: "Toute autre demande d'intervention IT",
-      subCategories: ["Autre demande"],
+      subCategories: [{ name: "Autre demande", priority: "Basse" }],
+    },
+    {
+      name: "Panne récurrente",
+      ticketTypeId: typeProbleme.id,
+      description: "Cause récurrente ou sous-jacente identifiée à partir de plusieurs incidents",
+      subCategories: [{ name: "Autre", priority: "Moyenne" }],
+    },
+    {
+      name: "Modification planifiée",
+      ticketTypeId: typeChangement.id,
+      description: "Changement planifié d'un système ou service, hors urgence",
+      subCategories: [{ name: "Autre", priority: "Basse" }],
+    },
+    // --- Catégories réservées aux processus IT formalisés (une par processus) ---
+    {
+      name: "Remplacement de matériel",
+      ticketTypeId: typeProcessus.id,
+      description: "Remplacement planifié d'un équipement — traité comme un changement standard ITIL",
+      subCategories: [{ name: "Remplacement standard", priority: "Moyenne" }],
+    },
+    {
+      name: "Préparation de poste",
+      ticketTypeId: typeProcessus.id,
+      description: "Préparation complète de l'environnement de travail IT d'un nouvel employé",
+      subCategories: [{ name: "Nouvel employé", priority: "Haute" }],
+    },
+    {
+      name: "Départ collaborateur",
+      ticketTypeId: typeProcessus.id,
+      description: "Restitution du matériel et désactivation des accès lors d'un départ",
+      subCategories: [{ name: "Offboarding IT", priority: "Haute" }],
+    },
+    {
+      name: "Acquisition de licence",
+      ticketTypeId: typeProcessus.id,
+      description: "Achat d'une nouvelle licence logicielle — Software Asset Management",
+      subCategories: [{ name: "Nouvelle licence", priority: "Moyenne" }],
+    },
+    {
+      name: "Accès applicatif",
+      ticketTypeId: typeProcessus.id,
+      description: "Création, modification ou révocation d'un accès applicatif hors onboarding/offboarding",
+      subCategories: [{ name: "Nouvel accès", priority: "Moyenne" }],
     },
   ];
+  const subCategoryIds = new Map<string, string>();
   for (const category of categories) {
-    const created = await prisma.category.upsert({
-      where: { name: category.name },
-      update: {},
-      create: { name: category.name, description: category.description },
-    });
-    for (const subName of category.subCategories) {
-      await prisma.subCategory.upsert({
-        where: { categoryId_name: { categoryId: created.id, name: subName } },
+    // On recherche d'abord par nom seul (et pas par le couple type+nom) afin de
+    // corriger le rattachement d'une catégorie déjà existante (ex. issue d'une
+    // migration ayant assigné un type par défaut) plutôt que d'en recréer une
+    // en double sous le bon type.
+    const existing = await prisma.category.findFirst({ where: { name: category.name } });
+    const created = existing
+      ? await prisma.category.update({
+          where: { id: existing.id },
+          data: { ticketTypeId: category.ticketTypeId, description: category.description },
+        })
+      : await prisma.category.create({
+          data: { name: category.name, description: category.description, ticketTypeId: category.ticketTypeId },
+        });
+    for (const sub of category.subCategories) {
+      const createdSub = await prisma.subCategory.upsert({
+        where: { categoryId_name: { categoryId: created.id, name: sub.name } },
         update: {},
-        create: { name: subName, categoryId: created.id },
+        create: { name: sub.name, categoryId: created.id, priorityId: priorityIds.get(sub.priority)! },
       });
+      subCategoryIds.set(`${category.name}/${sub.name}`, createdSub.id);
     }
   }
 
@@ -113,6 +215,7 @@ async function main() {
     {
       name: "Remplacement de matériel",
       category: "CHANGE_ENABLEMENT" as const,
+      categoryPath: "Remplacement de matériel/Remplacement standard",
       description: "Remplacement planifié d'un équipement (PC, périphérique...) — traité comme un changement standard ITIL.",
       requiresManagerApproval: true,
       requiresPhysicalForm: true,
@@ -130,6 +233,7 @@ async function main() {
     {
       name: "Préparation de poste — Nouvel employé",
       category: "ONBOARDING" as const,
+      categoryPath: "Préparation de poste/Nouvel employé",
       description: "Préparation complète de l'environnement de travail IT d'un nouvel employé (matériel, comptes, accès, licences).",
       requiresManagerApproval: true,
       requiresPhysicalForm: true,
@@ -148,6 +252,7 @@ async function main() {
     {
       name: "Départ collaborateur — Offboarding IT",
       category: "OFFBOARDING" as const,
+      categoryPath: "Départ collaborateur/Offboarding IT",
       description: "Restitution du matériel et désactivation de l'ensemble des accès lors du départ d'un collaborateur.",
       requiresManagerApproval: true,
       requiresPhysicalForm: true,
@@ -166,6 +271,7 @@ async function main() {
     {
       name: "Acquisition de licence logicielle",
       category: "ASSET_MANAGEMENT" as const,
+      categoryPath: "Acquisition de licence/Nouvelle licence",
       description: "Achat d'une nouvelle licence logicielle — Software Asset Management.",
       requiresManagerApproval: true,
       requiresPhysicalForm: true,
@@ -183,6 +289,7 @@ async function main() {
     {
       name: "Demande d'accès applicatif",
       category: "ACCESS_MANAGEMENT" as const,
+      categoryPath: "Accès applicatif/Nouvel accès",
       description: "Création, modification ou révocation d'un accès applicatif (AD, Email, VPN, ERP/Sage) hors onboarding/offboarding.",
       requiresManagerApproval: true,
       requiresPhysicalForm: true,
@@ -197,6 +304,12 @@ async function main() {
     },
   ];
   for (const process of processes) {
+    const [categoryName] = process.categoryPath.split("/");
+    const processCategory = await prisma.category.findUniqueOrThrow({
+      where: { ticketTypeId_name: { ticketTypeId: typeProcessus.id, name: categoryName } },
+    });
+    const processSubCategoryId = subCategoryIds.get(process.categoryPath)!;
+
     const created = await prisma.process.upsert({
       where: { name: process.name },
       update: {},
@@ -207,6 +320,9 @@ async function main() {
         requiresManagerApproval: process.requiresManagerApproval,
         requiresPhysicalForm: process.requiresPhysicalForm,
         formTemplateUrl: process.formTemplateUrl,
+        typeId: typeProcessus.id,
+        categoryId: processCategory.id,
+        subCategoryId: processSubCategoryId,
       },
     });
     for (const [index, stepName] of process.steps.entries()) {
@@ -293,10 +409,10 @@ async function main() {
     },
   });
 
-  const materiel = await prisma.category.findUniqueOrThrow({ where: { name: "Matériel" } });
-  const reseau = await prisma.category.findUniqueOrThrow({ where: { name: "Réseau" } });
-  const logiciel = await prisma.category.findUniqueOrThrow({ where: { name: "Logiciel" } });
-  const compteAcces = await prisma.category.findUniqueOrThrow({ where: { name: "Compte & Accès" } });
+  const materiel = await prisma.category.findFirstOrThrow({ where: { name: "Matériel" } });
+  const reseau = await prisma.category.findFirstOrThrow({ where: { name: "Réseau" } });
+  const logiciel = await prisma.category.findFirstOrThrow({ where: { name: "Logiciel" } });
+  const compteAcces = await prisma.category.findFirstOrThrow({ where: { name: "Compte & Accès" } });
 
   const guides = [
     {
@@ -481,6 +597,12 @@ Si votre boîte reste pleine après un nettoyage ou si la synchronisation ne rep
     {
       title: "Page d'accueil : mises à jour et actualités IT",
       description: "Nouvelle page d'accueil regroupant l'historique des évolutions de l'application et les dernières actualités IT/cybersécurité récupérées automatiquement.",
+      type: "FEATURE" as const,
+    },
+    {
+      title: "Classification à trois niveaux et priorité automatique",
+      description:
+        "Les catégories sont désormais classées sous un type de demande, et chaque sous-catégorie détermine automatiquement la priorité du ticket (fini le choix manuel). Les processus IT ont leur propre type de demande dédié, non sélectionnable en création de ticket libre, et peuvent désigner un utilisateur bénéficiaire (ex. nouvel employé pour un onboarding).",
       type: "FEATURE" as const,
     },
   ];

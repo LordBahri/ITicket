@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
@@ -7,7 +7,13 @@ import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { IconLightbulb, IconWorkflow } from "../components/icons";
-import type { Category, KnowledgeArticle, Priority, Process, SubCategory, Ticket, TicketType } from "../types";
+import type { Category, KnowledgeArticle, Process, SubCategory, Ticket, TicketType } from "../types";
+
+interface DirectoryUser {
+  id: string;
+  name: string;
+  email: string;
+}
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -22,8 +28,8 @@ export function NewTicket() {
   const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
-  const [priorityId, setPriorityId] = useState("");
   const [processId, setProcessId] = useState("");
+  const [beneficiaryId, setBeneficiaryId] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,15 +43,24 @@ export function NewTicket() {
   const activeProcesses = processes?.filter((p) => p.isActive) ?? [];
   const selectedProcess = activeProcesses.find((p) => p.id === processId) ?? null;
 
+  // Les types de demande utilisés par au moins un processus actif sont réservés à
+  // ce processus : on ne les propose pas dans le choix "type de demande" d'un
+  // ticket standard, seule la sélection d'un processus permet d'y accéder.
+  const reservedTypeIds = useMemo(() => new Set(activeProcesses.map((p) => p.typeId)), [activeProcesses]);
+
   const { data: ticketTypes } = useQuery({
     queryKey: ["ticket-types"],
     queryFn: async () => (await apiClient.get<{ ticketTypes: TicketType[] }>("/ticket-types")).data.ticketTypes,
   });
+  const availableTypes = (ticketTypes ?? []).filter((t) => t.isActive && !reservedTypeIds.has(t.id));
 
   const { data: categories } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => (await apiClient.get<{ categories: Category[] }>("/categories")).data.categories,
+    queryKey: ["categories", { typeId }],
+    queryFn: async () =>
+      (await apiClient.get<{ categories: Category[] }>("/categories", { params: { ticketTypeId: typeId } })).data.categories,
+    enabled: Boolean(typeId),
   });
+  const activeCategories = categories?.filter((c) => c.isActive) ?? [];
 
   const { data: subCategories } = useQuery({
     queryKey: ["subcategories", { categoryId }],
@@ -55,10 +70,12 @@ export function NewTicket() {
       ).data.subCategories,
     enabled: Boolean(categoryId),
   });
+  const activeSubCategories = subCategories?.filter((s) => s.isActive) ?? [];
 
-  const { data: priorities } = useQuery({
-    queryKey: ["priorities"],
-    queryFn: async () => (await apiClient.get<{ priorities: Priority[] }>("/priorities")).data.priorities,
+  const { data: directory } = useQuery({
+    queryKey: ["users", "directory"],
+    queryFn: async () => (await apiClient.get<{ users: DirectoryUser[] }>("/users/directory")).data.users,
+    enabled: Boolean(processId),
   });
 
   const { data: suggestedArticles } = useQuery({
@@ -67,14 +84,28 @@ export function NewTicket() {
       (
         await apiClient.get<{ articles: KnowledgeArticle[] }>("/knowledge", { params: { categoryId } })
       ).data.articles,
-    enabled: Boolean(categoryId),
+    enabled: Boolean(categoryId) && !processId,
   });
 
-  const activeSubCategories = subCategories?.filter((s) => s.isActive) ?? [];
+  function handleTypeChange(value: string) {
+    setTypeId(value);
+    setCategoryId("");
+    setSubCategoryId("");
+  }
 
   function handleCategoryChange(value: string) {
     setCategoryId(value);
     setSubCategoryId("");
+  }
+
+  function handleProcessChange(value: string) {
+    setProcessId(value);
+    setBeneficiaryId("");
+    if (value) {
+      setTypeId("");
+      setCategoryId("");
+      setSubCategoryId("");
+    }
   }
 
   const mutation = useMutation({
@@ -83,11 +114,11 @@ export function NewTicket() {
         await apiClient.post<{ ticket: Ticket }>("/tickets", {
           title,
           description,
-          typeId,
-          categoryId,
-          subCategoryId: subCategoryId || undefined,
-          priorityId,
+          typeId: processId ? undefined : typeId,
+          categoryId: processId ? undefined : categoryId,
+          subCategoryId: processId ? undefined : subCategoryId,
           processId: processId || undefined,
+          beneficiaryId: beneficiaryId || undefined,
         })
       ).data.ticket,
     onSuccess: async (ticket) => {
@@ -150,7 +181,7 @@ export function NewTicket() {
               <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-brand-900">
                 <IconWorkflow className="h-4 w-4" /> Processus IT (optionnel)
               </label>
-              <select value={processId} onChange={(e) => setProcessId(e.target.value)} className={`${inputClass} bg-white`}>
+              <select value={processId} onChange={(e) => handleProcessChange(e.target.value)} className={`${inputClass} bg-white`}>
                 <option value="">Aucun — demande standard</option>
                 {activeProcesses.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -159,12 +190,16 @@ export function NewTicket() {
                 ))}
               </select>
               {selectedProcess && (
-                <p className="mt-2 text-xs text-brand-800">
+                <div className="mt-2 space-y-2 text-xs text-brand-800">
+                  <p>
+                    Classé automatiquement sous : <strong>{selectedProcess.ticketType?.name}</strong> ›{" "}
+                    <strong>{selectedProcess.ticketCategory?.name}</strong> › <strong>{selectedProcess.subCategory?.name}</strong>
+                  </p>
                   {selectedProcess.requiresManagerApproval &&
                     "Cette demande nécessitera la validation de votre supérieur hiérarchique avant prise en charge par l'IT. "}
                   {selectedProcess.requiresPhysicalForm &&
                     "Un formulaire signé devra être scanné puis remis en physique à l'équipe IT pour archivage."}
-                </p>
+                </div>
               )}
             </div>
           )}
@@ -176,6 +211,24 @@ export function NewTicket() {
               processus dédié réservé aux responsables de service. Un administrateur peut activer ce statut depuis votre
               fiche utilisateur.
             </p>
+          )}
+
+          {processId && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Utilisateur bénéficiaire (optionnel)</label>
+              <select value={beneficiaryId} onChange={(e) => setBeneficiaryId(e.target.value)} className={inputClass}>
+                <option value="">Aucun — la demande me concerne</option>
+                {directory?.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                Sélectionnez la personne concernée par cette demande si ce n'est pas vous (ex : nouvel employé pour un
+                onboarding).
+              </p>
+            </div>
           )}
 
           <div>
@@ -190,66 +243,59 @@ export function NewTicket() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Type de demande</label>
-            <select required value={typeId} onChange={(e) => setTypeId(e.target.value)} className={inputClass}>
-              <option value="">Sélectionner…</option>
-              {ticketTypes
-                ?.filter((t) => t.isActive)
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Catégorie</label>
-              <select required value={categoryId} onChange={(e) => handleCategoryChange(e.target.value)} className={inputClass}>
-                <option value="">Sélectionner…</option>
-                {categories
-                  ?.filter((c) => c.isActive)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+          {!processId && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Type de demande</label>
+                <select required value={typeId} onChange={(e) => handleTypeChange(e.target.value)} className={inputClass}>
+                  <option value="">Sélectionner…</option>
+                  {availableTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
                     </option>
                   ))}
-              </select>
-            </div>
+                </select>
+              </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Sous-catégorie</label>
-              <select
-                value={subCategoryId}
-                onChange={(e) => setSubCategoryId(e.target.value)}
-                disabled={!categoryId || activeSubCategories.length === 0}
-                className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
-              >
-                <option value="">
-                  {categoryId && activeSubCategories.length === 0 ? "Aucune" : "Sélectionner (optionnel)…"}
-                </option>
-                {activeSubCategories.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Catégorie</label>
+                  <select
+                    required
+                    value={categoryId}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    disabled={!typeId}
+                    className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+                  >
+                    <option value="">{typeId ? "Sélectionner…" : "Choisissez d'abord un type"}</option>
+                    {activeCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
-            <select required value={priorityId} onChange={(e) => setPriorityId(e.target.value)} className={inputClass}>
-              <option value="">Sélectionner…</option>
-              {priorities?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Sous-catégorie</label>
+                  <select
+                    required
+                    value={subCategoryId}
+                    onChange={(e) => setSubCategoryId(e.target.value)}
+                    disabled={!categoryId}
+                    className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+                  >
+                    <option value="">{categoryId ? "Sélectionner…" : "Choisissez d'abord une catégorie"}</option>
+                    {activeSubCategories.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
 
           {suggestedArticles && suggestedArticles.length > 0 && (
             <div className="animate-fade-in rounded-md border border-brand-200 bg-brand-50 p-3">

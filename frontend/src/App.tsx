@@ -10,7 +10,10 @@ import { NewTicket } from "./pages/NewTicket";
 import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { KnowledgeArticleDetail } from "./pages/KnowledgeArticleDetail";
 import { AdminTicketTypes } from "./pages/AdminTicketTypes";
+import { TicketTypeDetail } from "./pages/TicketTypeDetail";
 import { AdminCategories } from "./pages/AdminCategories";
+import { CategoryDetail } from "./pages/CategoryDetail";
+import { SubCategoryDetail } from "./pages/SubCategoryDetail";
 import { AdminPriorities } from "./pages/AdminPriorities";
 import { AdminUsers } from "./pages/AdminUsers";
 import { UserDetail } from "./pages/UserDetail";
@@ -46,7 +49,10 @@ export default function App() {
 
           <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
             <Route path="/admin/ticket-types" element={<AdminTicketTypes />} />
+            <Route path="/admin/ticket-types/:id" element={<TicketTypeDetail />} />
             <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route path="/admin/categories/:id" element={<CategoryDetail />} />
+            <Route path="/admin/subcategories/:id" element={<SubCategoryDetail />} />
             <Route path="/admin/priorities" element={<AdminPriorities />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/users/:id" element={<UserDetail />} />

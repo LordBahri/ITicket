@@ -97,6 +97,7 @@ model User {
 
   ticketsRequested     Ticket[]                 @relation("TicketRequester")
   ticketsAssigned      Ticket[]                 @relation("TicketAssignee")
+  ticketsBeneficiary   Ticket[]                 @relation("TicketBeneficiary")
   formArchivedTickets  Ticket[]                 @relation("TicketFormArchivedBy")
   comments             Comment[]
   attachments          Attachment[]
@@ -120,19 +121,28 @@ model TicketType {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  tickets Ticket[]
+  tickets    Ticket[]
+  categories Category[]
+  processes  Process[]
 }
 
 model Category {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+
   tickets      Ticket[]
   articles     KnowledgeArticle[]
   subCategories SubCategory[]
+  processes    Process[]
+
+  @@unique([ticketTypeId, name])
+  @@index([ticketTypeId])
 }
 
 model SubCategory {
@@ -145,10 +155,15 @@ model SubCategory {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  tickets Ticket[]
+  priorityId String
+  priority   Priority @relation(fields: [priorityId], references: [id])
+
+  tickets   Ticket[]
+  processes Process[]
 
   @@unique([categoryId, name])
   @@index([categoryId])
+  @@index([priorityId])
 }
 
 model KnowledgeArticle {
@@ -178,7 +193,8 @@ model Priority {
   resolutionTimeHours  Int
   createdAt            DateTime @default(now())
 
-  tickets Ticket[]
+  tickets       Ticket[]
+  subCategories SubCategory[]
 }
 
 model Ticket {
@@ -195,8 +211,8 @@ model Ticket {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  subCategoryId String?
-  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id])
+  subCategoryId String
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
 
   priorityId String
   priority   Priority @relation(fields: [priorityId], references: [id])
@@ -206,6 +222,9 @@ model Ticket {
 
   assigneeId String?
   assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
+  beneficiaryId String?
+  beneficiary   User?   @relation("TicketBeneficiary", fields: [beneficiaryId], references: [id])
 
   processId String?
   process   Process? @relation(fields: [processId], references: [id])
@@ -229,7 +248,9 @@ model Ticket {
   @@index([status])
   @@index([requesterId])
   @@index([assigneeId])
+  @@index([beneficiaryId])
   @@index([processId])
+  @@index([subCategoryId])
 }
 
 model Comment {
@@ -356,8 +377,24 @@ model Process {
   isActive                Boolean         @default(true)
   createdAt               DateTime        @default(now())
 
+  // Type/catégorie/sous-catégorie appliqués automatiquement au ticket créé via ce
+  // processus (non modifiables par l'utilisateur) ; ce type de demande n'apparaît
+  // donc plus dans le choix "normal" (hors processus) d'un nouveau ticket.
+  typeId String
+  ticketType   TicketType @relation(fields: [typeId], references: [id])
+
+  categoryId String
+  ticketCategory   Category @relation(fields: [categoryId], references: [id])
+
+  subCategoryId String
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
+
   steps   ProcessStep[]
   tickets Ticket[]
+
+  @@index([typeId])
+  @@index([categoryId])
+  @@index([subCategoryId])
 }
 
 model ProcessStep {

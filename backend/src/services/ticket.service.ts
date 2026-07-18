@@ -9,10 +9,11 @@ import type { TicketChannel } from "@prisma/client";
 export const ticketInclude = {
   type: true,
   category: true,
-  subCategory: true,
+  subCategory: { include: { priority: true } },
   priority: true,
   requester: { select: { id: true, name: true, email: true, service: { select: { id: true, name: true } }, company: true } },
   assignee: { select: { id: true, name: true, email: true } },
+  beneficiary: { select: { id: true, name: true, email: true } },
   process: { select: { id: true, name: true, category: true, requiresManagerApproval: true, requiresPhysicalForm: true, formTemplateUrl: true } },
   approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
   physicalFormArchivedBy: { select: { id: true, name: true } },
@@ -21,34 +22,24 @@ export const ticketInclude = {
 interface CreateTicketParams {
   title: string;
   description: string;
-  typeId: string;
-  categoryId: string;
-  subCategoryId?: string | null;
-  priorityId: string;
+  typeId?: string;
+  categoryId?: string;
+  subCategoryId?: string;
   requesterId: string;
   channel: TicketChannel;
   processId?: string | null;
+  beneficiaryId?: string | null;
   notify?: boolean;
 }
 
+async function isTicketTypeReservedForProcess(typeId: string): Promise<boolean> {
+  const count = await prisma.process.count({ where: { typeId, isActive: true } });
+  return count > 0;
+}
+
 export async function createTicketRecord(params: CreateTicketParams) {
-  const [type, category, priority] = await Promise.all([
-    prisma.ticketType.findUnique({ where: { id: params.typeId } }),
-    prisma.category.findUnique({ where: { id: params.categoryId } }),
-    prisma.priority.findUnique({ where: { id: params.priorityId } }),
-  ]);
-  if (!type || !type.isActive) throw new HttpError(400, "Type de demande invalide");
-  if (!category || !category.isActive) throw new HttpError(400, "Catégorie invalide");
-  if (!priority) throw new HttpError(400, "Priorité invalide");
-
-  if (params.subCategoryId) {
-    const subCategory = await prisma.subCategory.findUnique({ where: { id: params.subCategoryId } });
-    if (!subCategory || !subCategory.isActive || subCategory.categoryId !== params.categoryId) {
-      throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
-    }
-  }
-
-  let process: { id: string; name: string; requiresManagerApproval: boolean } | null = null;
+  let process: { id: string; name: string; requiresManagerApproval: boolean; typeId: string; categoryId: string; subCategoryId: string } | null =
+    null;
   let approverId: string | null = null;
 
   if (params.processId) {
@@ -70,8 +61,41 @@ export async function createTicketRecord(params: CreateTicketParams) {
     process = proc;
   }
 
+  // Le type/catégorie/sous-catégorie d'un ticket lié à un processus IT sont
+  // imposés par le processus lui-même (non modifiables par l'utilisateur) ;
+  // sinon, ils viennent du choix explicite du demandeur.
+  const effectiveTypeId = process?.typeId ?? params.typeId;
+  const effectiveCategoryId = process?.categoryId ?? params.categoryId;
+  const effectiveSubCategoryId = process?.subCategoryId ?? params.subCategoryId;
+
+  if (!effectiveTypeId || !effectiveCategoryId || !effectiveSubCategoryId) {
+    throw new HttpError(400, "Type, catégorie et sous-catégorie sont obligatoires");
+  }
+
+  const [type, category, subCategory] = await Promise.all([
+    prisma.ticketType.findUnique({ where: { id: effectiveTypeId } }),
+    prisma.category.findUnique({ where: { id: effectiveCategoryId } }),
+    prisma.subCategory.findUnique({ where: { id: effectiveSubCategoryId }, include: { priority: true } }),
+  ]);
+  if (!type || !type.isActive) throw new HttpError(400, "Type de demande invalide");
+  if (!category || !category.isActive || category.ticketTypeId !== effectiveTypeId) {
+    throw new HttpError(400, "Catégorie invalide pour ce type de demande");
+  }
+  if (!subCategory || !subCategory.isActive || subCategory.categoryId !== effectiveCategoryId) {
+    throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
+  }
+
+  if (!process && (await isTicketTypeReservedForProcess(effectiveTypeId))) {
+    throw new HttpError(400, "Ce type de demande est réservé aux processus IT : passez par la sélection d'un processus");
+  }
+
+  if (params.beneficiaryId) {
+    const beneficiary = await prisma.user.findUnique({ where: { id: params.beneficiaryId } });
+    if (!beneficiary || !beneficiary.isActive) throw new HttpError(400, "Utilisateur bénéficiaire invalide");
+  }
+
   const reference = await generateTicketReference();
-  const dueAt = computeDueAt(priority);
+  const dueAt = computeDueAt(subCategory.priority);
 
   const ticket = await prisma.ticket.create({
     data: {
@@ -79,11 +103,12 @@ export async function createTicketRecord(params: CreateTicketParams) {
       title: params.title,
       description: params.description,
       channel: params.channel,
-      typeId: params.typeId,
-      categoryId: params.categoryId,
-      subCategoryId: params.subCategoryId ?? null,
-      priorityId: params.priorityId,
+      typeId: effectiveTypeId,
+      categoryId: effectiveCategoryId,
+      subCategoryId: effectiveSubCategoryId,
+      priorityId: subCategory.priorityId,
       requesterId: params.requesterId,
+      beneficiaryId: params.beneficiaryId ?? null,
       processId: process?.id ?? null,
       status: approverId ? "PENDING_APPROVAL" : undefined,
       dueAt,
@@ -161,26 +186,26 @@ export async function resolveDefaultTicketTypeId(preferredName?: string): Promis
   return fallback.id;
 }
 
-export async function resolveDefaultCategoryId(preferredName?: string): Promise<string> {
+export async function resolveDefaultCategoryId(typeId: string, preferredName?: string): Promise<string> {
   if (preferredName) {
-    const match = await prisma.category.findFirst({ where: { name: preferredName, isActive: true } });
+    const match = await prisma.category.findFirst({ where: { ticketTypeId: typeId, name: preferredName, isActive: true } });
     if (match) return match.id;
   }
   const fallback =
-    (await prisma.category.findFirst({ where: { name: "Autre", isActive: true } })) ??
-    (await prisma.category.findFirst({ where: { isActive: true }, orderBy: { name: "asc" } }));
-  if (!fallback) throw new HttpError(500, "Aucune catégorie disponible");
+    (await prisma.category.findFirst({ where: { ticketTypeId: typeId, name: "Autre", isActive: true } })) ??
+    (await prisma.category.findFirst({ where: { ticketTypeId: typeId, isActive: true }, orderBy: { name: "asc" } }));
+  if (!fallback) throw new HttpError(500, "Aucune catégorie disponible pour ce type de demande");
   return fallback.id;
 }
 
-export async function resolveDefaultPriorityId(preferredName?: string): Promise<string> {
+export async function resolveDefaultSubCategoryId(categoryId: string, preferredName?: string): Promise<string> {
   if (preferredName) {
-    const match = await prisma.priority.findFirst({ where: { name: preferredName } });
+    const match = await prisma.subCategory.findFirst({ where: { categoryId, name: preferredName, isActive: true } });
     if (match) return match.id;
   }
   const fallback =
-    (await prisma.priority.findFirst({ where: { name: "Moyenne" } })) ??
-    (await prisma.priority.findFirst({ orderBy: { level: "asc" } }));
-  if (!fallback) throw new HttpError(500, "Aucune priorité disponible");
+    (await prisma.subCategory.findFirst({ where: { categoryId, name: "Autre", isActive: true } })) ??
+    (await prisma.subCategory.findFirst({ where: { categoryId, isActive: true }, orderBy: { name: "asc" } }));
+  if (!fallback) throw new HttpError(500, "Aucune sous-catégorie disponible pour cette catégorie");
   return fallback.id;
 }

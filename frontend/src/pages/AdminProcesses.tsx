@@ -6,7 +6,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { Process, ProcessCategory, ProcessStep } from "../types";
+import type { Category, Process, ProcessCategory, ProcessStep, SubCategory, TicketType } from "../types";
 
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -95,12 +95,45 @@ export function AdminProcesses() {
   const [requiresManagerApproval, setRequiresManagerApproval] = useState(true);
   const [requiresPhysicalForm, setRequiresPhysicalForm] = useState(false);
   const [formTemplateUrl, setFormTemplateUrl] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [subCategoryId, setSubCategoryId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const { data: processes, isLoading } = useQuery({
     queryKey: ["processes"],
     queryFn: async () => (await apiClient.get<{ processes: Process[] }>("/processes")).data.processes,
   });
+
+  const { data: ticketTypes } = useQuery({
+    queryKey: ["ticket-types"],
+    queryFn: async () => (await apiClient.get<{ ticketTypes: TicketType[] }>("/ticket-types")).data.ticketTypes,
+  });
+
+  const { data: typeCategories } = useQuery({
+    queryKey: ["categories", { typeId }],
+    queryFn: async () =>
+      (await apiClient.get<{ categories: Category[] }>("/categories", { params: { ticketTypeId: typeId } })).data.categories,
+    enabled: Boolean(typeId),
+  });
+
+  const { data: categorySubCategories } = useQuery({
+    queryKey: ["subcategories", { categoryId }],
+    queryFn: async () =>
+      (await apiClient.get<{ subCategories: SubCategory[] }>("/subcategories", { params: { categoryId } })).data.subCategories,
+    enabled: Boolean(categoryId),
+  });
+
+  function handleTypeChange(value: string) {
+    setTypeId(value);
+    setCategoryId("");
+    setSubCategoryId("");
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategoryId(value);
+    setSubCategoryId("");
+  }
 
   const createMutation = useMutation({
     mutationFn: async () =>
@@ -111,6 +144,9 @@ export function AdminProcesses() {
         requiresManagerApproval,
         requiresPhysicalForm,
         formTemplateUrl: formTemplateUrl || undefined,
+        typeId,
+        categoryId,
+        subCategoryId,
       }),
     onSuccess: () => {
       setName("");
@@ -118,6 +154,9 @@ export function AdminProcesses() {
       setFormTemplateUrl("");
       setRequiresManagerApproval(true);
       setRequiresPhysicalForm(false);
+      setTypeId("");
+      setCategoryId("");
+      setSubCategoryId("");
       setShowForm(false);
       toast.success("Processus créé");
       queryClient.invalidateQueries({ queryKey: ["processes"] });
@@ -190,6 +229,49 @@ export function AdminProcesses() {
             placeholder="Lien du formulaire (ex : /forms/formulaire-xxx.docx)"
             className={`w-full ${inputClass}`}
           />
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-600">
+              Classification imposée aux tickets créés via ce processus (l'utilisateur ne la choisit pas)
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <select required value={typeId} onChange={(e) => handleTypeChange(e.target.value)} className={inputClass}>
+                <option value="">Type de demande…</option>
+                {ticketTypes?.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                required
+                value={categoryId}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                disabled={!typeId}
+                className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+              >
+                <option value="">Catégorie…</option>
+                {typeCategories?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                required
+                value={subCategoryId}
+                onChange={(e) => setSubCategoryId(e.target.value)}
+                disabled={!categoryId}
+                className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`}
+              >
+                <option value="">Sous-catégorie…</option>
+                {categorySubCategories?.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
@@ -227,6 +309,7 @@ export function AdminProcesses() {
             <tr>
               <th className="px-4 py-2">Nom</th>
               <th className="px-4 py-2">Catégorie</th>
+              <th className="px-4 py-2">Classification imposée</th>
               <th className="px-4 py-2">Validation</th>
               <th className="px-4 py-2">Formulaire</th>
               <th className="px-4 py-2">Statut</th>
@@ -234,7 +317,7 @@ export function AdminProcesses() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
+            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
             {processes?.map((p) => (
               <Fragment key={p.id}>
                 <tr
@@ -246,6 +329,9 @@ export function AdminProcesses() {
                     {p.name}
                   </td>
                   <td className="px-4 py-2 text-slate-500">{CATEGORY_LABELS[p.category]}</td>
+                  <td className="px-4 py-2 text-xs text-slate-500">
+                    {p.ticketType?.name} › {p.ticketCategory?.name} › {p.subCategory?.name}
+                  </td>
                   <td className="px-4 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -298,7 +384,7 @@ export function AdminProcesses() {
                 </tr>
                 {expanded === p.id && (
                   <tr>
-                    <td colSpan={6} className="p-0">
+                    <td colSpan={7} className="p-0">
                       <ProcessStepManager process={p} />
                     </td>
                   </tr>

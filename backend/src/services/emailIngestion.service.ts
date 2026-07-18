@@ -6,7 +6,7 @@ import {
   createTicketRecord,
   resolveDefaultTicketTypeId,
   resolveDefaultCategoryId,
-  resolveDefaultPriorityId,
+  resolveDefaultSubCategoryId,
 } from "./ticket.service";
 
 function extractSenderEmail(from?: string): { email: string; name: string } | null {
@@ -24,11 +24,9 @@ async function processMailbox(client: ImapFlow) {
     const uids = await client.search({ seen: false }, { uid: true });
     if (!uids || uids.length === 0) return;
 
-    const [typeId, categoryId, priorityId] = await Promise.all([
-      resolveDefaultTicketTypeId(),
-      resolveDefaultCategoryId(),
-      resolveDefaultPriorityId(),
-    ]);
+    const typeId = await resolveDefaultTicketTypeId();
+    const categoryId = await resolveDefaultCategoryId(typeId);
+    const subCategoryId = await resolveDefaultSubCategoryId(categoryId);
 
     for (const uid of uids) {
       try {
@@ -51,7 +49,7 @@ async function processMailbox(client: ImapFlow) {
           description,
           typeId,
           categoryId,
-          priorityId,
+          subCategoryId,
           requesterId: requester.id,
           channel: "EMAIL",
         });

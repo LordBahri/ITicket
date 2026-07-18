@@ -8,7 +8,7 @@ import {
   createTicketRecord,
   resolveDefaultTicketTypeId,
   resolveDefaultCategoryId,
-  resolveDefaultPriorityId,
+  resolveDefaultSubCategoryId,
 } from "../services/ticket.service";
 
 function verifySlackSignature(req: Request): boolean {
@@ -72,18 +72,16 @@ export async function slackCommand(req: Request, res: Response) {
   const { email, name } = await resolveSlackUserEmail(data.user_id, data.user_name);
   const requester = await ensureUserByEmail(email, name);
 
-  const [typeId, categoryId, priorityId] = await Promise.all([
-    resolveDefaultTicketTypeId(),
-    resolveDefaultCategoryId(),
-    resolveDefaultPriorityId(),
-  ]);
+  const typeId = await resolveDefaultTicketTypeId();
+  const categoryId = await resolveDefaultCategoryId(typeId);
+  const subCategoryId = await resolveDefaultSubCategoryId(categoryId);
 
   const ticket = await createTicketRecord({
     title: title.trim().slice(0, 200),
     description,
     typeId,
     categoryId,
-    priorityId,
+    subCategoryId,
     requesterId: requester.id,
     channel: "SLACK",
   });
@@ -101,7 +99,6 @@ const teamsWebhookSchema = z.object({
   userName: z.string().min(1).max(100),
   typeName: z.string().optional(),
   categoryName: z.string().optional(),
-  priorityName: z.string().optional(),
 });
 
 export async function teamsWebhook(req: Request, res: Response) {
@@ -115,18 +112,16 @@ export async function teamsWebhook(req: Request, res: Response) {
   const data = teamsWebhookSchema.parse(req.body);
   const requester = await ensureUserByEmail(data.userEmail, data.userName);
 
-  const [typeId, categoryId, priorityId] = await Promise.all([
-    resolveDefaultTicketTypeId(data.typeName),
-    resolveDefaultCategoryId(data.categoryName),
-    resolveDefaultPriorityId(data.priorityName),
-  ]);
+  const typeId = await resolveDefaultTicketTypeId(data.typeName);
+  const categoryId = await resolveDefaultCategoryId(typeId, data.categoryName);
+  const subCategoryId = await resolveDefaultSubCategoryId(categoryId);
 
   const ticket = await createTicketRecord({
     title: data.title,
     description: data.description,
     typeId,
     categoryId,
-    priorityId,
+    subCategoryId,
     requesterId: requester.id,
     channel: "TEAMS",
   });

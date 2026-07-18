@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   listUsers,
   listAgents,
+  listCompanyDirectory,
   getUser,
   createUser,
   updateUser,
@@ -18,6 +19,7 @@ userRouter.use(authenticate);
 
 userRouter.get("/", authorize("ADMIN"), asyncHandler(listUsers));
 userRouter.get("/agents", authorize("AGENT", "ADMIN"), asyncHandler(listAgents));
+userRouter.get("/directory", asyncHandler(listCompanyDirectory));
 userRouter.get("/remote-access", authorize("AGENT", "ADMIN"), asyncHandler(listRemoteAccess));
 userRouter.get("/:id", authorize("ADMIN"), asyncHandler(getUser));
 userRouter.post("/", authorize("ADMIN"), asyncHandler(createUser));

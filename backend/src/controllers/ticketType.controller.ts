@@ -14,6 +14,22 @@ export async function listTicketTypes(_req: Request, res: Response) {
   res.json({ ticketTypes });
 }
 
+export async function getTicketType(req: Request, res: Response) {
+  const ticketType = await prisma.ticketType.findUnique({
+    where: { id: req.params.id },
+    include: {
+      categories: {
+        include: { subCategories: { include: { priority: true }, orderBy: { name: "asc" } }, _count: { select: { tickets: true } } },
+        orderBy: { name: "asc" },
+      },
+      processes: { select: { id: true, name: true, isActive: true }, orderBy: { name: "asc" } },
+      _count: { select: { tickets: true } },
+    },
+  });
+  if (!ticketType) throw new HttpError(404, "Type de demande introuvable");
+  res.json({ ticketType });
+}
+
 export async function createTicketType(req: Request, res: Response) {
   const data = ticketTypeSchema.parse(req.body);
   const existing = await prisma.ticketType.findUnique({ where: { name: data.name } });

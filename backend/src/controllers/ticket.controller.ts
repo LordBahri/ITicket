@@ -14,21 +14,21 @@ const TICKET_STATUSES = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "
 const createTicketSchema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(5).max(5000),
-  typeId: z.string(),
-  categoryId: z.string(),
+  typeId: z.string().optional(),
+  categoryId: z.string().optional(),
   subCategoryId: z.string().optional(),
-  priorityId: z.string(),
   channel: z.enum(TICKET_CHANNELS).optional(),
   processId: z.string().optional(),
+  beneficiaryId: z.string().optional(),
 });
 
 const updateTicketSchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
   assigneeId: z.string().nullable().optional(),
+  beneficiaryId: z.string().nullable().optional(),
   typeId: z.string().optional(),
   categoryId: z.string().optional(),
-  subCategoryId: z.string().nullable().optional(),
-  priorityId: z.string().optional(),
+  subCategoryId: z.string().optional(),
 });
 
 const listQuerySchema = z.object({
@@ -57,10 +57,10 @@ export async function createTicket(req: Request, res: Response) {
     typeId: data.typeId,
     categoryId: data.categoryId,
     subCategoryId: data.subCategoryId,
-    priorityId: data.priorityId,
     requesterId: req.user!.id,
     channel: data.channel ?? "WEB",
     processId: data.processId,
+    beneficiaryId: data.beneficiaryId,
   });
 
   res.status(201).json({ ticket: serializeTicket(ticket) });
@@ -153,34 +153,30 @@ export async function updateTicket(req: Request, res: Response) {
 
   const updateData: Record<string, unknown> = {};
 
-  if (data.typeId) {
-    const type = await prisma.ticketType.findUnique({ where: { id: data.typeId } });
+  if (data.typeId || data.categoryId || data.subCategoryId) {
+    const effectiveTypeId = data.typeId ?? ticket.typeId;
+    const effectiveCategoryId = data.categoryId ?? ticket.categoryId;
+    const effectiveSubCategoryId = data.subCategoryId ?? ticket.subCategoryId;
+
+    const [type, category, subCategory] = await Promise.all([
+      prisma.ticketType.findUnique({ where: { id: effectiveTypeId } }),
+      prisma.category.findUnique({ where: { id: effectiveCategoryId } }),
+      prisma.subCategory.findUnique({ where: { id: effectiveSubCategoryId }, include: { priority: true } }),
+    ]);
     if (!type) throw new HttpError(400, "Type de demande invalide");
-    updateData.typeId = data.typeId;
-  }
-
-  if (data.categoryId) {
-    const category = await prisma.category.findUnique({ where: { id: data.categoryId } });
-    if (!category) throw new HttpError(400, "Catégorie invalide");
-    updateData.categoryId = data.categoryId;
-  }
-
-  if (data.subCategoryId !== undefined) {
-    if (data.subCategoryId) {
-      const subCategory = await prisma.subCategory.findUnique({ where: { id: data.subCategoryId } });
-      const effectiveCategoryId = (updateData.categoryId as string | undefined) ?? ticket.categoryId;
-      if (!subCategory || subCategory.categoryId !== effectiveCategoryId) {
-        throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
-      }
+    if (!category || category.ticketTypeId !== effectiveTypeId) {
+      throw new HttpError(400, "Catégorie invalide pour ce type de demande");
     }
-    updateData.subCategoryId = data.subCategoryId;
-  }
+    if (!subCategory || subCategory.categoryId !== effectiveCategoryId) {
+      throw new HttpError(400, "Sous-catégorie invalide pour cette catégorie");
+    }
 
-  if (data.priorityId) {
-    const priority = await prisma.priority.findUnique({ where: { id: data.priorityId } });
-    if (!priority) throw new HttpError(400, "Priorité invalide");
-    updateData.priorityId = data.priorityId;
-    updateData.dueAt = computeDueAt(priority, ticket.createdAt);
+    updateData.typeId = effectiveTypeId;
+    updateData.categoryId = effectiveCategoryId;
+    updateData.subCategoryId = effectiveSubCategoryId;
+    // La priorité suit toujours automatiquement la sous-catégorie choisie.
+    updateData.priorityId = subCategory.priorityId;
+    updateData.dueAt = computeDueAt(subCategory.priority, ticket.createdAt);
   }
 
   if (data.assigneeId !== undefined) {
@@ -191,6 +187,14 @@ export async function updateTicket(req: Request, res: Response) {
       }
     }
     updateData.assigneeId = data.assigneeId;
+  }
+
+  if (data.beneficiaryId !== undefined) {
+    if (data.beneficiaryId) {
+      const beneficiary = await prisma.user.findUnique({ where: { id: data.beneficiaryId } });
+      if (!beneficiary || !beneficiary.isActive) throw new HttpError(400, "Utilisateur bénéficiaire invalide");
+    }
+    updateData.beneficiaryId = data.beneficiaryId;
   }
 
   if (data.status) {
@@ -253,13 +257,13 @@ export async function updateTicket(req: Request, res: Response) {
     }
   }
 
-  const hasOtherChanges = Boolean(data.typeId || data.categoryId || data.subCategoryId !== undefined || data.priorityId);
+  const hasOtherChanges = Boolean(data.typeId || data.categoryId || data.subCategoryId);
   if (hasOtherChanges) {
     const changes: string[] = [];
     if (data.typeId) changes.push(`Type : ${updated.type.name}`);
     if (data.categoryId) changes.push(`Catégorie : ${updated.category.name}`);
-    if (data.subCategoryId !== undefined) changes.push(`Sous-catégorie : ${updated.subCategory?.name ?? "—"}`);
-    if (data.priorityId) changes.push(`Priorité : ${updated.priority.name}`);
+    if (data.subCategoryId) changes.push(`Sous-catégorie : ${updated.subCategory.name}`);
+    changes.push(`Priorité : ${updated.priority.name}`);
 
     const mail = renderTicketEmail({
       heading: `Ticket mis à jour : ${updated.title}`,

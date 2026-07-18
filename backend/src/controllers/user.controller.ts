@@ -94,6 +94,18 @@ async function assertServiceBelongsToCompany(serviceId: string, companyId: strin
   }
 }
 
+export async function listCompanyDirectory(req: Request, res: Response) {
+  const requester = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { companyId: true } });
+  if (!requester) throw new HttpError(404, "Utilisateur introuvable");
+
+  const users = await prisma.user.findMany({
+    where: { companyId: requester.companyId, isActive: true },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: "asc" },
+  });
+  res.json({ users });
+}
+
 export async function listUsers(req: Request, res: Response) {
   const { companyId } = req.query as { companyId?: string };
   const users = await prisma.user.findMany({

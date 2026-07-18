@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -111,7 +112,11 @@ export function AdminTicketTypes() {
             {isLoading && Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} columns={4} />)}
             {ticketTypes?.map((t) => (
               <tr key={t.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-2 font-medium text-slate-900">{t.name}</td>
+                <td className="px-4 py-2 font-medium text-slate-900">
+                  <Link to={`/admin/ticket-types/${t.id}`} className="hover:text-brand-700 hover:underline">
+                    {t.name}
+                  </Link>
+                </td>
                 <td className="px-4 py-2 text-slate-500">{t.description ?? "—"}</td>
                 <td className="px-4 py-2">
                   <span

@@ -73,11 +73,22 @@ export interface TicketType {
   isActive: boolean;
 }
 
+export interface Priority {
+  id: string;
+  name: string;
+  level: number;
+  color: string;
+  responseTimeHours: number;
+  resolutionTimeHours: number;
+}
+
 export interface Category {
   id: string;
   name: string;
   description: string | null;
   isActive: boolean;
+  ticketTypeId: string;
+  ticketType?: { id: string; name: string };
 }
 
 export interface SubCategory {
@@ -86,15 +97,9 @@ export interface SubCategory {
   description: string | null;
   isActive: boolean;
   categoryId: string;
-}
-
-export interface Priority {
-  id: string;
-  name: string;
-  level: number;
-  color: string;
-  responseTimeHours: number;
-  resolutionTimeHours: number;
+  priorityId: string;
+  priority?: Priority;
+  category?: { id: string; name: string; ticketTypeId: string };
 }
 
 export interface Comment {
@@ -142,6 +147,12 @@ export interface Process {
   formTemplateUrl: string | null;
   isActive: boolean;
   steps: ProcessStep[];
+  typeId: string;
+  categoryId: string;
+  subCategoryId: string;
+  ticketType?: { id: string; name: string };
+  ticketCategory?: { id: string; name: string };
+  subCategory?: { id: string; name: string };
 }
 
 export interface ProcessApproval {
@@ -170,10 +181,11 @@ export interface Ticket {
   channel: TicketChannel;
   type: TicketType;
   category: Category;
-  subCategory: SubCategory | null;
+  subCategory: SubCategory;
   priority: Priority;
   requester: { id: string; name: string; email: string; service: Service | null; company: Company };
   assignee: { id: string; name: string; email: string } | null;
+  beneficiary?: { id: string; name: string; email: string } | null;
   process?: { id: string; name: string; category: ProcessCategory; requiresManagerApproval: boolean; requiresPhysicalForm: boolean; formTemplateUrl: string | null } | null;
   approval?: ProcessApproval | null;
   stepCompletions?: ProcessStepCompletion[];
