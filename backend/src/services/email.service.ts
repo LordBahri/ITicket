@@ -9,11 +9,6 @@ const transporter = isConfigured
       port: env.smtp.port,
       secure: env.smtp.secure,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
-      // Office 365 impose une limite très basse de connexions SMTP simultanées par
-      // boîte aux lettres (erreur 432 4.3.2) ; le pooling force l'envoi en série
-      // sur une seule connexion réutilisée au lieu d'en ouvrir une par email.
-      pool: true,
-      maxConnections: 1,
     })
   : null;
 
@@ -23,15 +18,29 @@ interface MailOptions {
   text: string;
 }
 
-export async function sendMail({ to, subject, text }: MailOptions): Promise<void> {
+// Les emails sont peu fréquents et arrivent parfois par petites rafales (plusieurs
+// destinataires pour un même événement). Une connexion SMTP persistante (pool)
+// reste ouverte trop longtemps entre deux rafales et Office 365 la coupe côté
+// serveur sans prévenir, ce qui fait échouer l'envoi suivant. On sérialise donc
+// les envois via cette file : jamais plus d'une connexion SMTP ouverte à la fois
+// (évite le throttling "concurrent connections"), et chaque envoi ouvre puis
+// ferme sa propre connexion (évite la connexion qui traîne et devient obsolète).
+let queue: Promise<void> = Promise.resolve();
+
+export function sendMail({ to, subject, text }: MailOptions): Promise<void> {
   if (!transporter) {
     console.log(`[email:dev] To: ${to} | Subject: ${subject}\n${text}`);
-    return;
+    return Promise.resolve();
   }
 
-  try {
-    await transporter.sendMail({ from: env.mailFrom, to, subject, text });
-  } catch (err) {
-    console.error("Échec de l'envoi de l'email :", err);
-  }
+  const task = queue.then(() =>
+    transporter.sendMail({ from: env.mailFrom, to, subject, text }).then(
+      () => undefined,
+      (err) => {
+        console.error("Échec de l'envoi de l'email :", err);
+      }
+    )
+  );
+  queue = task;
+  return task;
 }
