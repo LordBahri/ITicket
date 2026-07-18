@@ -267,12 +267,18 @@ export async function listRemoteAccess(_req: Request, res: Response) {
   const users = await prisma.user.findMany({
     where: {
       isActive: true,
-      OR: [{ anydeskId: { not: null } }, { teamviewerId: { not: null } }, { ultraviewerId: { not: null } }],
+      OR: [
+        { anydeskId: { not: null } },
+        { teamviewerId: { not: null } },
+        { ultraviewerId: { not: null } },
+        { phone: { not: null } },
+      ],
     },
     select: {
       id: true,
       name: true,
       email: true,
+      phone: true,
       pcName: true,
       anydeskId: true,
       teamviewerId: true,
@@ -280,7 +286,7 @@ export async function listRemoteAccess(_req: Request, res: Response) {
       company: { select: { id: true, name: true } },
       service: { select: { id: true, name: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ company: { name: "asc" } }, { name: "asc" }],
   });
   res.json({ users });
 }

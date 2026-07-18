@@ -57,6 +57,7 @@ export interface RemoteAccessUser {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   pcName: string | null;
   anydeskId: string | null;
   teamviewerId: string | null;
