@@ -1,27 +1,10 @@
 import type { TicketStatus } from "../types";
-
-const STYLES: Record<TicketStatus, string> = {
-  PENDING_APPROVAL: "bg-purple-100 text-purple-700",
-  OPEN: "bg-blue-100 text-blue-700",
-  IN_PROGRESS: "bg-amber-100 text-amber-700",
-  ON_HOLD: "bg-slate-200 text-slate-700",
-  RESOLVED: "bg-emerald-100 text-emerald-700",
-  CLOSED: "bg-slate-100 text-slate-500",
-};
-
-const LABELS: Record<TicketStatus, string> = {
-  PENDING_APPROVAL: "En attente de validation",
-  OPEN: "Ouvert",
-  IN_PROGRESS: "En cours",
-  ON_HOLD: "En attente",
-  RESOLVED: "Résolu",
-  CLOSED: "Fermé",
-};
+import { STATUS_BADGE_STYLES, STATUS_LABELS } from "../constants/ticketStatus";
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status]}`}>
-      {LABELS[status]}
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_STYLES[status]}`}>
+      {STATUS_LABELS[status]}
     </span>
   );
 }

@@ -11,6 +11,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { IconTicket } from "../components/icons";
 import { useAuth } from "../context/AuthContext";
 import type { Category, Company, Priority, Ticket, TicketStatus, TicketType } from "../types";
+import { STATUS_LABELS } from "../constants/ticketStatus";
 
 const STATUS_OPTIONS: TicketStatus[] = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 15;
@@ -158,7 +159,7 @@ export function TicketList() {
           <option value="">Tous les statuts</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {STATUS_LABELS[s]}
             </option>
           ))}
         </select>

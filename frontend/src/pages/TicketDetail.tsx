@@ -12,6 +12,7 @@ import { PageSpinner } from "../components/ui/Spinner";
 import { IconAlertTriangle, IconWorkflow } from "../components/icons";
 import type { ProcessCategory, Ticket, User, TicketStatus } from "../types";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
+import { STATUS_LABELS } from "../constants/ticketStatus";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
@@ -348,7 +349,7 @@ export function TicketDetail() {
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {STATUS_LABELS[s]}
                   </option>
                 ))}
               </select>

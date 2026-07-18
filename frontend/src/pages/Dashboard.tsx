@@ -6,23 +6,8 @@ import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
 import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle } from "../components/icons";
 import type { ComponentType, SVGProps } from "react";
-import type { DashboardStats } from "../types";
-
-const STATUS_LABELS: Record<string, string> = {
-  OPEN: "Ouvert",
-  IN_PROGRESS: "En cours",
-  ON_HOLD: "En attente",
-  RESOLVED: "Résolu",
-  CLOSED: "Fermé",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  OPEN: "bg-blue-500",
-  IN_PROGRESS: "bg-amber-500",
-  ON_HOLD: "bg-slate-400",
-  RESOLVED: "bg-emerald-500",
-  CLOSED: "bg-slate-300",
-};
+import type { DashboardStats, TicketStatus } from "../types";
+import { STATUS_BAR_COLORS, STATUS_LABELS } from "../constants/ticketStatus";
 
 function StatCard({
   icon: Icon,
@@ -105,10 +90,10 @@ export function Dashboard() {
                 {Object.entries(data.byStatus).map(([status, count]) => (
                   <BarRow
                     key={status}
-                    label={STATUS_LABELS[status] ?? status}
+                    label={STATUS_LABELS[status as TicketStatus] ?? status}
                     value={count}
                     max={maxStatus}
-                    color={STATUS_COLORS[status] ?? "bg-slate-400"}
+                    color={STATUS_BAR_COLORS[status as TicketStatus] ?? "bg-slate-400"}
                   />
                 ))}
               </div>
