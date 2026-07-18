@@ -5,18 +5,11 @@ import { HttpError } from "../middleware/errorHandler";
 import { computeDueAt, isOverdue } from "../services/sla.service";
 import { sendMail } from "../services/email.service";
 import { createTicketRecord, ticketInclude } from "../services/ticket.service";
+import { STATUS_LABELS } from "../constants/ticketStatus";
+import { renderTicketEmail, escapeHtml } from "../services/emailTemplate";
 
 const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
 const TICKET_STATUSES = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
-
-const STATUS_LABELS: Record<(typeof TICKET_STATUSES)[number], string> = {
-  PENDING_APPROVAL: "En attente de validation",
-  OPEN: "Ouvert",
-  IN_PROGRESS: "En cours",
-  ON_HOLD: "En attente",
-  RESOLVED: "Résolu",
-  CLOSED: "Fermé",
-};
 
 const createTicketSchema = z.object({
   title: z.string().min(3).max(200),
@@ -222,36 +215,41 @@ export async function updateTicket(req: Request, res: Response) {
   );
 
   if (data.assigneeId && updated.assignee) {
-    void sendMail({
-      to: updated.assignee.email,
-      subject: `[${updated.reference}] Ticket qui vous a été assigné`,
-      text: `Le ticket "${updated.title}" vous a été assigné.\n\n${updated.description}`,
+    const assigneeMail = renderTicketEmail({
+      heading: "Ticket qui vous a été assigné",
+      introHtml: `Le ticket <strong>${escapeHtml(updated.title)}</strong> vous a été assigné.`,
+      ticket: updated,
     });
+    void sendMail({ to: updated.assignee.email, subject: `[${updated.reference}] Ticket qui vous a été assigné`, ...assigneeMail });
 
     if (updated.requester.email !== updated.assignee.email) {
-      void sendMail({
-        to: updated.requester.email,
-        subject: `[${updated.reference}] Votre ticket a été assigné`,
-        text: `Votre ticket "${updated.title}" a été assigné à ${updated.assignee.name}.`,
+      const requesterMail = renderTicketEmail({
+        heading: "Votre ticket a été assigné",
+        introHtml: `Votre ticket <strong>${escapeHtml(updated.title)}</strong> a été assigné à <strong>${escapeHtml(updated.assignee.name)}</strong>.`,
+        ticket: updated,
       });
+      void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Votre ticket a été assigné`, ...requesterMail });
     }
   }
 
   if (data.status === "CLOSED") {
+    const mail = renderTicketEmail({
+      heading: `Ticket fermé : ${updated.title}`,
+      introHtml: `Le ticket <strong>${escapeHtml(updated.title)}</strong> a été fermé.`,
+      ticket: updated,
+      extraNote: "Si le problème persiste, vous pouvez répondre à ce ticket depuis le portail pour le rouvrir. Merci d'avoir utilisé le support IT.",
+    });
     for (const person of stakeholders) {
-      void sendMail({
-        to: person.email,
-        subject: `[${updated.reference}] Ticket fermé : ${updated.title}`,
-        text: `Le ticket "${updated.title}" a été fermé.\n\nSi le problème persiste, vous pouvez répondre à ce ticket depuis le portail pour le rouvrir.\n\nMerci d'avoir utilisé le support IT.`,
-      });
+      void sendMail({ to: person.email, subject: `[${updated.reference}] Ticket fermé : ${updated.title}`, ...mail });
     }
   } else if (data.status) {
+    const mail = renderTicketEmail({
+      heading: `Statut mis à jour : ${STATUS_LABELS[data.status]}`,
+      introHtml: `Le statut du ticket <strong>${escapeHtml(updated.title)}</strong> est maintenant : <strong>${escapeHtml(STATUS_LABELS[data.status])}</strong>.`,
+      ticket: updated,
+    });
     for (const person of stakeholders) {
-      void sendMail({
-        to: person.email,
-        subject: `[${updated.reference}] Statut mis à jour : ${STATUS_LABELS[data.status]}`,
-        text: `Le statut du ticket "${updated.title}" est maintenant : ${STATUS_LABELS[data.status]}.`,
-      });
+      void sendMail({ to: person.email, subject: `[${updated.reference}] Statut mis à jour : ${STATUS_LABELS[data.status]}`, ...mail });
     }
   }
 
@@ -263,12 +261,14 @@ export async function updateTicket(req: Request, res: Response) {
     if (data.subCategoryId !== undefined) changes.push(`Sous-catégorie : ${updated.subCategory?.name ?? "—"}`);
     if (data.priorityId) changes.push(`Priorité : ${updated.priority.name}`);
 
+    const mail = renderTicketEmail({
+      heading: `Ticket mis à jour : ${updated.title}`,
+      introHtml: `Le ticket <strong>${escapeHtml(updated.title)}</strong> a été modifié.`,
+      ticket: updated,
+      extraNote: changes.join(" · "),
+    });
     for (const person of stakeholders) {
-      void sendMail({
-        to: person.email,
-        subject: `[${updated.reference}] Ticket mis à jour : ${updated.title}`,
-        text: `Le ticket "${updated.title}" a été modifié.\n\n${changes.join("\n")}`,
-      });
+      void sendMail({ to: person.email, subject: `[${updated.reference}] Ticket mis à jour : ${updated.title}`, ...mail });
     }
   }
 
@@ -309,18 +309,22 @@ export async function approveTicketProcess(req: Request, res: Response) {
     include: ticketInclude,
   });
 
-  void sendMail({
-    to: updated.requester.email,
-    subject: `[${updated.reference}] Demande validée : ${updated.title}`,
-    text: `Votre demande "${updated.title}" a été validée par ${req.user!.id === approval.approverId ? approval.approver.name : "un administrateur"}.\nElle est maintenant prise en charge par l'équipe IT.`,
+  const approverName = req.user!.id === approval.approverId ? approval.approver.name : "un administrateur";
+  const requesterMail = renderTicketEmail({
+    heading: `Demande validée : ${updated.title}`,
+    introHtml: `Votre demande <strong>${escapeHtml(updated.title)}</strong> a été validée par <strong>${escapeHtml(approverName)}</strong>. Elle est maintenant prise en charge par l'équipe IT.`,
+    ticket: updated,
   });
+  void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Demande validée : ${updated.title}`, ...requesterMail });
+
   const agents = await prisma.user.findMany({ where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true }, select: { email: true } });
+  const agentMail = renderTicketEmail({
+    heading: `Demande de processus validée : ${updated.title}`,
+    introHtml: `La demande <strong>${escapeHtml(updated.title)}</strong> (${escapeHtml(updated.process?.name ?? "")}) a été validée par le supérieur hiérarchique et peut être traitée.`,
+    ticket: updated,
+  });
   for (const agent of agents) {
-    void sendMail({
-      to: agent.email,
-      subject: `[${updated.reference}] Demande de processus validée : ${updated.title}`,
-      text: `La demande "${updated.title}" (${updated.process?.name ?? ""}) a été validée par le supérieur hiérarchique et peut être traitée.`,
-    });
+    void sendMail({ to: agent.email, subject: `[${updated.reference}] Demande de processus validée : ${updated.title}`, ...agentMail });
   }
 
   res.json({ ticket: serializeTicket(updated) });
@@ -342,11 +346,13 @@ export async function rejectTicketProcess(req: Request, res: Response) {
     include: ticketInclude,
   });
 
-  void sendMail({
-    to: updated.requester.email,
-    subject: `[${updated.reference}] Demande refusée : ${updated.title}`,
-    text: `Votre demande "${updated.title}" a été refusée par votre supérieur hiérarchique.\n\nMotif : ${comment}`,
+  const rejectMail = renderTicketEmail({
+    heading: `Demande refusée : ${updated.title}`,
+    introHtml: `Votre demande <strong>${escapeHtml(updated.title)}</strong> a été refusée par votre supérieur hiérarchique.`,
+    ticket: updated,
+    extraNote: `Motif : ${comment}`,
   });
+  void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Demande refusée : ${updated.title}`, ...rejectMail });
 
   res.json({ ticket: serializeTicket(updated) });
 }

@@ -17,6 +17,7 @@ export const env = {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
+  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
   smtp: {
     host: process.env.SMTP_HOST ?? "",
     port: Number(process.env.SMTP_PORT ?? 587),

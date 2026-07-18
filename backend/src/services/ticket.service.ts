@@ -3,6 +3,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { computeDueAt } from "./sla.service";
 import { generateTicketReference } from "./ticketReference.service";
 import { sendMail } from "./email.service";
+import { renderTicketEmail, escapeHtml } from "./emailTemplate";
 import type { TicketChannel } from "@prisma/client";
 
 export const ticketInclude = {
@@ -106,11 +107,13 @@ export async function createTicketRecord(params: CreateTicketParams) {
       if (params.notify !== false) {
         const approver = await prisma.user.findUnique({ where: { id: approverId } });
         if (approver) {
-          void sendMail({
-            to: approver.email,
-            subject: `[${ticket.reference}] Validation requise : ${process.name}`,
-            text: `Bonjour ${approver.name},\n\n${ticket.requester.name} a soumis une demande "${process.name}" (${ticket.title}) qui nécessite votre validation en tant que supérieur hiérarchique.\n\nConnectez-vous à ITicket pour l'approuver ou la refuser (ticket ${ticket.reference}).`,
+          const mail = renderTicketEmail({
+            heading: `Validation requise : ${process.name}`,
+            introHtml: `Bonjour ${escapeHtml(approver.name)},<br /><br />${escapeHtml(ticket.requester.name)} a soumis une demande <strong>${escapeHtml(process.name)}</strong> qui nécessite votre validation en tant que supérieur hiérarchique.`,
+            ticket,
+            extraNote: "Connectez-vous à ITicket pour l'approuver ou la refuser.",
           });
+          void sendMail({ to: approver.email, subject: `[${ticket.reference}] Validation requise : ${process.name}`, ...mail });
         }
       }
     }
@@ -118,25 +121,27 @@ export async function createTicketRecord(params: CreateTicketParams) {
 
   if (params.notify !== false) {
     const pending = ticket.status === "PENDING_APPROVAL";
-    void sendMail({
-      to: ticket.requester.email,
-      subject: `[${ticket.reference}] Ticket créé : ${ticket.title}`,
-      text: pending
-        ? `Bonjour ${ticket.requester.name},\n\nVotre demande "${ticket.title}" (référence ${ticket.reference}) a bien été créée et est en attente de validation de votre supérieur hiérarchique avant prise en charge par l'IT.\n\nCordialement,\nSupport IT`
-        : `Bonjour ${ticket.requester.name},\n\nVotre ticket "${ticket.title}" a bien été créé (référence ${ticket.reference}) via le canal ${ticket.channel}.\nNotre équipe support va le traiter dans les meilleurs délais.\n\nCordialement,\nSupport IT`,
+    const requesterMail = renderTicketEmail({
+      heading: `Ticket créé : ${ticket.title}`,
+      introHtml: pending
+        ? `Bonjour ${escapeHtml(ticket.requester.name)},<br /><br />Votre demande <strong>${escapeHtml(ticket.title)}</strong> a bien été créée et est en attente de validation de votre supérieur hiérarchique avant prise en charge par l'IT.`
+        : `Bonjour ${escapeHtml(ticket.requester.name)},<br /><br />Votre ticket <strong>${escapeHtml(ticket.title)}</strong> a bien été créé via le canal ${escapeHtml(ticket.channel)}. Notre équipe support va le traiter dans les meilleurs délais.`,
+      ticket,
     });
+    void sendMail({ to: ticket.requester.email, subject: `[${ticket.reference}] Ticket créé : ${ticket.title}`, ...requesterMail });
 
     if (!pending) {
       const agents = await prisma.user.findMany({
         where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true },
         select: { email: true },
       });
+      const agentMail = renderTicketEmail({
+        heading: `Nouveau ticket (${ticket.channel}) : ${ticket.title}`,
+        introHtml: `Un nouveau ticket a été créé par <strong>${escapeHtml(ticket.requester.name)}</strong> via ${escapeHtml(ticket.channel)}.`,
+        ticket,
+      });
       for (const agent of agents) {
-        void sendMail({
-          to: agent.email,
-          subject: `[${ticket.reference}] Nouveau ticket (${ticket.channel}) : ${ticket.title}`,
-          text: `Un nouveau ticket a été créé par ${ticket.requester.name} via ${ticket.channel}.\nType : ${type.name}\nCatégorie : ${category.name}\nPriorité : ${priority.name}\n\n${ticket.description}`,
-        });
+        void sendMail({ to: agent.email, subject: `[${ticket.reference}] Nouveau ticket (${ticket.channel}) : ${ticket.title}`, ...agentMail });
       }
     }
   }

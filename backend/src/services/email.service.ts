@@ -16,6 +16,7 @@ interface MailOptions {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 // Les emails sont peu fréquents et arrivent parfois par petites rafales (plusieurs
@@ -27,14 +28,14 @@ interface MailOptions {
 // ferme sa propre connexion (évite la connexion qui traîne et devient obsolète).
 let queue: Promise<void> = Promise.resolve();
 
-export function sendMail({ to, subject, text }: MailOptions): Promise<void> {
+export function sendMail({ to, subject, text, html }: MailOptions): Promise<void> {
   if (!transporter) {
     console.log(`[email:dev] To: ${to} | Subject: ${subject}\n${text}`);
     return Promise.resolve();
   }
 
   const task = queue.then(() =>
-    transporter.sendMail({ from: env.mailFrom, to, subject, text }).then(
+    transporter.sendMail({ from: env.mailFrom, to, subject, text, html }).then(
       () => undefined,
       (err) => {
         console.error("Échec de l'envoi de l'email :", err);

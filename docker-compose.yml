@@ -22,6 +22,7 @@ services:
       DATABASE_URL: postgresql://iticket:iticket@postgres:5432/iticket
       PORT: 4000
       CORS_ORIGIN: http://${PUBLIC_HOST:-localhost}:5173,http://localhost:5173
+      FRONTEND_URL: http://${PUBLIC_HOST:-localhost}:5173
     ports:
       - "4000:4000"
     volumes:

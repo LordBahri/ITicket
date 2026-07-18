@@ -5,6 +5,7 @@ import { HttpError } from "../middleware/errorHandler";
 import { hashPassword } from "../utils/password";
 import { generatePassword } from "../utils/generatePassword";
 import { sendMail } from "../services/email.service";
+import { renderSimpleEmail, escapeHtml } from "../services/emailTemplate";
 
 const optionalText = () =>
   z
@@ -160,11 +161,16 @@ export async function createUser(req: Request, res: Response) {
     select: publicSelect,
   });
 
-  await sendMail({
-    to: user.email,
-    subject: "Votre compte ITicket a été créé",
-    text: `Bonjour ${user.name},\n\nVotre compte ITicket a été créé.\n\nEmail : ${user.email}\nMot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
+  const accountMail = renderSimpleEmail({
+    heading: "Votre compte ITicket a été créé",
+    bodyHtml: `Bonjour ${escapeHtml(user.name)},<br /><br />Votre compte ITicket a été créé.<br /><br />
+      <strong>Email :</strong> ${escapeHtml(user.email)}<br />
+      <strong>Mot de passe temporaire :</strong> ${escapeHtml(generatedPassword)}<br /><br />
+      Vous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.<br /><br />
+      L'équipe IT Meninx Holding`,
+    bodyText: `Bonjour ${user.name},\n\nVotre compte ITicket a été créé.\n\nEmail : ${user.email}\nMot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
   });
+  await sendMail({ to: user.email, subject: "Votre compte ITicket a été créé", ...accountMail });
 
   res.status(201).json({ user, generatedPassword });
 }
@@ -243,11 +249,16 @@ export async function resetUserPassword(req: Request, res: Response) {
   const passwordHash = await hashPassword(generatedPassword);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
 
-  await sendMail({
-    to: user.email,
-    subject: "Votre mot de passe ITicket a été réinitialisé",
-    text: `Bonjour ${user.name},\n\nVotre mot de passe ITicket a été réinitialisé par un administrateur.\n\nEmail : ${user.email}\nNouveau mot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
+  const resetMail = renderSimpleEmail({
+    heading: "Votre mot de passe ITicket a été réinitialisé",
+    bodyHtml: `Bonjour ${escapeHtml(user.name)},<br /><br />Votre mot de passe ITicket a été réinitialisé par un administrateur.<br /><br />
+      <strong>Email :</strong> ${escapeHtml(user.email)}<br />
+      <strong>Nouveau mot de passe temporaire :</strong> ${escapeHtml(generatedPassword)}<br /><br />
+      Vous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.<br /><br />
+      L'équipe IT Meninx Holding`,
+    bodyText: `Bonjour ${user.name},\n\nVotre mot de passe ITicket a été réinitialisé par un administrateur.\n\nEmail : ${user.email}\nNouveau mot de passe temporaire : ${generatedPassword}\n\nVous pouvez le modifier à tout moment depuis « Mon compte » une fois connecté.\n\nL'équipe IT Meninx Holding`,
   });
+  await sendMail({ to: user.email, subject: "Votre mot de passe ITicket a été réinitialisé", ...resetMail });
 
   res.json({ generatedPassword });
 }

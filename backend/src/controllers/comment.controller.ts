@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { sendMail } from "../services/email.service";
+import { renderTicketEmail, escapeHtml } from "../services/emailTemplate";
 
 const createCommentSchema = z.object({
   message: z.string().min(1).max(5000),
@@ -15,7 +16,7 @@ export async function addComment(req: Request, res: Response) {
 
   const ticket = await prisma.ticket.findUnique({
     where: { id: req.params.id },
-    include: { requester: true, assignee: true },
+    include: { requester: true, assignee: true, type: true, category: true, subCategory: true, priority: true },
   });
   if (!ticket) throw new HttpError(404, "Ticket introuvable");
   if (!isStaff && ticket.requesterId !== req.user!.id) {
@@ -37,11 +38,13 @@ export async function addComment(req: Request, res: Response) {
   if (!isInternal) {
     const notifyTarget = req.user!.id === ticket.requesterId ? ticket.assignee : ticket.requester;
     if (notifyTarget) {
-      void sendMail({
-        to: notifyTarget.email,
-        subject: `[${ticket.reference}] Nouveau commentaire`,
-        text: `Nouveau commentaire sur le ticket "${ticket.title}" :\n\n${data.message}`,
+      const mail = renderTicketEmail({
+        heading: "Nouveau commentaire",
+        introHtml: `<strong>${escapeHtml(comment.author.name)}</strong> a ajouté un commentaire sur le ticket <strong>${escapeHtml(ticket.title)}</strong> :`,
+        ticket,
+        extraNote: data.message,
       });
+      void sendMail({ to: notifyTarget.email, subject: `[${ticket.reference}] Nouveau commentaire`, ...mail });
     }
   }
 
