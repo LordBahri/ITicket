@@ -9,6 +9,11 @@ const transporter = isConfigured
       port: env.smtp.port,
       secure: env.smtp.secure,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+      // Office 365 impose une limite très basse de connexions SMTP simultanées par
+      // boîte aux lettres (erreur 432 4.3.2) ; le pooling force l'envoi en série
+      // sur une seule connexion réutilisée au lieu d'en ouvrir une par email.
+      pool: true,
+      maxConnections: 1,
     })
   : null;
 
