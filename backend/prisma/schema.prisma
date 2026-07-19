@@ -67,23 +67,23 @@ model Service {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(USER)
-  isActive     Boolean  @default(true)
-  isDepartmentHead Boolean @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  passwordHash     String
+  role             Role     @default(USER)
+  isActive         Boolean  @default(true)
+  isDepartmentHead Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  matricule    String?
-  phone        String?
-  pcName       String?
-  anydeskId      String?
-  teamviewerId   String?
-  ultraviewerId  String?
-  avatarUrl    String?
+  matricule     String?
+  phone         String?
+  pcName        String?
+  anydeskId     String?
+  teamviewerId  String?
+  ultraviewerId String?
+  avatarUrl     String?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
@@ -92,22 +92,23 @@ model User {
   service   Service? @relation(fields: [serviceId], references: [id])
 
   managerId String?
-  manager   User?  @relation("ManagerHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
-  reports   User[] @relation("ManagerHierarchy")
+  manager   User?   @relation("ManagerHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports   User[]  @relation("ManagerHierarchy")
 
-  ticketsRequested     Ticket[]                 @relation("TicketRequester")
-  ticketsAssigned      Ticket[]                 @relation("TicketAssignee")
-  ticketsBeneficiary   Ticket[]                 @relation("TicketBeneficiary")
-  formArchivedTickets  Ticket[]                 @relation("TicketFormArchivedBy")
-  comments             Comment[]
-  attachments          Attachment[]
-  articles             KnowledgeArticle[]
-  assets               Asset[]
-  processApprovals     ProcessApproval[]
-  stepCompletionsDone  ProcessStepCompletion[]
-  chatThread           ChatThread?             @relation("ChatThreadOwner")
-  chatMessagesSent     ChatMessage[]           @relation("ChatMessageSender")
-  chatReadStates       ChatReadState[]         @relation("ChatReadStateUser")
+  ticketsRequested    Ticket[]                @relation("TicketRequester")
+  ticketsAssigned     Ticket[]                @relation("TicketAssignee")
+  ticketsBeneficiary  Ticket[]                @relation("TicketBeneficiary")
+  formArchivedTickets Ticket[]                @relation("TicketFormArchivedBy")
+  comments            Comment[]
+  attachments         Attachment[]
+  articles            KnowledgeArticle[]
+  assets              Asset[]
+  processApprovals    ProcessApproval[]
+  stepCompletionsDone ProcessStepCompletion[]
+  chatThread          ChatThread?             @relation("ChatThreadOwner")
+  chatMessagesSent    ChatMessage[]           @relation("ChatMessageSender")
+  chatReadStates      ChatReadState[]         @relation("ChatReadStateUser")
+  ticketStatusChanges TicketStatusHistory[]   @relation("TicketStatusChangedBy")
 
   @@index([companyId])
   @@index([serviceId])
@@ -136,10 +137,10 @@ model Category {
   ticketTypeId String
   ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
 
-  tickets      Ticket[]
-  articles     KnowledgeArticle[]
+  tickets       Ticket[]
+  articles      KnowledgeArticle[]
   subCategories SubCategory[]
-  processes    Process[]
+  processes     Process[]
 
   @@unique([ticketTypeId, name])
   @@index([ticketTypeId])
@@ -185,13 +186,13 @@ model KnowledgeArticle {
 }
 
 model Priority {
-  id                   String   @id @default(cuid())
-  name                 String   @unique
-  level                Int      @default(0)
-  color                String   @default("#6b7280")
-  responseTimeHours    Int
-  resolutionTimeHours  Int
-  createdAt            DateTime @default(now())
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  level               Int      @default(0)
+  color               String   @default("#6b7280")
+  responseTimeHours   Int
+  resolutionTimeHours Int
+  createdAt           DateTime @default(now())
 
   tickets       Ticket[]
   subCategories SubCategory[]
@@ -244,6 +245,7 @@ model Ticket {
   attachments     Attachment[]
   approval        ProcessApproval?
   stepCompletions ProcessStepCompletion[]
+  statusHistory   TicketStatusHistory[]
 
   @@index([status])
   @@index([requesterId])
@@ -251,6 +253,20 @@ model Ticket {
   @@index([beneficiaryId])
   @@index([processId])
   @@index([subCategoryId])
+}
+
+model TicketStatusHistory {
+  id       String       @id @default(cuid())
+  ticketId String
+  ticket   Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  status   TicketStatus
+
+  changedById String?
+  changedBy   User?   @relation("TicketStatusChangedBy", fields: [changedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model Comment {
@@ -380,11 +396,11 @@ model Process {
   // Type/catégorie/sous-catégorie appliqués automatiquement au ticket créé via ce
   // processus (non modifiables par l'utilisateur) ; ce type de demande n'apparaît
   // donc plus dans le choix "normal" (hors processus) d'un nouveau ticket.
-  typeId String
-  ticketType   TicketType @relation(fields: [typeId], references: [id])
+  typeId     String
+  ticketType TicketType @relation(fields: [typeId], references: [id])
 
-  categoryId String
-  ticketCategory   Category @relation(fields: [categoryId], references: [id])
+  categoryId     String
+  ticketCategory Category @relation(fields: [categoryId], references: [id])
 
   subCategoryId String
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])

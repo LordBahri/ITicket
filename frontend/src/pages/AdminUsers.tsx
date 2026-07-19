@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
@@ -8,7 +8,9 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
+import { CompanyStatsBar } from "../components/ui/CompanyStatsBar";
 import { IconTrash } from "../components/icons";
+import { groupByCompany, companyStats } from "../utils/companyGrouping";
 import type { Company, Role, Service, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
@@ -26,6 +28,8 @@ export function AdminUsers() {
   const [role, setRole] = useState<Role>("USER");
   const [companyId, setCompanyId] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false);
   const [matricule, setMatricule] = useState("");
   const [phone, setPhone] = useState("");
   const [pcName, setPcName] = useState("");
@@ -49,12 +53,21 @@ export function AdminUsers() {
   const selectedCompany = companies?.find((c) => c.id === companyId);
   const availableServices: Service[] = selectedCompany?.services ?? [];
 
+  const { data: companyMates } = useQuery({
+    queryKey: ["users", { companyId }],
+    queryFn: async () => (await apiClient.get<{ users: User[] }>("/users", { params: { companyId } })).data.users,
+    enabled: showForm && Boolean(companyId),
+  });
+  const availableManagers = companyMates ?? [];
+
   function resetForm() {
     setName("");
     setEmail("");
     setRole("USER");
     setCompanyId("");
     setServiceId("");
+    setManagerId("");
+    setIsDepartmentHead(false);
     setMatricule("");
     setPhone("");
     setPcName("");
@@ -73,6 +86,8 @@ export function AdminUsers() {
         role,
         companyId,
         serviceId: serviceId || null,
+        managerId: managerId || null,
+        isDepartmentHead,
         matricule: matricule || null,
         phone: phone || null,
         pcName: pcName || null,
@@ -120,6 +135,9 @@ export function AdminUsers() {
     );
   }
 
+  const userGroups = groupByCompany(users ?? [], companies ?? [], (u) => u.company?.id).groups;
+  const stats = companyStats(users ?? [], companies ?? [], (u) => u.company?.id);
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -146,6 +164,7 @@ export function AdminUsers() {
               onChange={(e) => {
                 setCompanyId(e.target.value);
                 setServiceId("");
+                setManagerId("");
               }}
               className={inputClass}
             >
@@ -176,7 +195,30 @@ export function AdminUsers() {
                 </option>
               ))}
             </select>
+            <select
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+              disabled={!companyId}
+              className={inputClass}
+            >
+              <option value="">Supérieur hiérarchique…</option>
+              {availableManagers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={isDepartmentHead}
+              onChange={(e) => setIsDepartmentHead(e.target.checked)}
+              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            Responsable de service / directeur (peut lancer des demandes de processus IT)
+          </label>
 
           <button
             type="button"
@@ -242,6 +284,10 @@ export function AdminUsers() {
         </Card>
       )}
 
+      {!isLoading && users && users.length > 0 && (
+        <CompanyStatsBar stats={stats.stats} unassignedCount={stats.unassignedCount} total={stats.total} totalLabel="utilisateurs" />
+      )}
+
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
@@ -257,40 +303,56 @@ export function AdminUsers() {
           </thead>
           <tbody>
             {isLoading && Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
-            {users?.map((u) => (
-              <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2 font-medium">
-                  <Link to={`/admin/users/${u.id}`} className="text-brand-700 hover:underline">
-                    {u.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-2 text-slate-500">{u.email}</td>
-                <td className="px-4 py-2 text-slate-500">{u.company.name}</td>
-                <td className="px-4 py-2 text-slate-500">{u.service?.name ?? "—"}</td>
-                <td className="px-4 py-2">
-                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">{u.role}</span>
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                      u.isActive ? "text-emerald-600" : "text-slate-400"
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${u.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
-                    {u.isActive ? "Actif" : "Désactivé"}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <button
-                    onClick={() => setUserToDelete(u)}
-                    title="Supprimer"
-                    className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                  >
-                    <IconTrash className="h-4 w-4" />
-                  </button>
+            {userGroups.map((group) => (
+              <Fragment key={group.companyId}>
+                <tr className="bg-slate-100">
+                  <td colSpan={7} className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    {group.companyName} <span className="font-normal normal-case text-slate-400">({group.items.length})</span>
+                  </td>
+                </tr>
+                {group.items.map((u) => (
+                  <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td className="px-4 py-2 font-medium">
+                      <Link to={`/admin/users/${u.id}`} className="text-brand-700 hover:underline">
+                        {u.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-slate-500">{u.email}</td>
+                    <td className="px-4 py-2 text-slate-500">{u.company.name}</td>
+                    <td className="px-4 py-2 text-slate-500">{u.service?.name ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">{u.role}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                          u.isActive ? "text-emerald-600" : "text-slate-400"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${u.isActive ? "bg-emerald-500" : "bg-slate-300"}`} />
+                        {u.isActive ? "Actif" : "Désactivé"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={() => setUserToDelete(u)}
+                        title="Supprimer"
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+            {!isLoading && users?.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-400">
+                  Aucun utilisateur enregistré
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </Card>

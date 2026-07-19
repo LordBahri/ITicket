@@ -6,6 +6,8 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
+import { CompanyStatsBar } from "../components/ui/CompanyStatsBar";
+import { groupByCompany, companyStats } from "../utils/companyGrouping";
 import type { Company, License } from "../types";
 
 const inputClass =
@@ -193,6 +195,9 @@ export function AdminLicenses() {
     onError: (err) => toast.error(apiErrorMessage(err, "Impossible de mettre à jour la licence")),
   });
 
+  const licenseGroups = groupByCompany(licenses ?? [], companies ?? [], (l) => l.company?.id).groups;
+  const stats = companyStats(licenses ?? [], companies ?? [], (l) => l.company?.id);
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -206,6 +211,16 @@ export function AdminLicenses() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle licence" size="lg">
         <LicenseForm companies={companies ?? []} initial={emptyForm()} submitLabel="Créer" loading={createMutation.isPending} onSubmit={(form) => createMutation.mutate(form)} />
       </Modal>
+
+      {!isLoading && licenses && licenses.length > 0 && (
+        <CompanyStatsBar
+          stats={stats.stats}
+          unassignedCount={stats.unassignedCount}
+          unassignedLabel="Toutes sociétés"
+          total={stats.total}
+          totalLabel="licences"
+        />
+      )}
 
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -221,42 +236,51 @@ export function AdminLicenses() {
           </thead>
           <tbody>
             {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
-            {licenses?.map((license) => (
-              <Fragment key={license.id}>
-                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-900">{license.name}</td>
-                  <td className="px-4 py-2 text-slate-500">{license.vendor ?? "—"}</td>
-                  <td className="px-4 py-2 text-slate-500">{license.seats}</td>
-                  <td className="px-4 py-2 text-slate-500">{license.company?.name ?? "Toutes sociétés"}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500">{new Date(license.expiryDate).toLocaleDateString("fr-FR")}</span>
-                      <ExpiryBadge expiryDate={license.expiryDate} />
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => setEditingId(editingId === license.id ? null : license.id)}
-                      className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
-                    >
-                      {editingId === license.id ? "Fermer" : "Modifier"}
-                    </button>
+            {licenseGroups.map((group) => (
+              <Fragment key={group.companyId}>
+                <tr className="bg-slate-100">
+                  <td colSpan={6} className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    {group.companyName} <span className="font-normal normal-case text-slate-400">({group.items.length})</span>
                   </td>
                 </tr>
-                {editingId === license.id && (
-                  <tr>
-                    <td colSpan={6} className="border-b border-slate-100 bg-slate-50 p-4">
-                      <LicenseForm
-                        companies={companies ?? []}
-                        initial={licenseToForm(license)}
-                        submitLabel="Enregistrer"
-                        loading={updateMutation.isPending}
-                        onSubmit={(form) => updateMutation.mutate({ id: license.id, form })}
-                        onCancel={() => setEditingId(null)}
-                      />
-                    </td>
-                  </tr>
-                )}
+                {group.items.map((license) => (
+                  <Fragment key={license.id}>
+                    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                      <td className="px-4 py-2 font-medium text-slate-900">{license.name}</td>
+                      <td className="px-4 py-2 text-slate-500">{license.vendor ?? "—"}</td>
+                      <td className="px-4 py-2 text-slate-500">{license.seats}</td>
+                      <td className="px-4 py-2 text-slate-500">{license.company?.name ?? "Toutes sociétés"}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-500">{new Date(license.expiryDate).toLocaleDateString("fr-FR")}</span>
+                          <ExpiryBadge expiryDate={license.expiryDate} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          onClick={() => setEditingId(editingId === license.id ? null : license.id)}
+                          className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
+                        >
+                          {editingId === license.id ? "Fermer" : "Modifier"}
+                        </button>
+                      </td>
+                    </tr>
+                    {editingId === license.id && (
+                      <tr>
+                        <td colSpan={6} className="border-b border-slate-100 bg-slate-50 p-4">
+                          <LicenseForm
+                            companies={companies ?? []}
+                            initial={licenseToForm(license)}
+                            submitLabel="Enregistrer"
+                            loading={updateMutation.isPending}
+                            onSubmit={(form) => updateMutation.mutate({ id: license.id, form })}
+                            onCancel={() => setEditingId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
               </Fragment>
             ))}
             {!isLoading && licenses?.length === 0 && (

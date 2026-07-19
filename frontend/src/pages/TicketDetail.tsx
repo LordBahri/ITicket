@@ -12,6 +12,7 @@ import { PageSpinner } from "../components/ui/Spinner";
 import { IconAlertTriangle, IconWorkflow } from "../components/icons";
 import type { ProcessCategory, Ticket, User, TicketStatus } from "../types";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
+import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
 import { STATUS_LABELS } from "../constants/ticketStatus";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
@@ -330,6 +331,8 @@ export function TicketDetail() {
           </div>
         </div>
       </Card>
+
+      <TicketStatusTimeline entries={ticket.statusHistory ?? []} />
 
       <ProcessPanel ticket={ticket} isStaff={isStaff} isAdmin={user?.role === "ADMIN"} currentUserId={user?.id} />
 

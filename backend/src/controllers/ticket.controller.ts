@@ -207,11 +207,18 @@ export async function updateTicket(req: Request, res: Response) {
     }
   }
 
-  const updated = await prisma.ticket.update({
+  let updated = await prisma.ticket.update({
     where: { id: ticket.id },
     data: updateData,
     include: ticketInclude,
   });
+
+  if (data.status && data.status !== ticket.status) {
+    await prisma.ticketStatusHistory.create({
+      data: { ticketId: ticket.id, status: data.status, changedById: req.user!.id },
+    });
+    updated = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id }, include: ticketInclude });
+  }
 
   // Destinataires "parties prenantes" du ticket (demandeur + assigné), sans doublon
   const stakeholders = [updated.requester, updated.assignee].filter(
@@ -312,6 +319,9 @@ export async function approveTicketProcess(req: Request, res: Response) {
     data: { status: "OPEN" },
     include: ticketInclude,
   });
+  await prisma.ticketStatusHistory.create({
+    data: { ticketId: approval.ticketId, status: "OPEN", changedById: req.user!.id },
+  });
 
   const approverName = req.user!.id === approval.approverId ? approval.approver.name : "un administrateur";
   const requesterMail = renderTicketEmail({
@@ -348,6 +358,9 @@ export async function rejectTicketProcess(req: Request, res: Response) {
     where: { id: approval.ticketId },
     data: { status: "CLOSED", closedAt: new Date() },
     include: ticketInclude,
+  });
+  await prisma.ticketStatusHistory.create({
+    data: { ticketId: approval.ticketId, status: "CLOSED", changedById: req.user!.id },
   });
 
   const rejectMail = renderTicketEmail({

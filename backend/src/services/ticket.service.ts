@@ -17,6 +17,10 @@ export const ticketInclude = {
   process: { select: { id: true, name: true, category: true, requiresManagerApproval: true, requiresPhysicalForm: true, formTemplateUrl: true } },
   approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
   physicalFormArchivedBy: { select: { id: true, name: true } },
+  statusHistory: {
+    orderBy: { createdAt: "asc" as const },
+    include: { changedBy: { select: { id: true, name: true } } },
+  },
 };
 
 interface CreateTicketParams {
@@ -97,7 +101,7 @@ export async function createTicketRecord(params: CreateTicketParams) {
   const reference = await generateTicketReference();
   const dueAt = computeDueAt(subCategory.priority);
 
-  const ticket = await prisma.ticket.create({
+  let ticket = await prisma.ticket.create({
     data: {
       reference,
       title: params.title,
@@ -115,6 +119,11 @@ export async function createTicketRecord(params: CreateTicketParams) {
     },
     include: ticketInclude,
   });
+
+  await prisma.ticketStatusHistory.create({
+    data: { ticketId: ticket.id, status: ticket.status, changedById: params.requesterId },
+  });
+  ticket = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id }, include: ticketInclude });
 
   if (process) {
     const steps = await prisma.processStep.findMany({

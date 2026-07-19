@@ -6,7 +6,8 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { IconLightbulb, IconWorkflow } from "../components/icons";
+import { Modal } from "../components/ui/Modal";
+import { IconLightbulb, IconWorkflow, IconDownload } from "../components/icons";
 import type { Category, KnowledgeArticle, Process, SubCategory, Ticket, TicketType } from "../types";
 
 interface DirectoryUser {
@@ -32,6 +33,7 @@ export function NewTicket() {
   const [beneficiaryId, setBeneficiaryId] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formPromptProcess, setFormPromptProcess] = useState<Process | null>(null);
 
   const canUseProcesses = Boolean(user?.isDepartmentHead) || user?.role === "ADMIN";
 
@@ -105,6 +107,8 @@ export function NewTicket() {
       setTypeId("");
       setCategoryId("");
       setSubCategoryId("");
+      const proc = activeProcesses.find((p) => p.id === value);
+      if (proc?.requiresPhysicalForm) setFormPromptProcess(proc);
     }
   }
 
@@ -197,8 +201,24 @@ export function NewTicket() {
                   </p>
                   {selectedProcess.requiresManagerApproval &&
                     "Cette demande nécessitera la validation de votre supérieur hiérarchique avant prise en charge par l'IT. "}
-                  {selectedProcess.requiresPhysicalForm &&
-                    "Un formulaire signé devra être scanné puis remis en physique à l'équipe IT pour archivage."}
+                  {selectedProcess.requiresPhysicalForm && (
+                    <p>
+                      Un formulaire signé devra être scanné puis remis en physique à l'équipe IT pour archivage.
+                      {selectedProcess.formTemplateUrl && (
+                        <>
+                          {" "}
+                          <a
+                            href={selectedProcess.formTemplateUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-semibold text-brand-900 hover:underline"
+                          >
+                            <IconDownload className="h-3.5 w-3.5" /> Télécharger le formulaire
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -324,6 +344,39 @@ export function NewTicket() {
           </Button>
         </form>
       </Card>
+
+      <Modal
+        open={Boolean(formPromptProcess)}
+        onClose={() => setFormPromptProcess(null)}
+        title="Formulaire à imprimer requis"
+        size="sm"
+      >
+        {formPromptProcess && (
+          <div className="space-y-3 text-sm text-slate-600">
+            <p>
+              Le processus <strong>{formPromptProcess.name}</strong> nécessite un formulaire signé. Téléchargez-le dès
+              maintenant, remplissez-le et imprimez-le : vous devrez le faire signer puis le remettre en physique à
+              l'équipe IT une fois le ticket créé.
+            </p>
+            <div className="flex gap-2">
+              {formPromptProcess.formTemplateUrl && (
+                <a
+                  href={formPromptProcess.formTemplateUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setFormPromptProcess(null)}
+                  className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700"
+                >
+                  <IconDownload className="h-4 w-4" /> Télécharger le formulaire
+                </a>
+              )}
+              <Button variant="secondary" type="button" onClick={() => setFormPromptProcess(null)}>
+                Continuer
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

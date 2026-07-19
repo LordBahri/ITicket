@@ -36,7 +36,7 @@ export function Modal({ open, onClose, title, description, children, size = "md"
       onClick={onClose}
     >
       <div
-        className={`w-full ${SIZE_CLASSES[size]} rounded-xl bg-white p-6 shadow-xl`}
+        className={`animate-modal-in w-full ${SIZE_CLASSES[size]} rounded-xl bg-white p-6 shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">

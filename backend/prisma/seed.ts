@@ -312,7 +312,14 @@ async function main() {
 
     const created = await prisma.process.upsert({
       where: { name: process.name },
-      update: {},
+      // Corrige le rattachement type/catégorie/sous-catégorie d'un processus déjà
+      // existant (ex. issu d'une migration ayant assigné des valeurs par défaut
+      // génériques) au lieu de le laisser inchangé.
+      update: {
+        typeId: typeProcessus.id,
+        categoryId: processCategory.id,
+        subCategoryId: processSubCategoryId,
+      },
       create: {
         name: process.name,
         category: process.category,

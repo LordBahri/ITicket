@@ -97,3 +97,18 @@ export async function updateCompany(req: Request, res: Response) {
   });
   res.json({ company: updated });
 }
+
+export async function deleteCompany(req: Request, res: Response) {
+  const company = await prisma.company.findUnique({ where: { id: req.params.id } });
+  if (!company) throw new HttpError(404, "Société introuvable");
+
+  try {
+    await prisma.company.delete({ where: { id: req.params.id } });
+  } catch {
+    throw new HttpError(
+      409,
+      "Impossible de supprimer cette société : des utilisateurs, filiales, matériels ou licences lui sont liés. Désactivez-la plutôt."
+    );
+  }
+  res.status(204).send();
+}

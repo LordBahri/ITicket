@@ -7,6 +7,8 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
+import { CompanyStatsBar } from "../components/ui/CompanyStatsBar";
+import { groupByCompany, companyStats } from "../utils/companyGrouping";
 import type { Asset, AssetStatus, AssetType, Company, User } from "../types";
 
 const inputClass =
@@ -334,6 +336,15 @@ export function AdminAssets() {
 
   const activeAssetTypes = assetTypes?.filter((t) => t.isActive) ?? [];
 
+  function assetCompanyId(asset: Asset): string | null {
+    if (asset.company) return asset.company.id;
+    if (asset.assignee) return users?.find((u) => u.id === asset.assignee!.id)?.company.id ?? null;
+    return null;
+  }
+
+  const assetGroups = groupByCompany(assets ?? [], companies ?? [], assetCompanyId).groups;
+  const stats = companyStats(assets ?? [], companies ?? [], assetCompanyId);
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -377,6 +388,16 @@ export function AdminAssets() {
         </select>
       </div>
 
+      {!isLoading && assets && assets.length > 0 && (
+        <CompanyStatsBar
+          stats={stats.stats}
+          unassignedCount={stats.unassignedCount}
+          unassignedLabel="En stock / non affecté"
+          total={stats.total}
+          totalLabel="équipements"
+        />
+      )}
+
       <Card className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
@@ -391,55 +412,64 @@ export function AdminAssets() {
           </thead>
           <tbody>
             {isLoading && Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} columns={6} />)}
-            {assets?.map((asset) => (
-              <Fragment key={asset.id}>
-                <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-900">{asset.name}</td>
-                  <td className="px-4 py-2 text-slate-500">{asset.assetType.name}</td>
-                  <td className="px-4 py-2 text-slate-500">{asset.serialNumber ?? "—"}</td>
-                  <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[asset.status]}`}>
-                      {STATUS_LABELS[asset.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">
-                    {asset.company && (
-                      <Link to={`/admin/companies/${asset.company.id}`} className="text-brand-700 hover:underline">
-                        {asset.company.name}
-                      </Link>
-                    )}
-                    {asset.assignee && (
-                      <Link to={`/admin/users/${asset.assignee.id}`} className="text-brand-700 hover:underline">
-                        {asset.assignee.name}
-                      </Link>
-                    )}
-                    {!asset.company && !asset.assignee && "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => setEditingId(editingId === asset.id ? null : asset.id)}
-                      className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
-                    >
-                      {editingId === asset.id ? "Fermer" : "Modifier"}
-                    </button>
+            {assetGroups.map((group) => (
+              <Fragment key={group.companyId}>
+                <tr className="bg-slate-100">
+                  <td colSpan={6} className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    {group.companyName} <span className="font-normal normal-case text-slate-400">({group.items.length})</span>
                   </td>
                 </tr>
-                {editingId === asset.id && (
-                  <tr>
-                    <td colSpan={6} className="border-b border-slate-100 bg-slate-50 p-4">
-                      <AssetForm
-                        assetTypes={assetTypes ?? []}
-                        companies={companies ?? []}
-                        users={users ?? []}
-                        initial={assetToForm(asset)}
-                        submitLabel="Enregistrer"
-                        loading={updateMutation.isPending}
-                        onSubmit={(form) => updateMutation.mutate({ id: asset.id, form })}
-                        onCancel={() => setEditingId(null)}
-                      />
-                    </td>
-                  </tr>
-                )}
+                {group.items.map((asset) => (
+                  <Fragment key={asset.id}>
+                    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                      <td className="px-4 py-2 font-medium text-slate-900">{asset.name}</td>
+                      <td className="px-4 py-2 text-slate-500">{asset.assetType.name}</td>
+                      <td className="px-4 py-2 text-slate-500">{asset.serialNumber ?? "—"}</td>
+                      <td className="px-4 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[asset.status]}`}>
+                          {STATUS_LABELS[asset.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-slate-500">
+                        {asset.company && (
+                          <Link to={`/admin/companies/${asset.company.id}`} className="text-brand-700 hover:underline">
+                            {asset.company.name}
+                          </Link>
+                        )}
+                        {asset.assignee && (
+                          <Link to={`/admin/users/${asset.assignee.id}`} className="text-brand-700 hover:underline">
+                            {asset.assignee.name}
+                          </Link>
+                        )}
+                        {!asset.company && !asset.assignee && "—"}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          onClick={() => setEditingId(editingId === asset.id ? null : asset.id)}
+                          className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
+                        >
+                          {editingId === asset.id ? "Fermer" : "Modifier"}
+                        </button>
+                      </td>
+                    </tr>
+                    {editingId === asset.id && (
+                      <tr>
+                        <td colSpan={6} className="border-b border-slate-100 bg-slate-50 p-4">
+                          <AssetForm
+                            assetTypes={assetTypes ?? []}
+                            companies={companies ?? []}
+                            users={users ?? []}
+                            initial={assetToForm(asset)}
+                            submitLabel="Enregistrer"
+                            loading={updateMutation.isPending}
+                            onSubmit={(form) => updateMutation.mutate({ id: asset.id, form })}
+                            onCancel={() => setEditingId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
               </Fragment>
             ))}
             {!isLoading && assets?.length === 0 && (

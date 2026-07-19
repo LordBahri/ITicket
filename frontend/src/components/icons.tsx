@@ -216,6 +216,16 @@ export function IconFile(props: IconProps) {
   );
 }
 
+export function IconDownload(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3.5v11.5" />
+      <path d="M7.5 11 12 15.5 16.5 11" />
+      <path d="M4.5 17v2.5a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V17" />
+    </svg>
+  );
+}
+
 export function IconMonitor(props: IconProps) {
   return (
     <svg {...base} {...props}>

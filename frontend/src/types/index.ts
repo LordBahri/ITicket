@@ -199,6 +199,14 @@ export interface Ticket {
   isOverdue: boolean;
   comments?: Comment[];
   attachments?: Attachment[];
+  statusHistory?: TicketStatusHistoryEntry[];
+}
+
+export interface TicketStatusHistoryEntry {
+  id: string;
+  status: TicketStatus;
+  changedBy: { id: string; name: string } | null;
+  createdAt: string;
 }
 
 export interface KnowledgeArticle {

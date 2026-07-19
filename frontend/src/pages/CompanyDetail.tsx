@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import type { Asset, Company, CompanyType, License, OrgUser, Service, User } from "../types";
 import { OrgChart } from "../components/OrgChart";
 
@@ -35,6 +36,7 @@ export function CompanyDetail() {
   const [parentId, setParentId] = useState("");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: company, isLoading } = useQuery({
     queryKey: ["company", id],
@@ -93,6 +95,18 @@ export function CompanyDetail() {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => apiClient.delete(`/companies/${id}`),
+    onSuccess: () => {
+      toast.success("Société supprimée");
+      navigate("/admin/companies");
+    },
+    onError: (err) => {
+      toast.error(apiErrorMessage(err, "Impossible de supprimer la société"));
+      setConfirmDelete(false);
+    },
   });
 
   function startEdit() {
@@ -243,10 +257,23 @@ export function CompanyDetail() {
               <Button size="sm" variant="secondary" loading={toggleActiveMutation.isPending} onClick={() => toggleActiveMutation.mutate()}>
                 {company.isActive ? "Désactiver" : "Activer"}
               </Button>
+              <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
+                Supprimer
+              </Button>
             </div>
           </>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Supprimer cette société ?"
+        description={`${company.name} sera définitivement supprimée. Si des utilisateurs, filiales, matériels ou licences lui sont liés, désactivez-la plutôt.`}
+        confirmLabel="Supprimer"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       {company.children.length > 0 && (
         <Card className="mb-4 p-6">
