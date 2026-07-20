@@ -82,17 +82,22 @@ export function Layout() {
           {user?.role === "ADMIN" && (
             <>
               <div className="mb-1.5 mt-7 border-t border-slate-100 px-3 pt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Administration
+                Administration IT
               </div>
-              <NavLink to="/admin/ticket-types" className={navLinkClass}>
-                <IconLayers className="h-[18px] w-[18px] shrink-0" /> Types de demande
-              </NavLink>
-              <NavLink to="/admin/categories" className={navLinkClass}>
-                <IconTag className="h-[18px] w-[18px] shrink-0" /> Catégories
-              </NavLink>
-              <NavLink to="/admin/priorities" className={navLinkClass}>
-                <IconClock className="h-[18px] w-[18px] shrink-0" /> Priorités &amp; SLA
-              </NavLink>
+              <div className="mb-1 mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                Administration ITicket
+              </div>
+              <div className="space-y-0.5 pl-2">
+                <NavLink to="/admin/ticket-types" className={navLinkClass}>
+                  <IconLayers className="h-[18px] w-[18px] shrink-0" /> Types de demande
+                </NavLink>
+                <NavLink to="/admin/categories" className={navLinkClass}>
+                  <IconTag className="h-[18px] w-[18px] shrink-0" /> Catégories
+                </NavLink>
+                <NavLink to="/admin/priorities" className={navLinkClass}>
+                  <IconClock className="h-[18px] w-[18px] shrink-0" /> Priorités &amp; SLA
+                </NavLink>
+              </div>
               <NavLink to="/admin/companies" className={navLinkClass}>
                 <IconBuilding className="h-[18px] w-[18px] shrink-0" /> Sociétés
               </NavLink>
