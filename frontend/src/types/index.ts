@@ -44,6 +44,7 @@ export interface User {
   company: Company;
   isActive: boolean;
   isDepartmentHead?: boolean;
+  isSystemPlaceholder?: boolean;
   createdAt?: string;
   matricule?: string | null;
   phone?: string | null;

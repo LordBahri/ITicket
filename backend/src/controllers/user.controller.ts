@@ -58,6 +58,7 @@ const publicSelect = {
   manager: { select: { id: true, name: true } },
   isActive: true,
   isDepartmentHead: true,
+  isSystemPlaceholder: true,
   createdAt: true,
   company: true,
   matricule: true,
@@ -192,6 +193,10 @@ export async function updateUser(req: Request, res: Response) {
   const data = updateUserSchema.parse(req.body);
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  if (user.isSystemPlaceholder) {
+    throw new HttpError(400, "Ce compte système ne peut pas être modifié");
+  }
 
   const targetCompanyId = data.companyId ?? user.companyId;
 

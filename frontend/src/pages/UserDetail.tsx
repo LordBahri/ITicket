@@ -430,25 +430,32 @@ export function UserDetail() {
               </div>
             )}
 
-            <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-              <Button size="sm" onClick={startEdit}>
-                Modifier
-              </Button>
-              <Button size="sm" variant="secondary" loading={toggleActiveMutation.isPending} onClick={() => toggleActiveMutation.mutate()}>
-                {user.isActive ? "Désactiver" : "Activer"}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                loading={resetPasswordMutation.isPending}
-                onClick={() => resetPasswordMutation.mutate()}
-              >
-                Réinitialiser le mot de passe
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
-                Supprimer
-              </Button>
-            </div>
+            {user.isSystemPlaceholder ? (
+              <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+                Compte système généré automatiquement pour conserver les tickets, commentaires et matériels dont
+                l'utilisateur d'origine a été supprimé. Il ne peut pas être modifié ni supprimé.
+              </p>
+            ) : (
+              <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                <Button size="sm" onClick={startEdit}>
+                  Modifier
+                </Button>
+                <Button size="sm" variant="secondary" loading={toggleActiveMutation.isPending} onClick={() => toggleActiveMutation.mutate()}>
+                  {user.isActive ? "Désactiver" : "Activer"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={resetPasswordMutation.isPending}
+                  onClick={() => resetPasswordMutation.mutate()}
+                >
+                  Réinitialiser le mot de passe
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
+                  Supprimer
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>

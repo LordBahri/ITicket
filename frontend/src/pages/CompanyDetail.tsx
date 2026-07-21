@@ -250,17 +250,24 @@ export function CompanyDetail() {
               </div>
             </div>
 
-            <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
-              <Button size="sm" onClick={startEdit}>
-                Modifier
-              </Button>
-              <Button size="sm" variant="secondary" loading={toggleActiveMutation.isPending} onClick={() => toggleActiveMutation.mutate()}>
-                {company.isActive ? "Désactiver" : "Activer"}
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
-                Supprimer
-              </Button>
-            </div>
+            {company.isSystemPlaceholder ? (
+              <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+                Société système générée automatiquement pour conserver les utilisateurs, matériels et licences dont la
+                société d'origine a été supprimée. Elle ne peut pas être modifiée ni supprimée.
+              </p>
+            ) : (
+              <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
+                <Button size="sm" onClick={startEdit}>
+                  Modifier
+                </Button>
+                <Button size="sm" variant="secondary" loading={toggleActiveMutation.isPending} onClick={() => toggleActiveMutation.mutate()}>
+                  {company.isActive ? "Désactiver" : "Activer"}
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
+                  Supprimer
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Card>

@@ -85,6 +85,10 @@ export async function updateCompany(req: Request, res: Response) {
   const company = await prisma.company.findUnique({ where: { id: req.params.id } });
   if (!company) throw new HttpError(404, "Société introuvable");
 
+  if (company.isSystemPlaceholder) {
+    throw new HttpError(400, "Cette société système ne peut pas être modifiée");
+  }
+
   if (data.parentId) {
     const parent = await prisma.company.findUnique({ where: { id: data.parentId } });
     if (!parent) throw new HttpError(400, "Société parente invalide");
