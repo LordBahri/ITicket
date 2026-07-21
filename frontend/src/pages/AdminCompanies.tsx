@@ -128,7 +128,7 @@ export function AdminCompanies() {
             </select>
             <select value={parentId} onChange={(e) => setParentId(e.target.value)} className={`flex-1 ${inputClass}`}>
               <option value="">Aucune société mère</option>
-              {companies?.map((c) => (
+              {companies?.filter((c) => !c.isSystemPlaceholder).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

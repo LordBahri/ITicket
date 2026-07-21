@@ -38,11 +38,12 @@ enum CompanyType {
 }
 
 model Company {
-  id        String      @id @default(cuid())
-  name      String      @unique
-  type      CompanyType @default(FILIALE)
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
+  id                  String      @id @default(cuid())
+  name                String      @unique
+  type                CompanyType @default(FILIALE)
+  isActive            Boolean     @default(true)
+  isSystemPlaceholder Boolean     @default(false)
+  createdAt           DateTime    @default(now())
 
   parentId String?
   parent   Company?  @relation("CompanyHierarchy", fields: [parentId], references: [id])
@@ -67,15 +68,16 @@ model Service {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  name             String
-  email            String   @unique
-  passwordHash     String
-  role             Role     @default(USER)
-  isActive         Boolean  @default(true)
-  isDepartmentHead Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  email               String   @unique
+  passwordHash        String
+  role                Role     @default(USER)
+  isActive            Boolean  @default(true)
+  isDepartmentHead    Boolean  @default(false)
+  isSystemPlaceholder Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   matricule     String?
   phone         String?

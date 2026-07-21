@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
+import { getDeletedCompanyId } from "../services/deletedPlaceholder.service";
 
 const companySchema = z.object({
   name: z.string().min(2).max(150),
@@ -44,6 +45,8 @@ async function wouldCreateCycle(companyId: string, newParentId: string): Promise
 }
 
 export async function listCompanies(_req: Request, res: Response) {
+  // Le placeholder « Société supprimée » reste inclus : c'est là que retrouver les utilisateurs,
+  // matériels et licences réaffectés suite à la suppression d'une société.
   const companies = await prisma.company.findMany({
     include: companyInclude,
     orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -102,13 +105,23 @@ export async function deleteCompany(req: Request, res: Response) {
   const company = await prisma.company.findUnique({ where: { id: req.params.id } });
   if (!company) throw new HttpError(404, "Société introuvable");
 
-  try {
-    await prisma.company.delete({ where: { id: req.params.id } });
-  } catch {
-    throw new HttpError(
-      409,
-      "Impossible de supprimer cette société : des utilisateurs, filiales, matériels ou licences lui sont liés. Désactivez-la plutôt."
-    );
+  if (company.isSystemPlaceholder) {
+    throw new HttpError(400, "Cette société système ne peut pas être supprimée");
   }
+
+  const deletedCompanyId = await getDeletedCompanyId();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.asset.updateMany({ where: { companyId: company.id }, data: { companyId: deletedCompanyId } });
+    await tx.license.updateMany({ where: { companyId: company.id }, data: { companyId: deletedCompanyId } });
+    // Les utilisateurs de cette société sont rattachés à la société générique plutôt que bloquer la
+    // suppression ; un administrateur pourra ensuite les réaffecter à une société réelle.
+    await tx.user.updateMany({ where: { companyId: company.id }, data: { companyId: deletedCompanyId } });
+    // Les filiales de cette société deviennent des sociétés de premier niveau (parentId nul).
+    await tx.company.updateMany({ where: { parentId: company.id }, data: { parentId: null } });
+
+    await tx.company.delete({ where: { id: company.id } });
+  });
+
   res.status(204).send();
 }

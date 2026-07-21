@@ -125,7 +125,7 @@ function LicenseForm({
         </div>
         <select value={form.companyId} onChange={(e) => update("companyId", e.target.value)} className={inputClass}>
           <option value="">Toutes sociétés</option>
-          {companies.map((c) => (
+          {companies.filter((c) => !c.isSystemPlaceholder || c.id === form.companyId).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>

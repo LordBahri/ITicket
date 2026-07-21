@@ -244,11 +244,13 @@ export function UserDetail() {
                   }}
                   className={inputClass}
                 >
-                  {companies?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {companies
+                    ?.filter((c) => !c.isSystemPlaceholder || c.id === companyId)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>
@@ -460,7 +462,7 @@ export function UserDetail() {
       <ConfirmDialog
         open={confirmDelete}
         title="Supprimer cet utilisateur ?"
-        description={`${user.name} (${user.email}) sera définitivement supprimé. Si des tickets ou du matériel lui sont liés, désactivez plutôt son compte.`}
+        description={`${user.name} (${user.email}) sera définitivement supprimé. Ses tickets, commentaires et matériels affectés seront conservés et réattribués à « Utilisateur supprimé ».`}
         confirmLabel="Supprimer"
         loading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}

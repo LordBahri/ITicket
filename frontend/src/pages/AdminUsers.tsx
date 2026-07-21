@@ -169,7 +169,7 @@ export function AdminUsers() {
               className={inputClass}
             >
               <option value="">Société…</option>
-              {companies?.map((c) => (
+              {companies?.filter((c) => !c.isSystemPlaceholder).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -362,7 +362,7 @@ export function AdminUsers() {
         title="Supprimer cet utilisateur ?"
         description={
           userToDelete
-            ? `${userToDelete.name} (${userToDelete.email}) sera définitivement supprimé. Si des tickets ou du matériel lui sont liés, désactivez plutôt son compte.`
+            ? `${userToDelete.name} (${userToDelete.email}) sera définitivement supprimé. Ses tickets, commentaires et matériels affectés seront conservés et réattribués à « Utilisateur supprimé ».`
             : undefined
         }
         confirmLabel="Supprimer"

@@ -17,6 +17,7 @@ export interface Company {
   name: string;
   type: CompanyType;
   isActive: boolean;
+  isSystemPlaceholder?: boolean;
   parentId?: string | null;
   parent?: { id: string; name: string; type: CompanyType } | null;
   services?: Service[];

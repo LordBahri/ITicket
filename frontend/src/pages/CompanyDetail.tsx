@@ -163,7 +163,7 @@ export function CompanyDetail() {
                 <select value={parentId} onChange={(e) => setParentId(e.target.value)} className={inputClass}>
                   <option value="">Aucune</option>
                   {allCompanies
-                    ?.filter((c) => c.id !== company.id)
+                    ?.filter((c) => c.id !== company.id && !c.isSystemPlaceholder)
                     .map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -268,7 +268,7 @@ export function CompanyDetail() {
       <ConfirmDialog
         open={confirmDelete}
         title="Supprimer cette société ?"
-        description={`${company.name} sera définitivement supprimée. Si des utilisateurs, filiales, matériels ou licences lui sont liés, désactivez-la plutôt.`}
+        description={`${company.name} sera définitivement supprimée. Ses utilisateurs, matériels et licences seront conservés et réattribués à « Société supprimée » ; ses filiales deviendront des sociétés de premier niveau.`}
         confirmLabel="Supprimer"
         loading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}

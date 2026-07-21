@@ -6,6 +6,7 @@ import { hashPassword } from "../utils/password";
 import { generatePassword } from "../utils/generatePassword";
 import { sendMail } from "../services/email.service";
 import { renderSimpleEmail, escapeHtml } from "../services/emailTemplate";
+import { getDeletedUserId } from "../services/deletedPlaceholder.service";
 
 const optionalText = () =>
   z
@@ -109,7 +110,7 @@ export async function listCompanyDirectory(req: Request, res: Response) {
 export async function listUsers(req: Request, res: Response) {
   const { companyId } = req.query as { companyId?: string };
   const users = await prisma.user.findMany({
-    where: companyId ? { companyId } : undefined,
+    where: { isSystemPlaceholder: false, ...(companyId ? { companyId } : {}) },
     select: publicSelect,
     orderBy: { name: "asc" },
   });
@@ -237,18 +238,46 @@ export async function deleteUser(req: Request, res: Response) {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw new HttpError(404, "Utilisateur introuvable");
 
+  if (user.isSystemPlaceholder) {
+    throw new HttpError(400, "Ce compte système ne peut pas être supprimé");
+  }
   if (req.user!.id === user.id) {
     throw new HttpError(400, "Vous ne pouvez pas supprimer votre propre compte");
   }
 
-  try {
-    await prisma.user.delete({ where: { id: req.params.id } });
-  } catch {
-    throw new HttpError(
-      409,
-      "Impossible de supprimer cet utilisateur : des tickets, du matériel ou d'autres éléments lui sont liés. Désactivez son compte à la place."
-    );
-  }
+  const deletedUserId = await getDeletedUserId();
+
+  await prisma.$transaction(async (tx) => {
+    // Le fil de discussion personnel de l'utilisateur est propre à lui : on le retire entièrement
+    // plutôt que de le rattacher au compte générique (pas de sens à transférer une conversation privée).
+    const ownThread = await tx.chatThread.findUnique({ where: { userId: user.id } });
+    if (ownThread) {
+      await tx.chatReadState.deleteMany({ where: { threadId: ownThread.id } });
+      await tx.chatMessage.deleteMany({ where: { threadId: ownThread.id } });
+      await tx.chatThread.delete({ where: { id: ownThread.id } });
+    }
+    // Messages envoyés par cet utilisateur dans d'autres fils (ex. réponses d'un agent) : conservés, ré-attribués.
+    await tx.chatMessage.updateMany({ where: { senderId: user.id }, data: { senderId: deletedUserId } });
+    await tx.chatReadState.deleteMany({ where: { userId: user.id } });
+
+    await tx.comment.updateMany({ where: { authorId: user.id }, data: { authorId: deletedUserId } });
+    await tx.attachment.updateMany({ where: { uploadedById: user.id }, data: { uploadedById: deletedUserId } });
+    await tx.knowledgeArticle.updateMany({ where: { authorId: user.id }, data: { authorId: deletedUserId } });
+    await tx.processApproval.updateMany({ where: { approverId: user.id }, data: { approverId: deletedUserId } });
+    await tx.processStepCompletion.updateMany({ where: { doneById: user.id }, data: { doneById: deletedUserId } });
+    await tx.asset.updateMany({ where: { assigneeId: user.id }, data: { assigneeId: deletedUserId } });
+    await tx.ticketStatusHistory.updateMany({ where: { changedById: user.id }, data: { changedById: deletedUserId } });
+
+    await tx.ticket.updateMany({ where: { requesterId: user.id }, data: { requesterId: deletedUserId } });
+    await tx.ticket.updateMany({ where: { assigneeId: user.id }, data: { assigneeId: deletedUserId } });
+    await tx.ticket.updateMany({ where: { beneficiaryId: user.id }, data: { beneficiaryId: deletedUserId } });
+    await tx.ticket.updateMany({
+      where: { physicalFormArchivedById: user.id },
+      data: { physicalFormArchivedById: deletedUserId },
+    });
+
+    await tx.user.delete({ where: { id: user.id } });
+  });
 
   res.status(204).send();
 }
