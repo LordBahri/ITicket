@@ -132,13 +132,13 @@ npm run dev                # démarre l'API sur http://localhost:4000
 
 Il n'y a pas de page d'inscription publique : tout compte doit être créé par un admin depuis Administration > Utilisateurs (nom, email, mot de passe temporaire, rôle, société, service).
 
-Comptes créés par le seed (mot de passe `Password123!`) :
+Le seed ne crée qu'un unique compte administrateur de démarrage (aucune donnée de démonstration) :
 
-| Email | Rôle |
-|---|---|
-| admin@societe.local | ADMIN |
-| agent@societe.local | AGENT |
-| user@societe.local | USER |
+| Email | Rôle | Mot de passe |
+|---|---|---|
+| admin@societe.local | ADMIN | `Password123!` |
+
+Créez les autres comptes et sociétés réels depuis Administration une fois connecté.
 
 L'ingestion email et les endpoints Slack/Teams sont désactivés par défaut tant que les variables `IMAP_HOST` / `SLACK_SIGNING_SECRET` / `TEAMS_WEBHOOK_SECRET` ne sont pas renseignées dans `.env`.
 

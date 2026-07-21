@@ -342,8 +342,6 @@ async function main() {
 
   const companies = [
     { name: "Meninx Holding", type: "HOLDING" as const, services: ["Direction générale", "IT", "RH", "Comptabilité & Finance", "Juridique"] },
-    { name: "Meninx Industrie", type: "FILIALE" as const, services: ["IT", "Production", "Achats", "Ventes", "Logistique"] },
-    { name: "Meninx Logistique", type: "FILIALE" as const, services: ["IT", "Logistique", "Achats", "Ventes"] },
   ];
   for (const company of companies) {
     await prisma.company.upsert({
@@ -357,10 +355,12 @@ async function main() {
     });
   }
   const holding = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Holding" } });
-  const filiale = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Industrie" } });
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
+  // Seul le compte admin de démarrage est créé automatiquement : il n'y a pas d'inscription
+  // publique, il faut donc au moins un compte pour se connecter et créer les vrais comptes/sociétés
+  // depuis l'administration. Aucun autre utilisateur ou société de démonstration n'est recréé.
   const admin = await prisma.user.upsert({
     where: { email: "admin@societe.local" },
     update: {},
@@ -371,48 +371,6 @@ async function main() {
       role: "ADMIN",
       companyId: holding.id,
       serviceId: services.get("IT")!.id,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: "agent@societe.local" },
-    update: {},
-    create: {
-      name: "Agent Support",
-      email: "agent@societe.local",
-      passwordHash,
-      role: "AGENT",
-      companyId: holding.id,
-      serviceId: services.get("IT")!.id,
-      managerId: admin.id,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: "user@societe.local" },
-    update: {},
-    create: {
-      name: "Utilisateur Test",
-      email: "user@societe.local",
-      passwordHash,
-      role: "USER",
-      companyId: filiale.id,
-      serviceId: services.get("Ventes")!.id,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: "responsable@societe.local" },
-    update: {},
-    create: {
-      name: "Responsable Ventes",
-      email: "responsable@societe.local",
-      passwordHash,
-      role: "USER",
-      companyId: filiale.id,
-      serviceId: services.get("Ventes")!.id,
-      isDepartmentHead: true,
-      managerId: admin.id,
     },
   });
 
@@ -620,11 +578,8 @@ Si votre boîte reste pleine après un nettoyage ou si la synchronisation ne rep
     }
   }
 
-  console.log("Seed terminé. Comptes créés (mot de passe : Password123!) :");
+  console.log("Seed terminé. Compte administrateur (mot de passe : Password123!) :");
   console.log(" - admin@societe.local (ADMIN, Meninx Holding)");
-  console.log(" - agent@societe.local (AGENT, Meninx Holding)");
-  console.log(" - user@societe.local (USER, Meninx Industrie)");
-  console.log(" - responsable@societe.local (USER, responsable de service, Meninx Industrie — peut lancer des demandes de processus IT)");
 }
 
 main()
