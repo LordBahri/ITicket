@@ -7,6 +7,7 @@ import { sendMail } from "../services/email.service";
 import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 import { STATUS_LABELS } from "../constants/ticketStatus";
 import { renderTicketEmail, escapeHtml } from "../services/emailTemplate";
+import { runSageAccessAutomation } from "../services/sageAccess.service";
 
 const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
 const TICKET_STATUSES = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
@@ -403,4 +404,43 @@ export async function archiveTicketForm(req: Request, res: Response) {
     include: ticketInclude,
   });
   res.json({ ticket: serializeTicket(updated) });
+}
+
+export async function automateSageAccess(req: Request, res: Response) {
+  const ticket = await getTicketOr404(req.params.id);
+
+  if (!ticket.process?.supportsSageAutomation) {
+    throw new HttpError(400, "Ce ticket n'est pas associé à un processus prenant en charge l'automatisation Sage");
+  }
+
+  const target = ticket.beneficiary ?? ticket.requester;
+  if (!target.adUsername) {
+    throw new HttpError(
+      400,
+      `Aucun identifiant AD renseigné sur la fiche de ${target.name} : renseignez-le avant de lancer l'automatisation`
+    );
+  }
+  const sageDatabaseName = target.company?.sageDatabaseName;
+  if (!sageDatabaseName) {
+    throw new HttpError(
+      400,
+      `Aucun nom de base Sage renseigné sur la fiche de la société ${target.company?.name ?? ""} : renseignez-le avant de lancer l'automatisation`
+    );
+  }
+
+  const result = await runSageAccessAutomation({ adUsername: target.adUsername, sageDatabaseName });
+
+  const stepResults: Record<string, boolean> = { RDP: result.rdp.ok, FILES: result.files.ok, SQL: result.sql.ok };
+  for (const completion of ticket.stepCompletions) {
+    const key = completion.processStep.automationKey;
+    if (key && stepResults[key] && !completion.isDone) {
+      await prisma.processStepCompletion.update({
+        where: { id: completion.id },
+        data: { isDone: true, doneAt: new Date(), doneById: req.user!.id },
+      });
+    }
+  }
+
+  const updated = await getTicketOr404(req.params.id);
+  res.json({ result, ticket: serializeTicket(updated) });
 }

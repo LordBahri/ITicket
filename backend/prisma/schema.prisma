@@ -45,6 +45,10 @@ model Company {
   isSystemPlaceholder Boolean     @default(false)
   createdAt           DateTime    @default(now())
 
+  // Nom de la base de données Sage 100 de cette société (ex. "Holding" pour Meninx Holding) :
+  // sert à générer les noms de fichiers .gcm/.mae lors de l'automatisation d'un accès Sage.
+  sageDatabaseName String?
+
   parentId String?
   parent   Company?  @relation("CompanyHierarchy", fields: [parentId], references: [id])
   children Company[] @relation("CompanyHierarchy")
@@ -86,6 +90,10 @@ model User {
   teamviewerId  String?
   ultraviewerId String?
   avatarUrl     String?
+
+  // Identifiant Active Directory (ex. "MENINX\jdupont") : utilisé pour l'automatisation
+  // des accès (RDP, SQL Server) sur les serveurs Sage.
+  adUsername String?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
@@ -395,6 +403,10 @@ model Process {
   isActive                Boolean         @default(true)
   createdAt               DateTime        @default(now())
 
+  // Si vrai, un bouton « Automatiser » apparaît sur les tickets de ce processus pour déclencher
+  // l'automatisation de l'accès Sage 100 (RDP + copie des fichiers .gcm/.mae + sécurité SQL Server).
+  supportsSageAutomation Boolean @default(false)
+
   // Type/catégorie/sous-catégorie appliqués automatiquement au ticket créé via ce
   // processus (non modifiables par l'utilisateur) ; ce type de demande n'apparaît
   // donc plus dans le choix "normal" (hors processus) d'un nouveau ticket.
@@ -420,6 +432,10 @@ model ProcessStep {
   name     String
   order    Int     @default(0)
   isActive Boolean @default(true)
+
+  // Identifie une étape automatisable (ex. "RDP", "FILES", "SQL" pour l'accès Sage) afin que
+  // l'automatisation puisse retrouver la bonne étape sans dépendre du libellé ou de l'ordre.
+  automationKey String?
 
   processId String
   process   Process @relation(fields: [processId], references: [id], onDelete: Cascade)

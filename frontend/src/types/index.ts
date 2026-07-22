@@ -18,6 +18,7 @@ export interface Company {
   type: CompanyType;
   isActive: boolean;
   isSystemPlaceholder?: boolean;
+  sageDatabaseName?: string | null;
   parentId?: string | null;
   parent?: { id: string; name: string; type: CompanyType } | null;
   services?: Service[];
@@ -53,6 +54,7 @@ export interface User {
   teamviewerId?: string | null;
   ultraviewerId?: string | null;
   avatarUrl?: string | null;
+  adUsername?: string | null;
 }
 
 export interface RemoteAccessUser {
@@ -137,6 +139,18 @@ export interface ProcessStep {
   order: number;
   isActive: boolean;
   processId: string;
+  automationKey?: string | null;
+}
+
+export interface SageAutomationStepResult {
+  ok: boolean;
+  message: string;
+}
+
+export interface SageAutomationResult {
+  rdp: SageAutomationStepResult;
+  files: SageAutomationStepResult;
+  sql: SageAutomationStepResult;
 }
 
 export interface Process {
@@ -147,6 +161,7 @@ export interface Process {
   requiresManagerApproval: boolean;
   requiresPhysicalForm: boolean;
   formTemplateUrl: string | null;
+  supportsSageAutomation?: boolean;
   isActive: boolean;
   steps: ProcessStep[];
   typeId: string;
@@ -188,7 +203,15 @@ export interface Ticket {
   requester: { id: string; name: string; email: string; service: Service | null; company: Company };
   assignee: { id: string; name: string; email: string } | null;
   beneficiary?: { id: string; name: string; email: string } | null;
-  process?: { id: string; name: string; category: ProcessCategory; requiresManagerApproval: boolean; requiresPhysicalForm: boolean; formTemplateUrl: string | null } | null;
+  process?: {
+    id: string;
+    name: string;
+    category: ProcessCategory;
+    requiresManagerApproval: boolean;
+    requiresPhysicalForm: boolean;
+    formTemplateUrl: string | null;
+    supportsSageAutomation?: boolean;
+  } | null;
   approval?: ProcessApproval | null;
   stepCompletions?: ProcessStepCompletion[];
   physicalFormArchivedAt?: string | null;

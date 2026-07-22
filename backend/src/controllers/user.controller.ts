@@ -30,6 +30,7 @@ const createUserSchema = z.object({
   anydeskId: optionalText(),
   teamviewerId: optionalText(),
   ultraviewerId: optionalText(),
+  adUsername: optionalText(),
 });
 
 const updateUserSchema = z.object({
@@ -47,6 +48,7 @@ const updateUserSchema = z.object({
   anydeskId: optionalText(),
   teamviewerId: optionalText(),
   ultraviewerId: optionalText(),
+  adUsername: optionalText(),
 });
 
 const publicSelect = {
@@ -68,6 +70,7 @@ const publicSelect = {
   teamviewerId: true,
   ultraviewerId: true,
   avatarUrl: true,
+  adUsername: true,
 } as const;
 
 async function wouldCreateManagerCycle(userId: string, newManagerId: string): Promise<boolean> {
@@ -171,6 +174,7 @@ export async function createUser(req: Request, res: Response) {
       anydeskId: data.anydeskId ?? null,
       teamviewerId: data.teamviewerId ?? null,
       ultraviewerId: data.ultraviewerId ?? null,
+      adUsername: data.adUsername ?? null,
     },
     select: publicSelect,
   });

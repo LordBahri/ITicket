@@ -11,10 +11,22 @@ export const ticketInclude = {
   category: true,
   subCategory: { include: { priority: true } },
   priority: true,
-  requester: { select: { id: true, name: true, email: true, service: { select: { id: true, name: true } }, company: true } },
+  requester: {
+    select: { id: true, name: true, email: true, adUsername: true, service: { select: { id: true, name: true } }, company: true },
+  },
   assignee: { select: { id: true, name: true, email: true } },
-  beneficiary: { select: { id: true, name: true, email: true } },
-  process: { select: { id: true, name: true, category: true, requiresManagerApproval: true, requiresPhysicalForm: true, formTemplateUrl: true } },
+  beneficiary: { select: { id: true, name: true, email: true, adUsername: true, company: true } },
+  process: {
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      requiresManagerApproval: true,
+      requiresPhysicalForm: true,
+      formTemplateUrl: true,
+      supportsSageAutomation: true,
+    },
+  },
   approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
   physicalFormArchivedBy: { select: { id: true, name: true } },
   statusHistory: {

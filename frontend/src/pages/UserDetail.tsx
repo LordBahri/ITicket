@@ -74,6 +74,7 @@ export function UserDetail() {
   const [anydeskId, setAnydeskId] = useState("");
   const [teamviewerId, setTeamviewerId] = useState("");
   const [ultraviewerId, setUltraviewerId] = useState("");
+  const [adUsername, setAdUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -133,6 +134,7 @@ export function UserDetail() {
         anydeskId: anydeskId || null,
         teamviewerId: teamviewerId || null,
         ultraviewerId: ultraviewerId || null,
+        adUsername: adUsername || null,
       }),
     onSuccess: () => {
       toast.success("Utilisateur mis à jour");
@@ -193,6 +195,7 @@ export function UserDetail() {
     setAnydeskId(user.anydeskId ?? "");
     setTeamviewerId(user.teamviewerId ?? "");
     setUltraviewerId(user.ultraviewerId ?? "");
+    setAdUsername(user.adUsername ?? "");
     setError(null);
     setResetPassword(null);
     setEditing(true);
@@ -314,6 +317,15 @@ export function UserDetail() {
                   <label className="mb-1 block text-xs font-medium text-slate-500">ID UltraViewer</label>
                   <input value={ultraviewerId} onChange={(e) => setUltraviewerId(e.target.value)} className={inputClass} />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">Identifiant AD</label>
+                  <input
+                    value={adUsername}
+                    onChange={(e) => setAdUsername(e.target.value)}
+                    placeholder="ex : MENINX\jdupont"
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
 
@@ -398,6 +410,11 @@ export function UserDetail() {
               {user.pcName && (
                 <div>
                   Poste (PC) : <span className="text-slate-700">{user.pcName}</span>
+                </div>
+              )}
+              {user.adUsername && (
+                <div>
+                  Identifiant AD : <span className="text-slate-700">{user.adUsername}</span>
                 </div>
               )}
               {(user.anydeskId || user.teamviewerId || user.ultraviewerId) && (

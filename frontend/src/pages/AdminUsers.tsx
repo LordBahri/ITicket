@@ -36,6 +36,7 @@ export function AdminUsers() {
   const [anydeskId, setAnydeskId] = useState("");
   const [teamviewerId, setTeamviewerId] = useState("");
   const [ultraviewerId, setUltraviewerId] = useState("");
+  const [adUsername, setAdUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<{ email: string; password: string } | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -74,6 +75,7 @@ export function AdminUsers() {
     setAnydeskId("");
     setTeamviewerId("");
     setUltraviewerId("");
+    setAdUsername("");
     setShowDetails(false);
     setShowForm(false);
   }
@@ -94,6 +96,7 @@ export function AdminUsers() {
         anydeskId: anydeskId || null,
         teamviewerId: teamviewerId || null,
         ultraviewerId: ultraviewerId || null,
+        adUsername: adUsername || null,
       }),
     onSuccess: (res) => {
       setGeneratedPassword({ email: res.data.user.email, password: res.data.generatedPassword });
@@ -244,6 +247,12 @@ export function AdminUsers() {
                 value={ultraviewerId}
                 onChange={(e) => setUltraviewerId(e.target.value)}
                 placeholder="ID UltraViewer"
+                className={inputClass}
+              />
+              <input
+                value={adUsername}
+                onChange={(e) => setAdUsername(e.target.value)}
+                placeholder="Identifiant AD (ex : MENINX\jdupont)"
                 className={inputClass}
               />
             </div>

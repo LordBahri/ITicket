@@ -183,7 +183,7 @@ Le logo réel de Meninx Holding (`frontend/public/logo-meninx.png`) est utilisé
 
 Certaines demandes ne sont pas de simples tickets : elles suivent un **processus formalisé**, inspiré des bonnes pratiques ITIL (Change Enablement, Request Fulfilment, Access Management, Onboarding/Offboarding, Software Asset Management). Le catalogue est géré depuis **Administration > Processus IT**.
 
-- **Catalogue seedé par défaut** : Remplacement de matériel, Préparation de poste — Nouvel employé, Départ collaborateur — Offboarding IT, Acquisition de licence logicielle, Demande d'accès applicatif (AD / Email / VPN / ERP-Sage). Chaque processus a sa propre checklist d'étapes, éditable dans l'admin.
+- **Catalogue seedé par défaut** : Remplacement de matériel, Préparation de poste — Nouvel employé, Départ collaborateur — Offboarding IT, Acquisition de licence logicielle, Demande d'accès applicatif (AD / Email / VPN / ERP-Sage), Accès Sage 100 (voir plus bas — celui-ci peut être partiellement automatisé). Chaque processus a sa propre checklist d'étapes, éditable dans l'admin.
 - **Accès restreint** : seuls les utilisateurs marqués **« Responsable de service »** (case à cocher sur la fiche utilisateur) peuvent rattacher une demande à un processus, depuis le formulaire de création de ticket (`/tickets/new`).
 - **Validation hiérarchique** : si le processus le requiert, la demande passe au statut *En attente de validation* et un email est envoyé au **supérieur hiérarchique** (`managerId` de la fiche utilisateur). Le valideur (ou un admin) approuve ou refuse directement depuis la fiche du ticket ; le refus exige un motif et ferme le ticket, l'approbation le repasse en `Ouvert` et prévient l'équipe IT.
 - **Checklist de traitement** : une fois validée, l'équipe IT coche les étapes réalisées (achat matériel, création de compte AD, boîte email, VPN OpenVPN, accès Sage/ERP, licences…) directement sur le ticket.
@@ -200,6 +200,25 @@ Certaines demandes ne sont pas de simples tickets : elles suivent un **processus
 | `formulaire-demande-acquisition-licence.docx` | Acquisition de licence logicielle |
 
 Ces modèles reprennent la mise en forme du formulaire d'engagement fourni par l'entreprise (logo Meninx Holding, titres bleu marine, clauses numérotées, bloc de signatures). Ils peuvent être remplacés directement par vos propres modèles Word tant que le nom de fichier référencé dans `formTemplateUrl` (catalogue des processus) reste identique.
+
+### Automatisation de l'accès Sage 100
+
+Le processus **Accès Sage 100** dispose d'un bouton **« Automatiser »** sur la fiche du ticket (visible aux agents/admins) qui exécute automatiquement trois des étapes de la checklist :
+
+1. **Accès RDP** : ajoute l'identifiant AD de l'utilisateur au groupe local `Remote Desktop Users` (configurable) sur le serveur applicatif Sage, via SSH/PowerShell (`Add-LocalGroupMember`).
+2. **Fichiers de connexion** : copie `<base>.gcm` et `<base>.mae` (nommés d'après le champ « Nom de la base Sage » de la fiche société) depuis le dossier source vers le bureau de l'utilisateur.
+3. **Sécurité SQL Server** : crée le login Windows et l'utilisateur sur la base Sage de la société (rôles `db_datareader`/`db_datawriter` par défaut, personnalisables), via une connexion directe à l'instance SQL Server.
+
+La **création de l'utilisateur dans l'application Sage** elle-même reste une étape manuelle (pas d'API générique exposée par Sage 100 pour ça) — dernière case à cocher de la checklist.
+
+**Prérequis côté infrastructure :**
+
+- **Serveur applicatif** : le service *OpenSSH Server* (`Add-WindowsCapability -Online -Name OpenSSH.Server`) doit être activé, avec un compte de service dédié (membre du groupe *Administrateurs* local **de ce serveur uniquement**, pas admin de domaine) ayant accès en lecture au dossier source et en écriture au dossier de destination.
+- **Serveur SQL** : l'authentification mixte (SQL + Windows) doit être activée, avec un compte disposant du rôle serveur `securityadmin` (évitez `sysadmin`).
+- Renseignez les variables `SAGE_*` dans `.env` (voir `.env.example`) : hôtes, ports, identifiants, chemins des fichiers, rôles SQL.
+- Renseignez le champ **« Identifiant AD »** (ex. `MENINX\jdupont`) sur la fiche de chaque utilisateur concerné, et le champ **« Nom de la base Sage 100 »** sur la fiche de chaque société (ex. `Holding` pour Meninx Holding).
+
+Si `SAGE_APP_SSH_HOST`/`SAGE_SQL_HOST` ne sont pas configurés, le bouton reste disponible mais chaque étape échoue proprement avec un message explicite (aucune donnée n'est perdue, la checklist n'est pas cochée).
 
 ## Page d'accueil
 

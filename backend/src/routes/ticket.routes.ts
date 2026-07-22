@@ -8,6 +8,7 @@ import {
   rejectTicketProcess,
   toggleProcessStep,
   archiveTicketForm,
+  automateSageAccess,
 } from "../controllers/ticket.controller";
 import { addComment } from "../controllers/comment.controller";
 import { uploadAttachments, listAttachments, downloadAttachment } from "../controllers/attachment.controller";
@@ -33,3 +34,4 @@ ticketRouter.post("/:id/approve", asyncHandler(approveTicketProcess));
 ticketRouter.post("/:id/reject", asyncHandler(rejectTicketProcess));
 ticketRouter.patch("/:id/steps/:completionId", authorize("AGENT", "ADMIN"), asyncHandler(toggleProcessStep));
 ticketRouter.post("/:id/archive-form", authorize("AGENT", "ADMIN"), asyncHandler(archiveTicketForm));
+ticketRouter.post("/:id/automate-sage-access", authorize("AGENT", "ADMIN"), asyncHandler(automateSageAccess));

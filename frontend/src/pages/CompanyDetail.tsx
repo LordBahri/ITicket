@@ -35,6 +35,7 @@ export function CompanyDetail() {
   const [type, setType] = useState<CompanyType>("FILIALE");
   const [parentId, setParentId] = useState("");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [sageDatabaseName, setSageDatabaseName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -73,7 +74,14 @@ export function CompanyDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async () => apiClient.patch(`/companies/${id}`, { name, type, parentId: parentId || null, serviceIds }),
+    mutationFn: async () =>
+      apiClient.patch(`/companies/${id}`, {
+        name,
+        type,
+        parentId: parentId || null,
+        serviceIds,
+        sageDatabaseName: sageDatabaseName.trim() || null,
+      }),
     onSuccess: () => {
       toast.success("Société mise à jour");
       setEditing(false);
@@ -115,6 +123,7 @@ export function CompanyDetail() {
     setType(company.type);
     setParentId(company.parentId ?? "");
     setServiceIds((company.services ?? []).map((s) => s.id));
+    setSageDatabaseName(company.sageDatabaseName ?? "");
     setError(null);
     setEditing(true);
   }
@@ -171,6 +180,18 @@ export function CompanyDetail() {
                     ))}
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Nom de la base Sage 100 (ex : Holding)</label>
+              <input
+                value={sageDatabaseName}
+                onChange={(e) => setSageDatabaseName(e.target.value)}
+                placeholder="Nom exact de la base Sage de cette société"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Utilisé pour l'automatisation des accès Sage (fichiers .gcm/.mae, sécurité SQL Server).
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">Services activés</label>
@@ -233,6 +254,9 @@ export function CompanyDetail() {
               </div>
               <div>
                 Utilisateurs : <span className="text-slate-700">{company._count.users}</span>
+              </div>
+              <div>
+                Base Sage 100 : <span className="text-slate-700">{company.sageDatabaseName ?? "—"}</span>
               </div>
               <div className="col-span-2">
                 Services activés :{" "}

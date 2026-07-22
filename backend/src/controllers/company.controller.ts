@@ -10,6 +10,12 @@ const companySchema = z.object({
   parentId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   serviceIds: z.array(z.string()).optional(),
+  sageDatabaseName: z
+    .string()
+    .max(60)
+    .nullable()
+    .optional()
+    .transform((v) => (v ? v.trim() || null : null)),
 });
 
 const companyInclude = {

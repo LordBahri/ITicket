@@ -59,4 +59,23 @@ export const env = {
     intervalMs: Number(process.env.NEWS_FEED_INTERVAL_MS ?? 6 * 60 * 60 * 1000),
     maxArticles: Number(process.env.NEWS_FEED_MAX_ARTICLES ?? 24),
   },
+  sage: {
+    appServerHost: process.env.SAGE_APP_SSH_HOST ?? "",
+    appServerPort: Number(process.env.SAGE_APP_SSH_PORT ?? 22),
+    appServerUsername: process.env.SAGE_APP_SSH_USERNAME ?? "",
+    appServerPassword: process.env.SAGE_APP_SSH_PASSWORD ?? "",
+    // Dossier source (sur le serveur applicatif) contenant les modèles <base>.gcm / <base>.mae
+    filesSourceDir: process.env.SAGE_FILES_SOURCE_DIR ?? "Z:\\",
+    // {adUsername} est remplacé par l'identifiant AD de l'utilisateur
+    filesDestPattern: process.env.SAGE_FILES_DEST_PATTERN ?? "Z:\\users\\{adUsername}\\desktop",
+    rdpLocalGroup: process.env.SAGE_RDP_LOCAL_GROUP ?? "Remote Desktop Users",
+    sqlServerHost: process.env.SAGE_SQL_HOST ?? "",
+    sqlServerPort: Number(process.env.SAGE_SQL_PORT ?? 1433),
+    sqlServerUsername: process.env.SAGE_SQL_USERNAME ?? "",
+    sqlServerPassword: process.env.SAGE_SQL_PASSWORD ?? "",
+    sqlRoles: (process.env.SAGE_SQL_ROLES ?? "db_datareader,db_datawriter")
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean),
+  },
 };

@@ -10,7 +10,8 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { IconAlertTriangle, IconWorkflow } from "../components/icons";
-import type { ProcessCategory, Ticket, User, TicketStatus } from "../types";
+import type { ProcessCategory, SageAutomationResult, Ticket, User, TicketStatus } from "../types";
+import { IconCheckCircle, IconXCircle } from "../components/icons";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
 import { STATUS_LABELS } from "../constants/ticketStatus";
@@ -81,6 +82,20 @@ function ProcessPanel({
       queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const [sageResult, setSageResult] = useState<SageAutomationResult | null>(null);
+  const automateSageMutation = useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<{ result: SageAutomationResult }>(`/tickets/${ticket.id}/automate-sage-access`, {})).data.result,
+    onSuccess: (result) => {
+      setSageResult(result);
+      const allOk = result.rdp.ok && result.files.ok && result.sql.ok;
+      if (allOk) toast.success("Automatisation Sage terminée avec succès");
+      else toast.error("Automatisation Sage terminée avec des erreurs — voir le détail ci-dessous");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de lancer l'automatisation")),
   });
 
   if (!ticket.process) return null;
@@ -179,6 +194,42 @@ function ProcessPanel({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {isStaff && ticket.process.supportsSageAutomation && (
+        <div className="mb-4 rounded-md border border-brand-200 bg-brand-50 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm text-brand-900">
+              Automatise l'ajout au groupe RDP du serveur applicatif, la copie des fichiers .gcm/.mae et la sécurité SQL
+              Server pour cet accès Sage. La création de l'utilisateur dans Sage reste manuelle.
+            </p>
+            <Button size="sm" loading={automateSageMutation.isPending} onClick={() => automateSageMutation.mutate()}>
+              Automatiser
+            </Button>
+          </div>
+          {sageResult && (
+            <ul className="space-y-1 border-t border-brand-100 pt-2 text-sm">
+              {(
+                [
+                  ["rdp", "Accès RDP (serveur applicatif)"],
+                  ["files", "Copie des fichiers .gcm/.mae"],
+                  ["sql", "Sécurité SQL Server"],
+                ] as const
+              ).map(([key, label]) => (
+                <li key={key} className="flex items-start gap-1.5">
+                  {sageResult[key].ok ? (
+                    <IconCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <IconXCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  )}
+                  <span className={sageResult[key].ok ? "text-emerald-800" : "text-red-700"}>
+                    {label} {!sageResult[key].ok && `— ${sageResult[key].message}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

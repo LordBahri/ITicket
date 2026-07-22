@@ -1,7 +1,21 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type ProcessCategory } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+type ProcessStepDef = string | { name: string; automationKey?: string };
+
+interface ProcessSeedDef {
+  name: string;
+  category: ProcessCategory;
+  categoryPath: string;
+  description: string;
+  requiresManagerApproval: boolean;
+  requiresPhysicalForm: boolean;
+  formTemplateUrl: string | null;
+  supportsSageAutomation?: boolean;
+  steps: ProcessStepDef[];
+}
 
 async function main() {
   const priorities = [
@@ -147,6 +161,12 @@ async function main() {
       description: "Création, modification ou révocation d'un accès applicatif hors onboarding/offboarding",
       subCategories: [{ name: "Nouvel accès", priority: "Moyenne" }],
     },
+    {
+      name: "Accès Sage",
+      ticketTypeId: typeProcessus.id,
+      description: "Ajout d'un accès à l'ERP Sage 100 (Gestion Commerciale / Comptabilité / Immobilisations)",
+      subCategories: [{ name: "Nouvel accès Sage", priority: "Moyenne" }],
+    },
   ];
   const subCategoryIds = new Map<string, string>();
   for (const category of categories) {
@@ -211,7 +231,7 @@ async function main() {
     await prisma.assetType.upsert({ where: { name }, update: {}, create: { name } });
   }
 
-  const processes = [
+  const processes: ProcessSeedDef[] = [
     {
       name: "Remplacement de matériel",
       category: "CHANGE_ENABLEMENT" as const,
@@ -302,6 +322,24 @@ async function main() {
         "Archiver le formulaire signé",
       ],
     },
+    {
+      name: "Accès Sage 100",
+      category: "ACCESS_MANAGEMENT" as const,
+      categoryPath: "Accès Sage/Nouvel accès Sage",
+      description:
+        "Ajout d'un accès à l'ERP Sage 100 (Gestion Commerciale / Comptabilité / Immobilisations) : accès RDP au serveur applicatif, fichiers de connexion .gcm/.mae, sécurité SQL Server et création de l'utilisateur dans Sage.",
+      requiresManagerApproval: true,
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      supportsSageAutomation: true,
+      steps: [
+        "Vérifier que le compte AD a été créé (eodatacenter)",
+        { name: "Ajouter le compte AD au groupe RDP du serveur applicatif", automationKey: "RDP" },
+        { name: "Copier les fichiers .gcm et .mae vers le bureau de l'utilisateur", automationKey: "FILES" },
+        { name: "Créer le login/utilisateur SQL Server et l'ajouter à la base Sage de la société", automationKey: "SQL" },
+        "Créer l'utilisateur dans l'application Sage 100",
+      ],
+    },
   ];
   for (const process of processes) {
     const [categoryName] = process.categoryPath.split("/");
@@ -319,6 +357,7 @@ async function main() {
         typeId: typeProcessus.id,
         categoryId: processCategory.id,
         subCategoryId: processSubCategoryId,
+        supportsSageAutomation: process.supportsSageAutomation ?? false,
       },
       create: {
         name: process.name,
@@ -327,29 +366,45 @@ async function main() {
         requiresManagerApproval: process.requiresManagerApproval,
         requiresPhysicalForm: process.requiresPhysicalForm,
         formTemplateUrl: process.formTemplateUrl,
+        supportsSageAutomation: process.supportsSageAutomation ?? false,
         typeId: typeProcessus.id,
         categoryId: processCategory.id,
         subCategoryId: processSubCategoryId,
       },
     });
-    for (const [index, stepName] of process.steps.entries()) {
+    for (const [index, stepDef] of process.steps.entries()) {
+      const stepName = typeof stepDef === "string" ? stepDef : stepDef.name;
+      const automationKey = typeof stepDef === "string" ? null : stepDef.automationKey ?? null;
       const existingStep = await prisma.processStep.findFirst({ where: { processId: created.id, name: stepName } });
-      if (!existingStep) {
-        await prisma.processStep.create({ data: { processId: created.id, name: stepName, order: index } });
+      if (existingStep) {
+        if (existingStep.automationKey !== automationKey) {
+          await prisma.processStep.update({ where: { id: existingStep.id }, data: { automationKey } });
+        }
+      } else {
+        await prisma.processStep.create({ data: { processId: created.id, name: stepName, order: index, automationKey } });
       }
     }
   }
 
   const companies = [
-    { name: "Meninx Holding", type: "HOLDING" as const, services: ["Direction générale", "IT", "RH", "Comptabilité & Finance", "Juridique"] },
+    {
+      name: "Meninx Holding",
+      type: "HOLDING" as const,
+      services: ["Direction générale", "IT", "RH", "Comptabilité & Finance", "Juridique"],
+      sageDatabaseName: "Holding",
+    },
   ];
   for (const company of companies) {
     await prisma.company.upsert({
       where: { name: company.name },
-      update: { services: { set: company.services.map((s) => ({ id: services.get(s)!.id })) } },
+      update: {
+        services: { set: company.services.map((s) => ({ id: services.get(s)!.id })) },
+        sageDatabaseName: company.sageDatabaseName,
+      },
       create: {
         name: company.name,
         type: company.type,
+        sageDatabaseName: company.sageDatabaseName,
         services: { connect: company.services.map((s) => ({ id: services.get(s)!.id })) },
       },
     });
