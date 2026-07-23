@@ -378,6 +378,15 @@ export function IconArchive(props: IconProps) {
   );
 }
 
+export function IconManual(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 5.5c2-1 5-1 8 0v13c-3-1-6-1-8 0Z" />
+      <path d="M20 5.5c-2-1-5-1-8 0v13c3-1 6-1 8 0Z" />
+    </svg>
+  );
+}
+
 export function IconWhatsApp(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>

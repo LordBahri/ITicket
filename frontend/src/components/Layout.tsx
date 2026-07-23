@@ -21,6 +21,7 @@ import {
   IconRemote,
   IconLock,
   IconChat,
+  IconManual,
 } from "./icons";
 import { Avatar } from "./ui/Avatar";
 import { TopProgressBar } from "./ui/TopProgressBar";
@@ -66,6 +67,9 @@ export function Layout() {
           </NavLink>
           <NavLink to="/knowledge" className={navLinkClass}>
             <IconBook className="h-[18px] w-[18px] shrink-0" /> Base de connaissances
+          </NavLink>
+          <NavLink to="/manual" className={() => navLinkClass({ isActive: location.pathname.startsWith("/manual") })}>
+            <IconManual className="h-[18px] w-[18px] shrink-0" /> Manuel d'utilisation
           </NavLink>
           <NavLink to="/chat" className={navLinkClass}>
             <IconChat className="h-[18px] w-[18px] shrink-0" />

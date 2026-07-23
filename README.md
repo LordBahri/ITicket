@@ -252,6 +252,16 @@ La page d'accueil (`/`, nouvelle route racine — le tableau de bord statistique
 
 Les articles de la base de connaissances supportent le format **Markdown** (titres, listes, gras/italique, liens, images) et sont rendus avec mise en forme sur la fiche article ; la liste affiche un extrait en texte brut (Markdown nettoyé). 8 guides de dépannage libre-service sont fournis par défaut, chacun avec une illustration dédiée (`frontend/public/kb-images/*.svg`) : imprimante, Wi-Fi/Internet, PC lent, écran noir, absence de son, mot de passe oublié, périphérique USB non reconnu, boîte email pleine. Ce sont des cas volontairement choisis pour ne **pas** nécessiter l'intervention de l'équipe IT dans la majorité des situations — chaque guide invite à ouvrir un ticket seulement si les étapes proposées ne résolvent pas le problème.
 
+## Manuel d'utilisation
+
+Un menu **« Manuel d'utilisation »** (juste sous « Base de connaissances ») propose trois manuels illustrés, un par profil, chacun structuré en sections numérotées avec captures d'écran annotées (zone à cliquer mise en évidence par un encadré rouge) :
+
+- **Manuel Utilisateur** : connexion, création/suivi de ticket, commentaires, base de connaissances, chat support, gestion du compte.
+- **Manuel Agent** : reprend l'essentiel du manuel utilisateur et ajoute la gestion de tous les tickets (statut, assignation, archivage), le traitement des processus IT (checklist, automatisation Sage 100), la boîte de réception du chat et l'accès à distance.
+- **Manuel Administrateur** : tableau de bord et statistiques, administration des sociétés/utilisateurs/matériel/licences/processus IT, paramétrage du catalogue (types de demande, catégories, priorités & SLA), suppression définitive d'un ticket.
+
+L'affichage dépend du rôle du compte connecté : un utilisateur simple accède directement au Manuel Utilisateur, un agent directement au Manuel Agent, et un administrateur arrive sur une page de sélection donnant accès aux **trois** manuels. Le contenu est défini dans `frontend/src/content/manual/` (un fichier par manuel + `common.ts` pour les sections mutualisées) et rendu par le composant `ManualViewer` ; les captures d'écran sont des images statiques dans `frontend/public/manual/{user,agent,admin}/`.
+
 ## Prochaines étapes possibles
 
 - Liaison OAuth Slack/Teams pour retrouver automatiquement l'email réel de l'utilisateur (au lieu de l'email synthétique par défaut)

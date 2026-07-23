@@ -9,6 +9,10 @@ import { TicketDetail } from "./pages/TicketDetail";
 import { NewTicket } from "./pages/NewTicket";
 import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { KnowledgeArticleDetail } from "./pages/KnowledgeArticleDetail";
+import { ManualHub } from "./pages/ManualHub";
+import { ManualUser } from "./pages/ManualUser";
+import { ManualAgent } from "./pages/ManualAgent";
+import { ManualAdmin } from "./pages/ManualAdmin";
 import { AdminTicketTypes } from "./pages/AdminTicketTypes";
 import { TicketTypeDetail } from "./pages/TicketTypeDetail";
 import { AdminCategories } from "./pages/AdminCategories";
@@ -39,15 +43,22 @@ export default function App() {
           <Route path="/tickets/:id" element={<TicketDetail />} />
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/knowledge/:id" element={<KnowledgeArticleDetail />} />
+          <Route path="/manual" element={<ManualHub />} />
           <Route path="/account" element={<Account />} />
           <Route path="/chat" element={<Chat />} />
 
+          <Route element={<ProtectedRoute roles={["USER", "ADMIN"]} />}>
+            <Route path="/manual/user" element={<ManualUser />} />
+          </Route>
+
           <Route element={<ProtectedRoute roles={["AGENT", "ADMIN"]} />}>
             <Route path="/remote-access" element={<RemoteAccess />} />
+            <Route path="/manual/agent" element={<ManualAgent />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/manual/admin" element={<ManualAdmin />} />
             <Route path="/admin/ticket-types" element={<AdminTicketTypes />} />
             <Route path="/admin/ticket-types/:id" element={<TicketTypeDetail />} />
             <Route path="/admin/categories" element={<AdminCategories />} />

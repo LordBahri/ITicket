@@ -655,6 +655,12 @@ Si votre boîte reste pleine après un nettoyage ou si la synchronisation ne rep
         "Les agents/admins peuvent désormais archiver un ticket ou une conversation de chat (masqué par défaut, retrouvable via la case « Archivés »), et les administrateurs peuvent les supprimer définitivement, avec confirmation avant toute suppression.",
       type: "FEATURE" as const,
     },
+    {
+      title: "Manuel d'utilisation illustré (Utilisateur / Agent / Administrateur)",
+      description:
+        "Nouveau menu « Manuel d'utilisation » sous la base de connaissances : trois manuels pas-à-pas avec captures d'écran annotées, adaptés au profil du compte connecté (utilisateur, agent, ou les trois pour un administrateur).",
+      type: "FEATURE" as const,
+    },
   ];
   for (const entry of changelogEntries) {
     const existing = await prisma.changelogEntry.findFirst({ where: { title: entry.title } });
