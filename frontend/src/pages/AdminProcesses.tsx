@@ -94,6 +94,7 @@ export function AdminProcesses() {
   const [description, setDescription] = useState("");
   const [requiresManagerApproval, setRequiresManagerApproval] = useState(true);
   const [requiresPhysicalForm, setRequiresPhysicalForm] = useState(false);
+  const [openToAllUsers, setOpenToAllUsers] = useState(false);
   const [formTemplateUrl, setFormTemplateUrl] = useState("");
   const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -143,6 +144,7 @@ export function AdminProcesses() {
         description: description || undefined,
         requiresManagerApproval,
         requiresPhysicalForm,
+        openToAllUsers,
         formTemplateUrl: formTemplateUrl || undefined,
         typeId,
         categoryId,
@@ -154,6 +156,7 @@ export function AdminProcesses() {
       setFormTemplateUrl("");
       setRequiresManagerApproval(true);
       setRequiresPhysicalForm(false);
+      setOpenToAllUsers(false);
       setTypeId("");
       setCategoryId("");
       setSubCategoryId("");
@@ -177,6 +180,15 @@ export function AdminProcesses() {
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
   });
 
+  const toggleOpenToAllMutation = useMutation({
+    mutationFn: async (process: Process) => apiClient.patch(`/processes/${process.id}`, { openToAllUsers: !process.openToAllUsers }),
+    onSuccess: () => {
+      toast.success("Processus mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["processes"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -191,7 +203,8 @@ export function AdminProcesses() {
           <h1 className="text-xl font-bold text-slate-900">Processus IT</h1>
           <p className="text-sm text-slate-500">
             Catalogue des processus formalisés (ITIL) : remplacement de matériel, onboarding, offboarding, acquisition de
-            licence, accès applicatif. Réservés aux responsables de service, avec validation du supérieur hiérarchique.
+            licence, accès applicatif. Par défaut réservés aux responsables de service (avec validation du supérieur
+            hiérarchique), sauf ceux marqués « accessibles à tous ».
           </p>
         </div>
         <Button onClick={() => setShowForm(true)}>+ Nouveau processus</Button>
@@ -291,6 +304,15 @@ export function AdminProcesses() {
               />
               Nécessite un formulaire signé, scanné puis archivé physiquement
             </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={openToAllUsers}
+                onChange={(e) => setOpenToAllUsers(e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              Accessible à tous les utilisateurs (pas seulement aux responsables de service)
+            </label>
           </div>
           <div className="flex gap-2">
             <Button type="submit" loading={createMutation.isPending}>
@@ -312,12 +334,13 @@ export function AdminProcesses() {
               <th className="px-4 py-2">Classification imposée</th>
               <th className="px-4 py-2">Validation</th>
               <th className="px-4 py-2">Formulaire</th>
+              <th className="px-4 py-2">Accessible</th>
               <th className="px-4 py-2">Statut</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={7} />)}
+            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={8} />)}
             {processes?.map((p) => (
               <Fragment key={p.id}>
                 <tr
@@ -361,6 +384,19 @@ export function AdminProcesses() {
                     )}
                   </td>
                   <td className="px-4 py-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOpenToAllMutation.mutate(p);
+                      }}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium hover:underline ${
+                        p.openToAllUsers ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {p.openToAllUsers ? "Tous les utilisateurs" : "Responsables uniquement"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2">
                     <span
                       className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                         p.isActive ? "text-emerald-600" : "text-slate-400"
@@ -384,7 +420,7 @@ export function AdminProcesses() {
                 </tr>
                 {expanded === p.id && (
                   <tr>
-                    <td colSpan={7} className="p-0">
+                    <td colSpan={8} className="p-0">
                       <ProcessStepManager process={p} />
                     </td>
                   </tr>

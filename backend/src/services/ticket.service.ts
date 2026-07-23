@@ -65,7 +65,7 @@ export async function createTicketRecord(params: CreateTicketParams) {
     ]);
     if (!requester) throw new HttpError(400, "Demandeur invalide");
     if (!proc || !proc.isActive) throw new HttpError(400, "Processus invalide");
-    if (!requester.isDepartmentHead && requester.role !== "ADMIN") {
+    if (!proc.openToAllUsers && !requester.isDepartmentHead && requester.role !== "ADMIN") {
       throw new HttpError(403, "Seuls les responsables de service peuvent lancer une demande de ce processus IT");
     }
     if (proc.requiresManagerApproval) {

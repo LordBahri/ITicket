@@ -13,6 +13,10 @@ function formatHours(hours: number | null): string {
   return formatDuration(hours);
 }
 
+function formatPct(value: number, total: number): string {
+  return total > 0 ? `${Math.round((value / total) * 100)}%` : "—";
+}
+
 async function loadLogoDataUrl(): Promise<string | null> {
   try {
     const res = await fetch("/logo-meninx.png");
@@ -124,8 +128,12 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
   autoTable(doc, {
     startY: cursorY + 3,
     margin: { left: marginX, right: marginX },
-    head: [["Statut", "Nombre"]],
-    body: Object.entries(data.byStatus).map(([status, count]) => [STATUS_LABELS[status as keyof typeof STATUS_LABELS] ?? status, String(count)]),
+    head: [["Statut", "Nombre", "%"]],
+    body: Object.entries(data.byStatus).map(([status, count]) => [
+      STATUS_LABELS[status as keyof typeof STATUS_LABELS] ?? status,
+      String(count),
+      formatPct(count, data.total),
+    ]),
     headStyles: { fillColor: [...BRAND], textColor: 255 },
     styles: { fontSize: 9, cellPadding: 2.5 },
     alternateRowStyles: { fillColor: [246, 249, 252] },
@@ -137,8 +145,8 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
   autoTable(doc, {
     startY: cursorY + 3,
     margin: { left: marginX, right: marginX },
-    head: [["Priorité", "Nombre"]],
-    body: Object.entries(data.byPriority).map(([name, count]) => [name, String(count)]),
+    head: [["Priorité", "Nombre", "%"]],
+    body: Object.entries(data.byPriority).map(([name, count]) => [name, String(count), formatPct(count, data.total)]),
     headStyles: { fillColor: [...BRAND], textColor: 255 },
     styles: { fontSize: 9, cellPadding: 2.5 },
     alternateRowStyles: { fillColor: [246, 249, 252] },
@@ -152,10 +160,11 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Société", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      head: [["Société", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
       body: data.byCompany.map((c) => [
         c.name,
         String(c.total),
+        formatPct(c.total, data.total),
         String(c.open),
         String(c.resolved),
         String(c.overdue),
@@ -165,7 +174,7 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
       headStyles: { fillColor: [...BRAND], textColor: 255 },
       styles: { fontSize: 9, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: [246, 249, 252] },
-      columnStyles: { 6: { fontStyle: "bold" } },
+      columnStyles: { 7: { fontStyle: "bold" } },
     });
     afterTable();
   }
@@ -177,10 +186,11 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Agent", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      head: [["Agent", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
       body: data.byAgent.map((a) => [
         a.name,
         String(a.total),
+        formatPct(a.total, data.total),
         String(a.open),
         String(a.resolved),
         String(a.overdue),
@@ -201,10 +211,11 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Utilisateur", "Total", "Ouverts", "Résolus", "En retard", "Temps total"]],
+      head: [["Utilisateur", "Total", "%", "Ouverts", "Résolus", "En retard", "Temps total"]],
       body: data.byUser.map((u) => [
         u.name,
         String(u.total),
+        formatPct(u.total, data.total),
         String(u.open),
         String(u.resolved),
         String(u.overdue),

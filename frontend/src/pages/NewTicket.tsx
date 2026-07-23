@@ -40,9 +40,9 @@ export function NewTicket() {
   const { data: processes } = useQuery({
     queryKey: ["processes"],
     queryFn: async () => (await apiClient.get<{ processes: Process[] }>("/processes")).data.processes,
-    enabled: canUseProcesses,
   });
   const activeProcesses = processes?.filter((p) => p.isActive) ?? [];
+  const visibleProcesses = canUseProcesses ? activeProcesses : activeProcesses.filter((p) => p.openToAllUsers);
   const selectedProcess = activeProcesses.find((p) => p.id === processId) ?? null;
 
   // Les types de demande utilisés par au moins un processus actif sont réservés à
@@ -107,7 +107,7 @@ export function NewTicket() {
       setTypeId("");
       setCategoryId("");
       setSubCategoryId("");
-      const proc = activeProcesses.find((p) => p.id === value);
+      const proc = visibleProcesses.find((p) => p.id === value);
       if (proc?.requiresPhysicalForm) setFormPromptProcess(proc);
     }
   }
@@ -180,14 +180,14 @@ export function NewTicket() {
             />
           </div>
 
-          {canUseProcesses && activeProcesses.length > 0 && (
+          {visibleProcesses.length > 0 && (
             <div className="rounded-md border border-brand-200 bg-brand-50 p-3">
               <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-brand-900">
                 <IconWorkflow className="h-4 w-4" /> Processus IT (optionnel)
               </label>
               <select value={processId} onChange={(e) => handleProcessChange(e.target.value)} className={`${inputClass} bg-white`}>
                 <option value="">Aucun — demande standard</option>
-                {activeProcesses.map((p) => (
+                {visibleProcesses.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
@@ -224,7 +224,7 @@ export function NewTicket() {
             </div>
           )}
 
-          {!canUseProcesses && (
+          {visibleProcesses.length === 0 && (
             <p className="flex items-center gap-1.5 text-xs text-slate-400">
               <IconWorkflow className="h-3.5 w-3.5 shrink-0" />
               Certaines demandes (remplacement de matériel, arrivée d'un collaborateur, acquisition de licence…) suivent un

@@ -162,6 +162,7 @@ export interface Process {
   requiresPhysicalForm: boolean;
   formTemplateUrl: string | null;
   supportsSageAutomation?: boolean;
+  openToAllUsers: boolean;
   isActive: boolean;
   steps: ProcessStep[];
   typeId: string;

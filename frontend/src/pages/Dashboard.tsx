@@ -35,18 +35,24 @@ function StatCard({
   );
 }
 
+function pct(value: number, total: number): string {
+  return total > 0 ? `${Math.round((value / total) * 100)}%` : "—";
+}
+
 function StatsTable({
   title,
   rows,
   nameHeader,
   showAvgResolution,
   billing,
+  totalTickets,
 }: {
   title: string;
   rows: (DashboardCompanyStat | DashboardAgentStat | DashboardUserStat)[];
   nameHeader: string;
   showAvgResolution?: boolean;
   billing?: boolean;
+  totalTickets: number;
 }) {
   return (
     <Card className="p-5">
@@ -63,6 +69,7 @@ function StatsTable({
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                 <th className="px-5 py-2">{nameHeader}</th>
                 <th className="px-3 py-2 text-right">Total</th>
+                <th className="px-3 py-2 text-right">% du total</th>
                 <th className="px-3 py-2 text-right">Ouverts</th>
                 <th className="px-3 py-2 text-right">Résolus</th>
                 <th className="px-3 py-2 text-right">En retard</th>
@@ -75,6 +82,7 @@ function StatsTable({
                 <tr key={row.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-5 py-2 font-medium text-slate-800">{row.name}</td>
                   <td className="px-3 py-2 text-right text-slate-700">{row.total}</td>
+                  <td className="px-3 py-2 text-right text-slate-400">{pct(row.total, totalTickets)}</td>
                   <td className="px-3 py-2 text-right text-slate-700">{row.open}</td>
                   <td className="px-3 py-2 text-right text-emerald-600">{row.resolved}</td>
                   <td className={`px-3 py-2 text-right ${row.overdue > 0 ? "font-medium text-red-600" : "text-slate-400"}`}>
@@ -100,16 +108,30 @@ function StatsTable({
   );
 }
 
-function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = max > 0 ? Math.max((value / max) * 100, value > 0 ? 4 : 0) : 0;
+function BarRow({
+  label,
+  value,
+  max,
+  total,
+  color,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  total: number;
+  color: string;
+}) {
+  const barPct = max > 0 ? Math.max((value / max) * 100, value > 0 ? 4 : 0) : 0;
   return (
     <div>
       <div className="mb-1 flex justify-between text-sm">
         <span className="text-slate-600">{label}</span>
-        <span className="font-medium text-slate-900">{value}</span>
+        <span className="font-medium text-slate-900">
+          {value} <span className="text-slate-400">({pct(value, total)})</span>
+        </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${barPct}%` }} />
       </div>
     </div>
   );
@@ -184,6 +206,7 @@ export function Dashboard() {
                     label={STATUS_LABELS[status as TicketStatus] ?? status}
                     value={count}
                     max={maxStatus}
+                    total={data.total}
                     color={STATUS_BAR_COLORS[status as TicketStatus] ?? "bg-slate-400"}
                   />
                 ))}
@@ -202,6 +225,7 @@ export function Dashboard() {
                       label={name}
                       value={count}
                       max={maxPriority}
+                      total={data.total}
                       color={priorityColors[i % priorityColors.length]}
                     />
                   ))}
@@ -228,9 +252,16 @@ export function Dashboard() {
           {(data.byCompany.length > 0 || data.byAgent.length > 0 || data.byUser.length > 0) && (
             <div className="mt-6 space-y-4">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Détails par entité</h2>
-              <StatsTable title="Par société" rows={data.byCompany} nameHeader="Société" showAvgResolution billing />
-              <StatsTable title="Par agent" rows={data.byAgent} nameHeader="Agent" showAvgResolution />
-              <StatsTable title="Par utilisateur" rows={data.byUser} nameHeader="Utilisateur" />
+              <StatsTable
+                title="Par société"
+                rows={data.byCompany}
+                nameHeader="Société"
+                showAvgResolution
+                billing
+                totalTickets={data.total}
+              />
+              <StatsTable title="Par agent" rows={data.byAgent} nameHeader="Agent" showAvgResolution totalTickets={data.total} />
+              <StatsTable title="Par utilisateur" rows={data.byUser} nameHeader="Utilisateur" totalTickets={data.total} />
             </div>
           )}
         </>

@@ -411,6 +411,10 @@ model Process {
   // l'automatisation de l'accès Sage 100 (RDP + copie des fichiers .gcm/.mae + sécurité SQL Server).
   supportsSageAutomation Boolean @default(false)
 
+  // Par défaut, seuls les responsables de service (et les admins) peuvent initier un ticket
+  // lié à un processus IT. Si vrai, n'importe quel utilisateur peut initier ce processus précis.
+  openToAllUsers Boolean @default(false)
+
   // Type/catégorie/sous-catégorie appliqués automatiquement au ticket créé via ce
   // processus (non modifiables par l'utilisateur) ; ce type de demande n'apparaît
   // donc plus dans le choix "normal" (hors processus) d'un nouveau ticket.

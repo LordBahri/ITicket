@@ -20,6 +20,7 @@ const processSchema = z.object({
   requiresPhysicalForm: z.boolean().optional(),
   formTemplateUrl: z.string().max(300).nullable().optional(),
   isActive: z.boolean().optional(),
+  openToAllUsers: z.boolean().optional(),
   typeId: z.string(),
   categoryId: z.string(),
   subCategoryId: z.string(),
