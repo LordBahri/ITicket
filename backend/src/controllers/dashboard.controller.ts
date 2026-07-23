@@ -17,6 +17,7 @@ function totalElapsedOf(tickets: { createdAt: Date; resolvedAt: Date | null }[])
 
 export async function getDashboard(_req: Request, res: Response) {
   const tickets = await prisma.ticket.findMany({
+    where: { isArchived: false },
     select: {
       id: true,
       status: true,

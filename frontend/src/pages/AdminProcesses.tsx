@@ -189,6 +189,16 @@ export function AdminProcesses() {
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
   });
 
+  const toggleApprovalMutation = useMutation({
+    mutationFn: async (process: Process) =>
+      apiClient.patch(`/processes/${process.id}`, { requiresManagerApproval: !process.requiresManagerApproval }),
+    onSuccess: () => {
+      toast.success("Processus mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["processes"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -356,13 +366,17 @@ export function AdminProcesses() {
                     {p.ticketType?.name} › {p.ticketCategory?.name} › {p.subCategory?.name}
                   </td>
                   <td className="px-4 py-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleApprovalMutation.mutate(p);
+                      }}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium hover:underline ${
                         p.requiresManagerApproval ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"
                       }`}
                     >
                       {p.requiresManagerApproval ? "Requise" : "Non requise"}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-4 py-2">
                     {p.requiresPhysicalForm ? (
