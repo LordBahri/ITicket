@@ -15,6 +15,7 @@ import { IconCheckCircle, IconXCircle } from "../components/icons";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
 import { STATUS_LABELS } from "../constants/ticketStatus";
+import { formatDuration } from "../utils/duration";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
@@ -379,6 +380,13 @@ export function TicketDetail() {
             <span className={ticket.isOverdue ? "font-medium text-red-600" : "text-slate-700"}>
               {ticket.dueAt ? new Date(ticket.dueAt).toLocaleString("fr-FR") : "—"}
             </span>
+          </div>
+          <div>
+            {ticket.status === "RESOLVED" || ticket.status === "CLOSED" ? "Temps de traitement" : "Temps écoulé"} :{" "}
+            <span className="font-medium text-slate-700">{formatDuration(ticket.elapsedHours)}</span>
+            {ticket.status !== "RESOLVED" && ticket.status !== "CLOSED" && (
+              <span className="text-slate-400"> (toujours ouvert)</span>
+            )}
           </div>
         </div>
       </Card>

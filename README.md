@@ -225,8 +225,16 @@ Si `SAGE_APP_SSH_HOST`/`SAGE_SQL_HOST` ne sont pas configurés, le bouton reste 
 Accessible sur `/dashboard`, il affiche :
 
 - 4 cartes KPI (total, ouverts, en cours, en retard SLA) et la répartition par statut/priorité (déjà existant).
-- Pour les **agents/admins** uniquement (les utilisateurs simples ne voient que leurs propres tickets) : un détail par **société**, par **agent** (assigné) et par **utilisateur** (demandeur), chacun avec total, ouverts, résolus, en retard et temps moyen de résolution. La société/l'utilisateur système « supprimé(e) » (voir plus haut) est exclue de ces tableaux.
-- Un bouton **« Exporter en PDF »** qui génère côté navigateur (via `jspdf`/`jspdf-autotable`, aucun appel serveur) un rapport structuré : en-tête avec logo Meninx et date de génération, cartes KPI, puis un tableau par section (statut, priorité, société, agent, utilisateur), avec numérotation de page — prêt à être partagé ou archivé.
+- Pour les **agents/admins** uniquement (les utilisateurs simples ne voient que leurs propres tickets) : un détail par **société**, par **agent** (assigné) et par **utilisateur** (demandeur), chacun avec total, ouverts, résolus, en retard, temps moyen de résolution et **temps total écoulé**. La table « Par agent » liste tous les comptes AGENT et ADMIN actifs (même sans ticket assigné), pour garder une vue d'équipe complète. La société/l'utilisateur système « supprimé(e) » (voir plus haut) est exclue de ces tableaux.
+- Un bouton **« Exporter en PDF »** qui génère côté navigateur (via `jspdf`/`jspdf-autotable`, aucun appel serveur) un rapport structuré : en-tête avec logo Meninx et date de génération, cartes KPI, puis un tableau par section (statut, priorité, société, agent, utilisateur) avec la colonne **Temps total**, avec numérotation de page — prêt à être partagé ou archivé.
+
+### Suivi du temps par ticket
+
+Chaque ticket calcule et expose un temps écoulé (`elapsedHours`) : durée entre sa création et sa résolution (`resolvedAt`), ou jusqu'à maintenant s'il est toujours ouvert.
+
+- Affiché sur la fiche ticket (« Temps écoulé » / « Temps de traitement » selon le statut) et dans la liste des tickets (colonne « Temps écoulé »).
+- La timeline de progression (`TicketStatusTimeline`) affiche en plus la durée passée dans chaque statut, calculée à partir de l'historique (`TicketStatusHistory`).
+- Agrégé au niveau du tableau de bord (« Temps total » par société/agent/utilisateur, et « Temps total écoulé » global) — la colonne société sert de **base de facturation du temps de support aux filiales** : c'est la somme du temps écoulé de tous les tickets de la société, tous statuts confondus (pas seulement les tickets résolus, contrairement à la moyenne de résolution).
 
 ## Page d'accueil
 

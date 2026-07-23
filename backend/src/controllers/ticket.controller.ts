@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
-import { computeDueAt, isOverdue } from "../services/sla.service";
+import { computeDueAt, isOverdue, computeElapsedHours } from "../services/sla.service";
 import { sendMail } from "../services/email.service";
 import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 import { STATUS_LABELS } from "../constants/ticketStatus";
@@ -46,7 +46,7 @@ const listQuerySchema = z.object({
 });
 
 function serializeTicket(ticket: any) {
-  return { ...ticket, isOverdue: isOverdue(ticket) };
+  return { ...ticket, isOverdue: isOverdue(ticket), elapsedHours: computeElapsedHours(ticket) };
 }
 
 export async function createTicket(req: Request, res: Response) {

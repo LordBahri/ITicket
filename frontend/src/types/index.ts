@@ -222,6 +222,7 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   isOverdue: boolean;
+  elapsedHours: number;
   comments?: Comment[];
   attachments?: Attachment[];
   statusHistory?: TicketStatusHistoryEntry[];
@@ -311,6 +312,7 @@ export interface DashboardCompanyStat {
   resolved: number;
   overdue: number;
   avgResolutionHours: number | null;
+  totalElapsedHours: number;
 }
 
 export interface DashboardAgentStat {
@@ -321,6 +323,7 @@ export interface DashboardAgentStat {
   resolved: number;
   overdue: number;
   avgResolutionHours: number | null;
+  totalElapsedHours: number;
 }
 
 export interface DashboardUserStat {
@@ -330,6 +333,7 @@ export interface DashboardUserStat {
   open: number;
   resolved: number;
   overdue: number;
+  totalElapsedHours: number;
 }
 
 export interface DashboardStats {
@@ -338,6 +342,7 @@ export interface DashboardStats {
   byPriority: Record<string, number>;
   overdueCount: number;
   avgResolutionHours: number | null;
+  totalElapsedHours: number;
   byCompany: DashboardCompanyStat[];
   byAgent: DashboardAgentStat[];
   byUser: DashboardUserStat[];

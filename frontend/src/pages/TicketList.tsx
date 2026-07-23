@@ -12,6 +12,7 @@ import { IconTicket } from "../components/icons";
 import { useAuth } from "../context/AuthContext";
 import type { Category, Company, Priority, Ticket, TicketStatus, TicketType } from "../types";
 import { STATUS_LABELS } from "../constants/ticketStatus";
+import { formatDuration } from "../utils/duration";
 
 const STATUS_OPTIONS: TicketStatus[] = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 15;
@@ -239,15 +240,16 @@ export function TicketList() {
               <SortHeader label="Statut" sortKey="status" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
               <th className="px-4 py-2">Assigné à</th>
               <SortHeader label="Créé le" sortKey="createdAt" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+              <th className="px-4 py-2">Temps écoulé</th>
             </tr>
           </thead>
           <tbody>
             {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={isStaff ? 8 : 7} />)}
+              Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={isStaff ? 9 : 8} />)}
 
             {!isLoading && pageItems.length === 0 && (
               <tr>
-                <td colSpan={isStaff ? 8 : 7}>
+                <td colSpan={isStaff ? 9 : 8}>
                   <EmptyState
                     icon={IconTicket}
                     title="Aucun ticket trouvé"
@@ -282,6 +284,7 @@ export function TicketList() {
                 </td>
                 <td className="px-4 py-2 text-slate-500">{ticket.assignee?.name ?? "—"}</td>
                 <td className="px-4 py-2 text-slate-500">{new Date(ticket.createdAt).toLocaleDateString("fr-FR")}</td>
+                <td className="px-4 py-2 text-slate-500">{formatDuration(ticket.elapsedHours)}</td>
               </tr>
             ))}
           </tbody>

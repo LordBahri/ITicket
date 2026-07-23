@@ -10,6 +10,7 @@ import type { ComponentType, SVGProps } from "react";
 import type { DashboardAgentStat, DashboardCompanyStat, DashboardStats, DashboardUserStat, TicketStatus } from "../types";
 import { STATUS_BAR_COLORS, STATUS_LABELS } from "../constants/ticketStatus";
 import { exportDashboardPdf } from "../utils/dashboardPdf";
+import { formatDuration } from "../utils/duration";
 import { useToast } from "../context/ToastContext";
 
 function StatCard({
@@ -39,20 +40,25 @@ function StatsTable({
   rows,
   nameHeader,
   showAvgResolution,
+  billing,
 }: {
   title: string;
   rows: (DashboardCompanyStat | DashboardAgentStat | DashboardUserStat)[];
   nameHeader: string;
   showAvgResolution?: boolean;
+  billing?: boolean;
 }) {
   return (
     <Card className="p-5">
-      <h2 className="mb-4 text-sm font-semibold text-slate-900">{title}</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        {billing && <span className="text-xs text-slate-400">Temps total = base de facturation</span>}
+      </div>
       {rows.length === 0 ? (
         <p className="text-sm text-slate-400">Aucune donnée</p>
       ) : (
         <div className="-mx-5 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                 <th className="px-5 py-2">{nameHeader}</th>
@@ -60,7 +66,8 @@ function StatsTable({
                 <th className="px-3 py-2 text-right">Ouverts</th>
                 <th className="px-3 py-2 text-right">Résolus</th>
                 <th className="px-3 py-2 text-right">En retard</th>
-                {showAvgResolution && <th className="px-5 py-2 text-right">Résolution moy.</th>}
+                {showAvgResolution && <th className="px-3 py-2 text-right">Résolution moy.</th>}
+                <th className={`px-5 py-2 text-right ${billing ? "text-brand-600" : ""}`}>Temps total</th>
               </tr>
             </thead>
             <tbody>
@@ -74,12 +81,15 @@ function StatsTable({
                     {row.overdue}
                   </td>
                   {showAvgResolution && (
-                    <td className="px-5 py-2 text-right text-slate-500">
+                    <td className="px-3 py-2 text-right text-slate-500">
                       {"avgResolutionHours" in row && row.avgResolutionHours !== null
-                        ? `${row.avgResolutionHours.toFixed(1)} h`
+                        ? formatDuration(row.avgResolutionHours)
                         : "—"}
                     </td>
                   )}
+                  <td className={`px-5 py-2 text-right font-medium ${billing ? "text-brand-700" : "text-slate-700"}`}>
+                    {formatDuration(row.totalElapsedHours)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -200,17 +210,25 @@ export function Dashboard() {
             </Card>
           </div>
 
-          {data.avgResolutionHours !== null && (
-            <Card className="mt-4 p-5 text-sm text-slate-600">
-              Temps moyen de résolution :{" "}
-              <span className="font-semibold text-slate-900">{data.avgResolutionHours.toFixed(1)} heures</span>
+          {(data.avgResolutionHours !== null || data.totalElapsedHours > 0) && (
+            <Card className="mt-4 flex flex-wrap gap-x-8 gap-y-1 p-5 text-sm text-slate-600">
+              {data.avgResolutionHours !== null && (
+                <span>
+                  Temps moyen de résolution :{" "}
+                  <span className="font-semibold text-slate-900">{formatDuration(data.avgResolutionHours)}</span>
+                </span>
+              )}
+              <span>
+                Temps total écoulé (tous tickets) :{" "}
+                <span className="font-semibold text-slate-900">{formatDuration(data.totalElapsedHours)}</span>
+              </span>
             </Card>
           )}
 
           {(data.byCompany.length > 0 || data.byAgent.length > 0 || data.byUser.length > 0) && (
             <div className="mt-6 space-y-4">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Détails par entité</h2>
-              <StatsTable title="Par société" rows={data.byCompany} nameHeader="Société" showAvgResolution />
+              <StatsTable title="Par société" rows={data.byCompany} nameHeader="Société" showAvgResolution billing />
               <StatsTable title="Par agent" rows={data.byAgent} nameHeader="Agent" showAvgResolution />
               <StatsTable title="Par utilisateur" rows={data.byUser} nameHeader="Utilisateur" />
             </div>

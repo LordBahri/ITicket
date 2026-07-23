@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { DashboardStats } from "../types";
 import { STATUS_LABELS } from "../constants/ticketStatus";
+import { formatDuration } from "./duration";
 
 const BRAND = [15, 76, 129] as const; // brand-800-ish navy
 const BRAND_LIGHT = [224, 236, 247] as const;
@@ -9,7 +10,7 @@ const SLATE = [100, 116, 139] as const;
 
 function formatHours(hours: number | null): string {
   if (hours === null) return "—";
-  return `${hours.toFixed(1)} h`;
+  return formatDuration(hours);
 }
 
 async function loadLogoDataUrl(): Promise<string | null> {
@@ -92,6 +93,10 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     doc.text(`Temps moyen de résolution : ${formatHours(data.avgResolutionHours)}`, marginX, cursorY);
     cursorY += 6;
   }
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE);
+  doc.text(`Temps total écoulé (tous tickets) : ${formatDuration(data.totalElapsedHours)}`, marginX, cursorY);
+  cursorY += 6;
 
   const sectionTitle = (title: string) => {
     doc.setFont("helvetica", "bold");
@@ -143,15 +148,24 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
   // --- Par société ---
   if (data.byCompany.length > 0) {
     ensureSpace(60);
-    sectionTitle("Statistiques par société");
+    sectionTitle("Statistiques par société (base de facturation)");
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Société", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy."]],
-      body: data.byCompany.map((c) => [c.name, String(c.total), String(c.open), String(c.resolved), String(c.overdue), formatHours(c.avgResolutionHours)]),
+      head: [["Société", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      body: data.byCompany.map((c) => [
+        c.name,
+        String(c.total),
+        String(c.open),
+        String(c.resolved),
+        String(c.overdue),
+        formatHours(c.avgResolutionHours),
+        formatDuration(c.totalElapsedHours),
+      ]),
       headStyles: { fillColor: [...BRAND], textColor: 255 },
       styles: { fontSize: 9, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: [246, 249, 252] },
+      columnStyles: { 6: { fontStyle: "bold" } },
     });
     afterTable();
   }
@@ -163,8 +177,16 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Agent", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy."]],
-      body: data.byAgent.map((a) => [a.name, String(a.total), String(a.open), String(a.resolved), String(a.overdue), formatHours(a.avgResolutionHours)]),
+      head: [["Agent", "Total", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      body: data.byAgent.map((a) => [
+        a.name,
+        String(a.total),
+        String(a.open),
+        String(a.resolved),
+        String(a.overdue),
+        formatHours(a.avgResolutionHours),
+        formatDuration(a.totalElapsedHours),
+      ]),
       headStyles: { fillColor: [...BRAND], textColor: 255 },
       styles: { fontSize: 9, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: [246, 249, 252] },
@@ -179,8 +201,15 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Utilisateur", "Total", "Ouverts", "Résolus", "En retard"]],
-      body: data.byUser.map((u) => [u.name, String(u.total), String(u.open), String(u.resolved), String(u.overdue)]),
+      head: [["Utilisateur", "Total", "Ouverts", "Résolus", "En retard", "Temps total"]],
+      body: data.byUser.map((u) => [
+        u.name,
+        String(u.total),
+        String(u.open),
+        String(u.resolved),
+        String(u.overdue),
+        formatDuration(u.totalElapsedHours),
+      ]),
       headStyles: { fillColor: [...BRAND], textColor: 255 },
       styles: { fontSize: 9, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: [246, 249, 252] },

@@ -1,5 +1,6 @@
 import { Card } from "./ui/Card";
 import { STATUS_LABELS, STATUS_BAR_COLORS } from "../constants/ticketStatus";
+import { formatDuration } from "../utils/duration";
 import type { TicketStatusHistoryEntry } from "../types";
 
 export function TicketStatusTimeline({ entries }: { entries: TicketStatusHistoryEntry[] }) {
@@ -11,6 +12,9 @@ export function TicketStatusTimeline({ entries }: { entries: TicketStatusHistory
       <ol>
         {entries.map((entry, i) => {
           const isLast = i === entries.length - 1;
+          const start = new Date(entry.createdAt).getTime();
+          const end = isLast ? Date.now() : new Date(entries[i + 1].createdAt).getTime();
+          const durationHours = (end - start) / 3_600_000;
           return (
             <li
               key={entry.id}
@@ -29,6 +33,8 @@ export function TicketStatusTimeline({ entries }: { entries: TicketStatusHistory
                 <p className="text-xs text-slate-400">
                   {new Date(entry.createdAt).toLocaleString("fr-FR")}
                   {entry.changedBy && <> · {entry.changedBy.name}</>}
+                  {" · "}
+                  {isLast ? `en cours depuis ${formatDuration(durationHours)}` : `durée : ${formatDuration(durationHours)}`}
                 </p>
               </div>
             </li>

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma";
-import { isOverdue } from "../services/sla.service";
+import { isOverdue, computeElapsedHours } from "../services/sla.service";
 
 function avgResolutionOf(tickets: { createdAt: Date; resolvedAt: Date | null }[]): number | null {
   const resolved = tickets.filter((t) => t.resolvedAt);
@@ -9,6 +9,10 @@ function avgResolutionOf(tickets: { createdAt: Date; resolvedAt: Date | null }[]
     resolved.reduce((sum, t) => sum + (t.resolvedAt!.getTime() - t.createdAt.getTime()) / 3_600_000, 0) /
     resolved.length
   );
+}
+
+function totalElapsedOf(tickets: { createdAt: Date; resolvedAt: Date | null }[]): number {
+  return tickets.reduce((sum, t) => sum + computeElapsedHours(t), 0);
 }
 
 export async function getDashboard(req: Request, res: Response) {
@@ -41,15 +45,37 @@ export async function getDashboard(req: Request, res: Response) {
   }
 
   const avgResolutionHours = avgResolutionOf(tickets);
+  const totalElapsedHours = totalElapsedOf(tickets);
 
-  let byCompany: { id: string; name: string; total: number; open: number; resolved: number; overdue: number; avgResolutionHours: number | null }[] = [];
-  let byAgent: { id: string; name: string; total: number; open: number; resolved: number; overdue: number; avgResolutionHours: number | null }[] = [];
-  let byUser: { id: string; name: string; total: number; open: number; resolved: number; overdue: number }[] = [];
+  type StatRow = {
+    id: string;
+    name: string;
+    total: number;
+    open: number;
+    resolved: number;
+    overdue: number;
+    avgResolutionHours: number | null;
+    totalElapsedHours: number;
+  };
+
+  let byCompany: StatRow[] = [];
+  let byAgent: StatRow[] = [];
+  let byUser: Omit<StatRow, "avgResolutionHours">[] = [];
 
   if (isStaff) {
     const companyGroups = new Map<string, { name: string; tickets: typeof tickets }>();
     const agentGroups = new Map<string, { name: string; tickets: typeof tickets }>();
     const userGroups = new Map<string, { name: string; tickets: typeof tickets }>();
+
+    // On pré-remplit avec l'ensemble des agents/admins actifs pour qu'un membre
+    // de l'équipe apparaisse dans les stats même s'il n'a encore aucun ticket assigné.
+    const staffUsers = await prisma.user.findMany({
+      where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true, isSystemPlaceholder: false },
+      select: { id: true, name: true },
+    });
+    for (const staffUser of staffUsers) {
+      agentGroups.set(staffUser.id, { name: staffUser.name, tickets: [] });
+    }
 
     for (const ticket of tickets) {
       const company = ticket.requester.company;
@@ -71,7 +97,7 @@ export async function getDashboard(req: Request, res: Response) {
       userGroups.set(requester.id, g);
     }
 
-    const summarize = (id: string, name: string, group: typeof tickets) => ({
+    const summarize = (id: string, name: string, group: typeof tickets): StatRow => ({
       id,
       name,
       total: group.length,
@@ -79,6 +105,7 @@ export async function getDashboard(req: Request, res: Response) {
       resolved: group.filter((t) => t.status === "RESOLVED" || t.status === "CLOSED").length,
       overdue: group.filter((t) => isOverdue(t)).length,
       avgResolutionHours: avgResolutionOf(group),
+      totalElapsedHours: totalElapsedOf(group),
     });
 
     byCompany = [...companyGroups.entries()]
@@ -103,6 +130,7 @@ export async function getDashboard(req: Request, res: Response) {
     byPriority,
     overdueCount,
     avgResolutionHours,
+    totalElapsedHours,
     byCompany,
     byAgent,
     byUser,
