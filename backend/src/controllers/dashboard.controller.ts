@@ -15,12 +15,8 @@ function totalElapsedOf(tickets: { createdAt: Date; resolvedAt: Date | null }[])
   return tickets.reduce((sum, t) => sum + computeElapsedHours(t), 0);
 }
 
-export async function getDashboard(req: Request, res: Response) {
-  const isStaff = req.user!.role === "AGENT" || req.user!.role === "ADMIN";
-  const where = isStaff ? {} : { requesterId: req.user!.id };
-
+export async function getDashboard(_req: Request, res: Response) {
   const tickets = await prisma.ticket.findMany({
-    where,
     select: {
       id: true,
       status: true,
@@ -58,71 +54,65 @@ export async function getDashboard(req: Request, res: Response) {
     totalElapsedHours: number;
   };
 
-  let byCompany: StatRow[] = [];
-  let byAgent: StatRow[] = [];
-  let byUser: Omit<StatRow, "avgResolutionHours">[] = [];
+  const companyGroups = new Map<string, { name: string; tickets: typeof tickets }>();
+  const agentGroups = new Map<string, { name: string; tickets: typeof tickets }>();
+  const userGroups = new Map<string, { name: string; tickets: typeof tickets }>();
 
-  if (isStaff) {
-    const companyGroups = new Map<string, { name: string; tickets: typeof tickets }>();
-    const agentGroups = new Map<string, { name: string; tickets: typeof tickets }>();
-    const userGroups = new Map<string, { name: string; tickets: typeof tickets }>();
-
-    // On pré-remplit avec l'ensemble des agents/admins actifs pour qu'un membre
-    // de l'équipe apparaisse dans les stats même s'il n'a encore aucun ticket assigné.
-    const staffUsers = await prisma.user.findMany({
-      where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true, isSystemPlaceholder: false },
-      select: { id: true, name: true },
-    });
-    for (const staffUser of staffUsers) {
-      agentGroups.set(staffUser.id, { name: staffUser.name, tickets: [] });
-    }
-
-    for (const ticket of tickets) {
-      const company = ticket.requester.company;
-      if (company && !company.isSystemPlaceholder) {
-        const g = companyGroups.get(company.id) ?? { name: company.name, tickets: [] };
-        g.tickets.push(ticket);
-        companyGroups.set(company.id, g);
-      }
-
-      if (ticket.assignee) {
-        const g = agentGroups.get(ticket.assignee.id) ?? { name: ticket.assignee.name, tickets: [] };
-        g.tickets.push(ticket);
-        agentGroups.set(ticket.assignee.id, g);
-      }
-
-      const requester = ticket.requester;
-      const g = userGroups.get(requester.id) ?? { name: requester.name, tickets: [] };
-      g.tickets.push(ticket);
-      userGroups.set(requester.id, g);
-    }
-
-    const summarize = (id: string, name: string, group: typeof tickets): StatRow => ({
-      id,
-      name,
-      total: group.length,
-      open: group.filter((t) => t.status !== "RESOLVED" && t.status !== "CLOSED").length,
-      resolved: group.filter((t) => t.status === "RESOLVED" || t.status === "CLOSED").length,
-      overdue: group.filter((t) => isOverdue(t)).length,
-      avgResolutionHours: avgResolutionOf(group),
-      totalElapsedHours: totalElapsedOf(group),
-    });
-
-    byCompany = [...companyGroups.entries()]
-      .map(([id, g]) => summarize(id, g.name, g.tickets))
-      .sort((a, b) => b.total - a.total);
-
-    byAgent = [...agentGroups.entries()]
-      .map(([id, g]) => summarize(id, g.name, g.tickets))
-      .sort((a, b) => b.total - a.total);
-
-    byUser = [...userGroups.entries()]
-      .map(([id, g]) => {
-        const { avgResolutionHours: _unused, ...rest } = summarize(id, g.name, g.tickets);
-        return rest;
-      })
-      .sort((a, b) => b.total - a.total);
+  // On pré-remplit avec l'ensemble des agents/admins actifs pour qu'un membre
+  // de l'équipe apparaisse dans les stats même s'il n'a encore aucun ticket assigné.
+  const staffUsers = await prisma.user.findMany({
+    where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true, isSystemPlaceholder: false },
+    select: { id: true, name: true },
+  });
+  for (const staffUser of staffUsers) {
+    agentGroups.set(staffUser.id, { name: staffUser.name, tickets: [] });
   }
+
+  for (const ticket of tickets) {
+    const company = ticket.requester.company;
+    if (company && !company.isSystemPlaceholder) {
+      const g = companyGroups.get(company.id) ?? { name: company.name, tickets: [] };
+      g.tickets.push(ticket);
+      companyGroups.set(company.id, g);
+    }
+
+    if (ticket.assignee) {
+      const g = agentGroups.get(ticket.assignee.id) ?? { name: ticket.assignee.name, tickets: [] };
+      g.tickets.push(ticket);
+      agentGroups.set(ticket.assignee.id, g);
+    }
+
+    const requester = ticket.requester;
+    const g = userGroups.get(requester.id) ?? { name: requester.name, tickets: [] };
+    g.tickets.push(ticket);
+    userGroups.set(requester.id, g);
+  }
+
+  const summarize = (id: string, name: string, group: typeof tickets): StatRow => ({
+    id,
+    name,
+    total: group.length,
+    open: group.filter((t) => t.status !== "RESOLVED" && t.status !== "CLOSED").length,
+    resolved: group.filter((t) => t.status === "RESOLVED" || t.status === "CLOSED").length,
+    overdue: group.filter((t) => isOverdue(t)).length,
+    avgResolutionHours: avgResolutionOf(group),
+    totalElapsedHours: totalElapsedOf(group),
+  });
+
+  const byCompany = [...companyGroups.entries()]
+    .map(([id, g]) => summarize(id, g.name, g.tickets))
+    .sort((a, b) => b.total - a.total);
+
+  const byAgent = [...agentGroups.entries()]
+    .map(([id, g]) => summarize(id, g.name, g.tickets))
+    .sort((a, b) => b.total - a.total);
+
+  const byUser = [...userGroups.entries()]
+    .map(([id, g]) => {
+      const { avgResolutionHours: _unused, ...rest } = summarize(id, g.name, g.tickets);
+      return rest;
+    })
+    .sort((a, b) => b.total - a.total);
 
   res.json({
     total: tickets.length,

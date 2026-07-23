@@ -20,7 +20,7 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Pièces jointes sur les tickets (upload/téléchargement sécurisé, limité aux personnes ayant accès au ticket)
 - Base de connaissances (FAQ) liée aux catégories, avec suggestion d'articles lors de la création d'un ticket
 - Notifications email complètes : ouverture (confirmation au demandeur + alerte aux agents), assignation (à l'assigné et au demandeur), changement de statut, fermeture (message dédié), modification (type/catégorie/sous-catégorie/priorité) et nouveau commentaire — en dev, les emails sont simplement logués en console si aucun SMTP n'est configuré
-- Tableau de bord avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution) et, pour les agents/admins, un détail par société/agent/utilisateur — le tout exportable en PDF (mise en page structurée avec logo, KPIs et tableaux) via le bouton « Exporter en PDF »
+- Tableau de bord (réservé aux **administrateurs**) avec statistiques (répartition par statut/priorité, tickets en retard, temps moyen de résolution) et un détail par société/agent/utilisateur — le tout exportable en PDF (mise en page structurée avec logo, KPIs et tableaux) via le bouton « Exporter en PDF »
 - Gestion du matériel informatique (PC, écrans, imprimantes, switchs, onduleurs, serveurs...) : catalogue de types administrable, affectation de chaque équipement à une **société** (matériel partagé : switch, onduleur, serveur...) ou à un **utilisateur** (PC, imprimante...), avec numéro de série, statut, dates d'achat/garantie. Visible depuis Administration > Matériel ainsi que sur les fiches société et utilisateur.
 - Gestion des licences logicielles : nom, éditeur, clé, nombre de sièges, dates de début/expiration, affectation optionnelle à une société. Rappels automatiques par email aux administrateurs à J-30, J-7 et J-1 avant expiration.
 - Administration : gestion des types de demande, catégories/sous-catégories, priorités/SLA, sociétés, utilisateurs, matériel, licences et processus IT
@@ -222,10 +222,10 @@ Si `SAGE_APP_SSH_HOST`/`SAGE_SQL_HOST` ne sont pas configurés, le bouton reste 
 
 ## Tableau de bord
 
-Accessible sur `/dashboard`, il affiche :
+Accessible sur `/dashboard`, **réservé aux administrateurs** (lien masqué dans le menu et route/API bloqués pour les agents et utilisateurs simples), il affiche :
 
 - 4 cartes KPI (total, ouverts, en cours, en retard SLA) et la répartition par statut/priorité (déjà existant).
-- Pour les **agents/admins** uniquement (les utilisateurs simples ne voient que leurs propres tickets) : un détail par **société**, par **agent** (assigné) et par **utilisateur** (demandeur), chacun avec total, ouverts, résolus, en retard, temps moyen de résolution et **temps total écoulé**. La table « Par agent » liste tous les comptes AGENT et ADMIN actifs (même sans ticket assigné), pour garder une vue d'équipe complète. La société/l'utilisateur système « supprimé(e) » (voir plus haut) est exclue de ces tableaux.
+- Un détail par **société**, par **agent** (assigné) et par **utilisateur** (demandeur), chacun avec total, ouverts, résolus, en retard, temps moyen de résolution et **temps total écoulé**. La table « Par agent » liste tous les comptes AGENT et ADMIN actifs (même sans ticket assigné), pour garder une vue d'équipe complète. La société/l'utilisateur système « supprimé(e) » (voir plus haut) est exclue de ces tableaux.
 - Un bouton **« Exporter en PDF »** qui génère côté navigateur (via `jspdf`/`jspdf-autotable`, aucun appel serveur) un rapport structuré : en-tête avec logo Meninx et date de génération, cartes KPI, puis un tableau par section (statut, priorité, société, agent, utilisateur) avec la colonne **Temps total**, avec numérotation de page — prêt à être partagé ou archivé.
 
 ### Suivi du temps par ticket

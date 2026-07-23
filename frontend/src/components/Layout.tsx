@@ -53,9 +53,11 @@ export function Layout() {
           <NavLink to="/" end className={navLinkClass}>
             <IconHome className="h-[18px] w-[18px] shrink-0" /> Accueil
           </NavLink>
-          <NavLink to="/dashboard" className={navLinkClass}>
-            <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
-          </NavLink>
+          {user?.role === "ADMIN" && (
+            <NavLink to="/dashboard" className={navLinkClass}>
+              <IconDashboard className="h-[18px] w-[18px] shrink-0" /> Tableau de bord
+            </NavLink>
+          )}
           <NavLink to="/tickets" className={() => navLinkClass({ isActive: isAllTicketsActive })}>
             <IconTicket className="h-[18px] w-[18px] shrink-0" /> {isStaff ? "Tous les tickets" : "Mes tickets"}
           </NavLink>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import type { User } from "../types";
 
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const token = localStorage.getItem("iticket_token");
@@ -31,11 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const res = await apiClient.post("/auth/login", { email, password });
+    // Repart d'un cache propre : sur un poste partagé, un changement de compte
+    // ne doit jamais réafficher les données (chat, tickets, tableau de bord…)
+    // du compte précédent avant que les requêtes ne soient rejouées.
+    queryClient.clear();
     localStorage.setItem("iticket_token", res.data.token);
     setUser(res.data.user);
   }
 
   function logout() {
+    queryClient.clear();
     localStorage.removeItem("iticket_token");
     setUser(null);
   }

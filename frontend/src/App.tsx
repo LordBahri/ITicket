@@ -34,7 +34,6 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tickets" element={<TicketList />} />
           <Route path="/tickets/new" element={<NewTicket />} />
           <Route path="/tickets/:id" element={<TicketDetail />} />
@@ -48,6 +47,7 @@ export default function App() {
           </Route>
 
           <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/ticket-types" element={<AdminTicketTypes />} />
             <Route path="/admin/ticket-types/:id" element={<TicketTypeDetail />} />
             <Route path="/admin/categories" element={<AdminCategories />} />
