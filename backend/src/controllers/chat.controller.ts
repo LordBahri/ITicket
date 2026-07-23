@@ -61,11 +61,14 @@ export async function listThreads(req: Request, res: Response) {
     const user = await prisma.user.findUnique({ where: { id: thread.userId }, select: threadUserSelect });
     const { lastMessage, unreadCount } = await summarize(thread.id, req.user!.id);
     return res.json({
-      threads: [{ id: thread.id, user, lastMessage, unreadCount, updatedAt: thread.updatedAt }],
+      threads: [{ id: thread.id, user, lastMessage, unreadCount, updatedAt: thread.updatedAt, isArchived: thread.isArchived }],
     });
   }
 
+  // Par défaut, les conversations archivées sont masquées de la boîte de réception ; ?archived=true les affiche.
+  const showArchived = req.query.archived === "true";
   const threads = await prisma.chatThread.findMany({
+    where: { isArchived: showArchived },
     orderBy: { updatedAt: "desc" },
     include: { user: { select: threadUserSelect } },
   });
@@ -73,7 +76,7 @@ export async function listThreads(req: Request, res: Response) {
   const detailed = await Promise.all(
     threads.map(async (thread) => {
       const { lastMessage, unreadCount } = await summarize(thread.id, req.user!.id);
-      return { id: thread.id, user: thread.user, lastMessage, unreadCount, updatedAt: thread.updatedAt };
+      return { id: thread.id, user: thread.user, lastMessage, unreadCount, updatedAt: thread.updatedAt, isArchived: thread.isArchived };
     })
   );
 
@@ -184,6 +187,41 @@ export async function downloadAttachment(req: Request, res: Response) {
   if (!fs.existsSync(filePath)) throw new HttpError(404, "Fichier introuvable");
 
   res.download(filePath, message.attachmentName ?? message.attachmentUrl);
+}
+
+export async function archiveThread(req: Request, res: Response) {
+  const existing = await prisma.chatThread.findUnique({ where: { id: req.params.id } });
+  if (!existing) throw new HttpError(404, "Conversation introuvable");
+
+  const thread = await prisma.chatThread.update({
+    where: { id: existing.id },
+    data: { isArchived: true, archivedAt: new Date() },
+  });
+  res.json({ thread: { id: thread.id, isArchived: thread.isArchived } });
+}
+
+export async function unarchiveThread(req: Request, res: Response) {
+  const existing = await prisma.chatThread.findUnique({ where: { id: req.params.id } });
+  if (!existing) throw new HttpError(404, "Conversation introuvable");
+
+  const thread = await prisma.chatThread.update({
+    where: { id: existing.id },
+    data: { isArchived: false, archivedAt: null },
+  });
+  res.json({ thread: { id: thread.id, isArchived: thread.isArchived } });
+}
+
+export async function deleteThread(req: Request, res: Response) {
+  const thread = await prisma.chatThread.findUnique({ where: { id: req.params.id } });
+  if (!thread) throw new HttpError(404, "Conversation introuvable");
+
+  await prisma.$transaction([
+    prisma.chatReadState.deleteMany({ where: { threadId: thread.id } }),
+    prisma.chatMessage.deleteMany({ where: { threadId: thread.id } }),
+    prisma.chatThread.delete({ where: { id: thread.id } }),
+  ]);
+
+  res.status(204).send();
 }
 
 export async function markThreadRead(req: Request, res: Response) {

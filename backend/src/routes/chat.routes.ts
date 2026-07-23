@@ -8,8 +8,11 @@ import {
   sendAttachment,
   downloadAttachment,
   markThreadRead,
+  archiveThread,
+  unarchiveThread,
+  deleteThread,
 } from "../controllers/chat.controller";
-import { authenticate } from "../middleware/auth";
+import { authenticate, authorize } from "../middleware/auth";
 import { uploadChatFile } from "../middleware/chatUpload";
 import { handleMulterUpload } from "../utils/handleMulterUpload";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -30,3 +33,6 @@ chatRouter.post("/threads/:id/messages", asyncHandler(sendMessage));
 chatRouter.post("/threads/:id/attachment", handleChatFileUpload, asyncHandler(sendAttachment));
 chatRouter.get("/threads/:id/messages/:messageId/attachment", asyncHandler(downloadAttachment));
 chatRouter.post("/threads/:id/read", asyncHandler(markThreadRead));
+chatRouter.post("/threads/:id/archive", authorize("AGENT", "ADMIN"), asyncHandler(archiveThread));
+chatRouter.post("/threads/:id/unarchive", authorize("AGENT", "ADMIN"), asyncHandler(unarchiveThread));
+chatRouter.delete("/threads/:id", authorize("ADMIN"), asyncHandler(deleteThread));

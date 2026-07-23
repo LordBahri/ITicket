@@ -625,6 +625,36 @@ Si votre boîte reste pleine après un nettoyage ou si la synchronisation ne rep
         "Les catégories sont désormais classées sous un type de demande, et chaque sous-catégorie détermine automatiquement la priorité du ticket (fini le choix manuel). Les processus IT ont leur propre type de demande dédié, non sélectionnable en création de ticket libre, et peuvent désigner un utilisateur bénéficiaire (ex. nouvel employé pour un onboarding).",
       type: "FEATURE" as const,
     },
+    {
+      title: "Automatisation de l'accès Sage 100 et processus dédié",
+      description:
+        "Nouveau processus IT « Accès Sage 100 » : un bouton « Automatiser » ajoute le compte AD à l'accès RDP du serveur applicatif, copie les fichiers de connexion (.gcm/.mae) et crée l'accès SQL Server, en laissant la création de l'utilisateur dans Sage comme dernière étape manuelle.",
+      type: "FEATURE" as const,
+    },
+    {
+      title: "Tableau de bord : statistiques par société/agent/utilisateur et export PDF",
+      description:
+        "Le tableau de bord (réservé aux administrateurs) détaille désormais les tickets par société, par agent et par utilisateur (total, en retard, temps de traitement), avec le temps total écoulé par société servant de base de facturation du support aux filiales. Le tout est exportable en PDF en un clic.",
+      type: "FEATURE" as const,
+    },
+    {
+      title: "Suivi du temps par ticket",
+      description:
+        "Chaque ticket affiche désormais le temps écoulé depuis sa création (jusqu'à sa résolution ou en temps réel s'il est toujours ouvert), avec le détail de la durée passée à chaque étape sur la timeline de progression.",
+      type: "FEATURE" as const,
+    },
+    {
+      title: "Renforcement de la sécurité des comptes",
+      description:
+        "Un changement de rôle ou une désactivation de compte s'applique désormais immédiatement (fini les sessions déjà ouvertes qui conservaient les anciens droits), et le cache de l'application est repartie de zéro à chaque connexion pour éviter qu'un changement de compte sur un poste partagé ne réaffiche des données de la session précédente.",
+      type: "IMPROVEMENT" as const,
+    },
+    {
+      title: "Archivage et suppression des tickets et des conversations",
+      description:
+        "Les agents/admins peuvent désormais archiver un ticket ou une conversation de chat (masqué par défaut, retrouvable via la case « Archivés »), et les administrateurs peuvent les supprimer définitivement, avec confirmation avant toute suppression.",
+      type: "FEATURE" as const,
+    },
   ];
   for (const entry of changelogEntries) {
     const existing = await prisma.changelogEntry.findFirst({ where: { title: entry.title } });

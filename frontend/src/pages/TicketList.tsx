@@ -60,6 +60,7 @@ export function TicketList() {
   const [priorityId, setPriorityId] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -86,7 +87,7 @@ export function TicketList() {
   });
 
   const { data: tickets, isLoading } = useQuery({
-    queryKey: ["tickets", { status, typeId, categoryId, priorityId, companyId, search }],
+    queryKey: ["tickets", { status, typeId, categoryId, priorityId, companyId, search, showArchived }],
     queryFn: async () =>
       (
         await apiClient.get<{ tickets: Ticket[] }>("/tickets", {
@@ -97,6 +98,7 @@ export function TicketList() {
             priorityId: priorityId || undefined,
             companyId: companyId || undefined,
             search: search || undefined,
+            archived: showArchived ? "true" : undefined,
           },
         })
       ).data.tickets,
@@ -226,6 +228,18 @@ export function TicketList() {
             ))}
           </select>
         )}
+        <label className="flex items-center gap-1.5 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => {
+              setShowArchived(e.target.checked);
+              setPage(1);
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+          />
+          Archivés
+        </label>
       </Card>
 
       <Card className="overflow-hidden">

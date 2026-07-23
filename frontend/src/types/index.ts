@@ -223,6 +223,7 @@ export interface Ticket {
   updatedAt: string;
   isOverdue: boolean;
   elapsedHours: number;
+  isArchived: boolean;
   comments?: Comment[];
   attachments?: Attachment[];
   statusHistory?: TicketStatusHistoryEntry[];
@@ -375,4 +376,5 @@ export interface ChatThreadSummary {
   lastMessage: ChatMessage | null;
   unreadCount: number;
   updatedAt: string;
+  isArchived: boolean;
 }

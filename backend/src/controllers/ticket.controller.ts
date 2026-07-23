@@ -43,6 +43,7 @@ const listQuerySchema = z.object({
   companyId: z.string().optional(),
   search: z.string().optional(),
   overdue: z.enum(["true", "false"]).optional(),
+  archived: z.enum(["true", "false"]).optional(),
 });
 
 function serializeTicket(ticket: any) {
@@ -87,6 +88,8 @@ export async function listTickets(req: Request, res: Response) {
   if (query.priorityId) where.priorityId = query.priorityId;
   if (query.assigneeId) where.assigneeId = query.assigneeId;
   if (query.companyId) where.requester = { companyId: query.companyId };
+  // Par défaut, les tickets archivés sont masqués des listes courantes.
+  where.isArchived = query.archived === "true";
   if (query.search) {
     andConditions.push({
       OR: [
@@ -392,6 +395,34 @@ export async function toggleProcessStep(req: Request, res: Response) {
     include: { processStep: true, doneBy: { select: { id: true, name: true } } },
   });
   res.json({ step: updated });
+}
+
+export async function archiveTicket(req: Request, res: Response) {
+  const ticket = await getTicketOr404(req.params.id);
+  const updated = await prisma.ticket.update({
+    where: { id: ticket.id },
+    data: { isArchived: true, archivedAt: new Date() },
+    include: ticketInclude,
+  });
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+export async function unarchiveTicket(req: Request, res: Response) {
+  const ticket = await getTicketOr404(req.params.id);
+  const updated = await prisma.ticket.update({
+    where: { id: ticket.id },
+    data: { isArchived: false, archivedAt: null },
+    include: ticketInclude,
+  });
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+export async function deleteTicket(req: Request, res: Response) {
+  const ticket = await getTicketOr404(req.params.id);
+  // Les commentaires, pièces jointes, approbation, étapes de processus et historique de statut
+  // sont en cascade (onDelete: Cascade) sur le ticket.
+  await prisma.ticket.delete({ where: { id: ticket.id } });
+  res.status(204).send();
 }
 
 export async function archiveTicketForm(req: Request, res: Response) {

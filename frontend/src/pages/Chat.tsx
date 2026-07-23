@@ -9,7 +9,8 @@ import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { EmptyState } from "../components/ui/EmptyState";
 import { EmojiPicker } from "../components/ui/EmojiPicker";
-import { IconInbox, IconSparkle, IconPaperclip, IconFile } from "../components/icons";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { IconInbox, IconSparkle, IconPaperclip, IconFile, IconArchive, IconTrash } from "../components/icons";
 import type { ChatMessage, ChatThreadSummary, User } from "../types";
 
 function formatChatTime(dateStr: string) {
@@ -98,34 +99,75 @@ function ChatAttachment({ message, isSupportSide }: { message: ChatMessage; isSu
   );
 }
 
-function ThreadRow({ thread, active, onClick }: { thread: ChatThreadSummary; active: boolean; onClick: () => void }) {
+function ThreadRow({
+  thread,
+  active,
+  onClick,
+  onToggleArchive,
+  onDelete,
+  canDelete,
+}: {
+  thread: ChatThreadSummary;
+  active: boolean;
+  onClick: () => void;
+  onToggleArchive: () => void;
+  onDelete?: () => void;
+  canDelete?: boolean;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors ${
+    <div
+      className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors ${
         active ? "bg-brand-50" : "hover:bg-slate-50"
       }`}
     >
-      <Avatar name={thread.user.name} avatarUrl={thread.user.avatarUrl} size="sm" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className={`truncate text-sm ${thread.unreadCount > 0 ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
-            {thread.user.name}
+      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <Avatar name={thread.user.name} avatarUrl={thread.user.avatarUrl} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={`truncate text-sm ${thread.unreadCount > 0 ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}>
+              {thread.user.name}
+            </p>
+            {thread.lastMessage && (
+              <span className="shrink-0 text-[11px] text-slate-400">{formatChatTime(thread.lastMessage.createdAt)}</span>
+            )}
+          </div>
+          <p className={`truncate text-xs ${thread.unreadCount > 0 ? "font-medium text-slate-600" : "text-slate-400"}`}>
+            {thread.lastMessage?.body ?? (thread.lastMessage?.attachmentName ? `📎 ${thread.lastMessage.attachmentName}` : "Aucun message")}
           </p>
-          {thread.lastMessage && (
-            <span className="shrink-0 text-[11px] text-slate-400">{formatChatTime(thread.lastMessage.createdAt)}</span>
-          )}
         </div>
-        <p className={`truncate text-xs ${thread.unreadCount > 0 ? "font-medium text-slate-600" : "text-slate-400"}`}>
-          {thread.lastMessage?.body ?? (thread.lastMessage?.attachmentName ? `📎 ${thread.lastMessage.attachmentName}` : "Aucun message")}
-        </p>
+        {thread.unreadCount > 0 && (
+          <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">
+            {thread.unreadCount}
+          </span>
+        )}
+      </button>
+      <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+        <button
+          type="button"
+          title={thread.isArchived ? "Désarchiver" : "Archiver"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleArchive();
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+        >
+          <IconArchive className="h-4 w-4" />
+        </button>
+        {canDelete && onDelete && (
+          <button
+            type="button"
+            title="Supprimer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-red-100 hover:text-red-600"
+          >
+            <IconTrash className="h-4 w-4" />
+          </button>
+        )}
       </div>
-      {thread.unreadCount > 0 && (
-        <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">
-          {thread.unreadCount}
-        </span>
-      )}
-    </button>
+    </div>
   );
 }
 
@@ -219,11 +261,48 @@ export function Chat() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN";
 
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: archivedThreads } = useQuery({
+    queryKey: ["chat-threads", "archived"],
+    queryFn: async () =>
+      (await apiClient.get<{ threads: ChatThreadSummary[] }>("/chat/threads", { params: { archived: "true" } })).data.threads,
+    enabled: isStaff && showArchived,
+  });
+
+  const visibleThreads = showArchived ? archivedThreads ?? [] : threads;
+
+  const archiveMutation = useMutation({
+    mutationFn: async (thread: ChatThreadSummary) =>
+      apiClient.post(`/chat/threads/${thread.id}/${thread.isArchived ? "unarchive" : "archive"}`),
+    onSuccess: (_res, thread) => {
+      toast.success(thread.isArchived ? "Conversation désarchivée" : "Conversation archivée");
+      if (selectedThreadId === thread.id) setSelectedThreadId(null);
+      queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de mettre à jour l'archivage")),
+  });
+
+  const deleteThreadMutation = useMutation({
+    mutationFn: async (threadId: string) => apiClient.delete(`/chat/threads/${threadId}`),
+    onSuccess: (_res, threadId) => {
+      toast.success("Conversation supprimée");
+      if (selectedThreadId === threadId) setSelectedThreadId(null);
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
+    },
+    onError: (err) => {
+      setDeleteTarget(null);
+      toast.error(apiErrorMessage(err, "Impossible de supprimer la conversation"));
+    },
+  });
 
   useEffect(() => {
     if (!isStaff && threads.length > 0 && !selectedThreadId) {
@@ -307,7 +386,7 @@ export function Chat() {
     setMessageText((prev) => `${prev}${emoji}`);
   }
 
-  const selectedThread = threads.find((t) => t.id === selectedThreadId);
+  const selectedThread = visibleThreads.find((t) => t.id === selectedThreadId);
 
   if (isLoading) return <PageSpinner label="Chargement du chat…" />;
 
@@ -319,12 +398,36 @@ export function Chat() {
             <h2 className="text-sm font-semibold text-slate-900">Conversations</h2>
             <NewConversationPicker onCreated={setSelectedThreadId} />
           </div>
+          <label className="flex items-center gap-1.5 border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => {
+                setShowArchived(e.target.checked);
+                setSelectedThreadId(null);
+              }}
+              className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            Voir les conversations archivées
+          </label>
           <div className="flex-1 overflow-y-auto p-2">
-            {threads.length === 0 && (
-              <EmptyState icon={IconInbox} title="Aucune conversation" description="Démarrez une conversation avec un utilisateur." />
+            {visibleThreads.length === 0 && (
+              <EmptyState
+                icon={IconInbox}
+                title={showArchived ? "Aucune conversation archivée" : "Aucune conversation"}
+                description={showArchived ? "Les conversations archivées apparaîtront ici." : "Démarrez une conversation avec un utilisateur."}
+              />
             )}
-            {threads.map((t) => (
-              <ThreadRow key={t.id} thread={t} active={t.id === selectedThreadId} onClick={() => setSelectedThreadId(t.id)} />
+            {visibleThreads.map((t) => (
+              <ThreadRow
+                key={t.id}
+                thread={t}
+                active={t.id === selectedThreadId}
+                onClick={() => setSelectedThreadId(t.id)}
+                onToggleArchive={() => archiveMutation.mutate(t)}
+                onDelete={() => setDeleteTarget(t.id)}
+                canDelete={isAdmin}
+              />
             ))}
           </div>
         </div>
@@ -399,6 +502,16 @@ export function Chat() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Supprimer cette conversation ?"
+        description="Tous les messages de cette conversation seront définitivement supprimés. Cette action est irréversible."
+        confirmLabel="Supprimer"
+        loading={deleteThreadMutation.isPending}
+        onConfirm={() => deleteTarget && deleteThreadMutation.mutate(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

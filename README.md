@@ -16,6 +16,8 @@ Application web de gestion des demandes et incidents IT au sein de la société 
 - Priorités configurables, avec délais de SLA (réponse / résolution)
 - Calcul automatique de l'échéance SLA et détection des tickets en retard
 - Assignation des tickets aux agents, changement de statut (Ouvert → En cours → En attente → Résolu → Fermé)
+- Archivage des tickets (agents/admins) — masqué de la liste par défaut, visible via la case « Archivés » — et suppression définitive (admin uniquement, avec confirmation)
+- Chat interne avec l'équipe support (temps réel, pièces jointes) : les agents/admins peuvent archiver une conversation (masquée de la boîte de réception, visible via « Voir les conversations archivées ») ou la supprimer définitivement (admin uniquement)
 - Fil de commentaires par ticket, avec notes internes réservées aux agents/admins
 - Pièces jointes sur les tickets (upload/téléchargement sécurisé, limité aux personnes ayant accès au ticket)
 - Base de connaissances (FAQ) liée aux catégories, avec suggestion d'articles lors de la création d'un ticket
@@ -241,7 +243,7 @@ Chaque ticket calcule et expose un temps écoulé (`elapsedHours`) : durée entr
 La page d'accueil (`/`, nouvelle route racine — le tableau de bord statistique est désormais sur `/dashboard`) regroupe deux blocs :
 
 - **Quoi de neuf dans ITicket** : historique des évolutions de l'application (nouveauté / amélioration / correction), alimenté par la table `ChangelogEntry`. Ajoutez une entrée à chaque mise à jour notable via `POST /api/changelog` (admin) ou directement en base.
-- **Actualités IT** : articles récupérés automatiquement depuis des flux RSS IT/cybersécurité, avec image, résumé et lien vers la source. Un job planifié (`newsFeed.service.ts`, même mécanisme que le rappel de licences) interroge les flux toutes les `NEWS_FEED_INTERVAL_MS` (6h par défaut) au démarrage du serveur puis en continu, et déduplique par URL source. Un bouton « Synchroniser » (admin) permet de forcer une actualisation manuelle.
+- **Actualités** : articles récupérés automatiquement depuis des flux RSS IT/cybersécurité, avec image, résumé et lien vers la source. Un job planifié (`newsFeed.service.ts`, même mécanisme que le rappel de licences) interroge les flux toutes les `NEWS_FEED_INTERVAL_MS` (6h par défaut) au démarrage du serveur puis en continu, et déduplique par URL source. Un bouton « Synchroniser » (admin) permet de forcer une actualisation manuelle.
   - Flux configurables via `NEWS_FEED_URLS` (liste séparée par des virgules) — par défaut les avis et alertes du CERT-FR. Chaque flux est traité indépendamment : l'échec d'un flux n'empêche pas les autres de se synchroniser, et une absence totale de connectivité réseau du serveur est gérée sans faire planter l'application (message d'erreur affiché, réessai automatique au prochain cycle).
   - L'image de chaque article est extraite du flux RSS (`media:content`, `media:thumbnail`, `enclosure`, ou première image du contenu HTML) ; en son absence, une icône générique est affichée à la place.
   - **Important** : cette synchronisation nécessite que le serveur backend ait un accès sortant à Internet (comme pour le SMTP/IMAP Office 365). Si votre environnement de déploiement restreint les connexions sortantes, autorisez les domaines des flux configurés ou désactivez la fonctionnalité en laissant `NEWS_FEED_URLS` vide.

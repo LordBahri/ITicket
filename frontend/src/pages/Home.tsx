@@ -114,7 +114,7 @@ export function Home() {
         <Card className="p-5 lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-              <IconNewspaper className="h-4 w-4 text-brand-600" /> Actualités IT
+              <IconNewspaper className="h-4 w-4 text-brand-600" /> Actualités
             </h2>
             {isAdmin && (
               <Button size="sm" variant="secondary" loading={refreshMutation.isPending} onClick={() => refreshMutation.mutate()}>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, apiErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -9,6 +9,7 @@ import { PriorityBadge } from "../components/PriorityBadge";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { IconAlertTriangle, IconWorkflow } from "../components/icons";
 import type { ProcessCategory, SageAutomationResult, Ticket, User, TicketStatus } from "../types";
 import { IconCheckCircle, IconXCircle } from "../components/icons";
@@ -272,14 +273,17 @@ function ProcessPanel({
 
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
   const isStaff = user?.role === "AGENT" || user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN";
 
   const [message, setMessage] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ["ticket", id],
@@ -323,6 +327,29 @@ export function TicketDetail() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: async () => apiClient.post(`/tickets/${id}/${ticket?.isArchived ? "unarchive" : "archive"}`),
+    onSuccess: () => {
+      toast.success(ticket?.isArchived ? "Ticket désarchivé" : "Ticket archivé");
+      queryClient.invalidateQueries({ queryKey: ["ticket", id] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de mettre à jour l'archivage")),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => apiClient.delete(`/tickets/${id}`),
+    onSuccess: () => {
+      toast.success("Ticket supprimé");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      navigate("/tickets");
+    },
+    onError: (err) => {
+      setConfirmDelete(false);
+      toast.error(apiErrorMessage(err, "Impossible de supprimer le ticket"));
+    },
+  });
+
   function handleComment(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -343,11 +370,18 @@ export function TicketDetail() {
       <Card className="mb-4 p-6">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-400">{ticket.reference}</span>
-          {ticket.isOverdue && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
-              <IconAlertTriangle className="h-3.5 w-3.5" /> SLA dépassé
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {ticket.isArchived && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
+                Archivé
+              </span>
+            )}
+            {ticket.isOverdue && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+                <IconAlertTriangle className="h-3.5 w-3.5" /> SLA dépassé
+              </span>
+            )}
+          </div>
         </div>
         <h1 className="mb-3 text-xl font-bold text-slate-900">{ticket.title}</h1>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -432,8 +466,28 @@ export function TicketDetail() {
               </select>
             </div>
           </div>
+          <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+            <Button size="sm" variant="secondary" loading={archiveMutation.isPending} onClick={() => archiveMutation.mutate()}>
+              {ticket.isArchived ? "Désarchiver" : "Archiver"}
+            </Button>
+            {isAdmin && (
+              <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
+                Supprimer
+              </Button>
+            )}
+          </div>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Supprimer ce ticket ?"
+        description={`Le ticket ${ticket.reference} sera définitivement supprimé, avec ses commentaires, pièces jointes et son historique. Cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       <Card className="p-6">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Historique &amp; commentaires</h2>
