@@ -25,8 +25,10 @@ export async function getDashboard(_req: Request, res: Response) {
       priority: { select: { name: true } },
       createdAt: true,
       resolvedAt: true,
-      requester: { select: { id: true, name: true, company: { select: { id: true, name: true, isSystemPlaceholder: true } } } },
-      assignee: { select: { id: true, name: true } },
+      requester: {
+        select: { id: true, name: true, isSystemPlaceholder: true, company: { select: { id: true, name: true, isSystemPlaceholder: true } } },
+      },
+      assignee: { select: { id: true, name: true, isSystemPlaceholder: true } },
     },
   });
 
@@ -76,16 +78,18 @@ export async function getDashboard(_req: Request, res: Response) {
       companyGroups.set(company.id, g);
     }
 
-    if (ticket.assignee) {
+    if (ticket.assignee && !ticket.assignee.isSystemPlaceholder) {
       const g = agentGroups.get(ticket.assignee.id) ?? { name: ticket.assignee.name, tickets: [] };
       g.tickets.push(ticket);
       agentGroups.set(ticket.assignee.id, g);
     }
 
     const requester = ticket.requester;
-    const g = userGroups.get(requester.id) ?? { name: requester.name, tickets: [] };
-    g.tickets.push(ticket);
-    userGroups.set(requester.id, g);
+    if (!requester.isSystemPlaceholder) {
+      const g = userGroups.get(requester.id) ?? { name: requester.name, tickets: [] };
+      g.tickets.push(ticket);
+      userGroups.set(requester.id, g);
+    }
   }
 
   const summarize = (id: string, name: string, group: typeof tickets): StatRow => ({
