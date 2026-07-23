@@ -303,12 +303,44 @@ export interface NewsArticle {
   fetchedAt: string;
 }
 
+export interface DashboardCompanyStat {
+  id: string;
+  name: string;
+  total: number;
+  open: number;
+  resolved: number;
+  overdue: number;
+  avgResolutionHours: number | null;
+}
+
+export interface DashboardAgentStat {
+  id: string;
+  name: string;
+  total: number;
+  open: number;
+  resolved: number;
+  overdue: number;
+  avgResolutionHours: number | null;
+}
+
+export interface DashboardUserStat {
+  id: string;
+  name: string;
+  total: number;
+  open: number;
+  resolved: number;
+  overdue: number;
+}
+
 export interface DashboardStats {
   total: number;
   byStatus: Record<TicketStatus, number>;
   byPriority: Record<string, number>;
   overdueCount: number;
   avgResolutionHours: number | null;
+  byCompany: DashboardCompanyStat[];
+  byAgent: DashboardAgentStat[];
+  byUser: DashboardUserStat[];
 }
 
 export interface ChatUser {

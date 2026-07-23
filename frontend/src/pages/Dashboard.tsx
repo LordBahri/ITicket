@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { apiClient } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
-import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle } from "../components/icons";
+import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle, IconDownload } from "../components/icons";
 import type { ComponentType, SVGProps } from "react";
-import type { DashboardStats, TicketStatus } from "../types";
+import type { DashboardAgentStat, DashboardCompanyStat, DashboardStats, DashboardUserStat, TicketStatus } from "../types";
 import { STATUS_BAR_COLORS, STATUS_LABELS } from "../constants/ticketStatus";
+import { exportDashboardPdf } from "../utils/dashboardPdf";
+import { useToast } from "../context/ToastContext";
 
 function StatCard({
   icon: Icon,
@@ -31,6 +34,62 @@ function StatCard({
   );
 }
 
+function StatsTable({
+  title,
+  rows,
+  nameHeader,
+  showAvgResolution,
+}: {
+  title: string;
+  rows: (DashboardCompanyStat | DashboardAgentStat | DashboardUserStat)[];
+  nameHeader: string;
+  showAvgResolution?: boolean;
+}) {
+  return (
+    <Card className="p-5">
+      <h2 className="mb-4 text-sm font-semibold text-slate-900">{title}</h2>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune donnée</p>
+      ) : (
+        <div className="-mx-5 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
+                <th className="px-5 py-2">{nameHeader}</th>
+                <th className="px-3 py-2 text-right">Total</th>
+                <th className="px-3 py-2 text-right">Ouverts</th>
+                <th className="px-3 py-2 text-right">Résolus</th>
+                <th className="px-3 py-2 text-right">En retard</th>
+                {showAvgResolution && <th className="px-5 py-2 text-right">Résolution moy.</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-5 py-2 font-medium text-slate-800">{row.name}</td>
+                  <td className="px-3 py-2 text-right text-slate-700">{row.total}</td>
+                  <td className="px-3 py-2 text-right text-slate-700">{row.open}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600">{row.resolved}</td>
+                  <td className={`px-3 py-2 text-right ${row.overdue > 0 ? "font-medium text-red-600" : "text-slate-400"}`}>
+                    {row.overdue}
+                  </td>
+                  {showAvgResolution && (
+                    <td className="px-5 py-2 text-right text-slate-500">
+                      {"avgResolutionHours" in row && row.avgResolutionHours !== null
+                        ? `${row.avgResolutionHours.toFixed(1)} h`
+                        : "—"}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.max((value / max) * 100, value > 0 ? 4 : 0) : 0;
   return (
@@ -47,6 +106,8 @@ function BarRow({ label, value, max, color }: { label: string; value: number; ma
 }
 
 export function Dashboard() {
+  const toast = useToast();
+  const [isExporting, setIsExporting] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await apiClient.get<DashboardStats>("/dashboard")).data,
@@ -56,13 +117,33 @@ export function Dashboard() {
   const maxPriority = data ? Math.max(1, ...Object.values(data.byPriority)) : 1;
   const priorityColors = ["bg-brand-500", "bg-amber-500", "bg-orange-500", "bg-red-500", "bg-slate-400"];
 
+  const handleExport = async () => {
+    if (!data) return;
+    setIsExporting(true);
+    try {
+      await exportDashboardPdf(data);
+    } catch {
+      toast.error("Échec de la génération du PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">Tableau de bord</h1>
-        <Link to="/tickets/new">
-          <Button>+ Nouveau ticket</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {data && (
+            <Button variant="secondary" onClick={handleExport} disabled={isExporting}>
+              <IconDownload className="mr-1.5 h-4 w-4" />
+              {isExporting ? "Génération…" : "Exporter en PDF"}
+            </Button>
+          )}
+          <Link to="/tickets/new">
+            <Button>+ Nouveau ticket</Button>
+          </Link>
+        </div>
       </div>
 
       {isLoading || !data ? (
@@ -124,6 +205,15 @@ export function Dashboard() {
               Temps moyen de résolution :{" "}
               <span className="font-semibold text-slate-900">{data.avgResolutionHours.toFixed(1)} heures</span>
             </Card>
+          )}
+
+          {(data.byCompany.length > 0 || data.byAgent.length > 0 || data.byUser.length > 0) && (
+            <div className="mt-6 space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Détails par entité</h2>
+              <StatsTable title="Par société" rows={data.byCompany} nameHeader="Société" showAvgResolution />
+              <StatsTable title="Par agent" rows={data.byAgent} nameHeader="Agent" showAvgResolution />
+              <StatsTable title="Par utilisateur" rows={data.byUser} nameHeader="Utilisateur" />
+            </div>
           )}
         </>
       )}
