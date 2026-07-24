@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
+import { z } from "zod";
 import { prisma } from "../config/prisma";
+import { HttpError } from "../middleware/errorHandler";
 import { isOverdue, computeElapsedHours } from "../services/sla.service";
+
+const dateFilterSchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
 
 function avgResolutionOf(tickets: { createdAt: Date; resolvedAt: Date | null }[]): number | null {
   const resolved = tickets.filter((t) => t.resolvedAt);
@@ -15,9 +22,16 @@ function totalElapsedOf(tickets: { createdAt: Date; resolvedAt: Date | null }[])
   return tickets.reduce((sum, t) => sum + computeElapsedHours(t), 0);
 }
 
-export async function getDashboard(_req: Request, res: Response) {
+export async function getDashboard(req: Request, res: Response) {
+  const { from, to } = dateFilterSchema.parse(req.query);
+  if (from && to && from > to) throw new HttpError(400, "La date de début doit précéder la date de fin");
+
+  const createdAt: { gte?: Date; lte?: Date } = {};
+  if (from) createdAt.gte = new Date(`${from}T00:00:00.000Z`);
+  if (to) createdAt.lte = new Date(`${to}T23:59:59.999Z`);
+
   const tickets = await prisma.ticket.findMany({
-    where: { isArchived: false },
+    where: { isArchived: false, ...(from || to ? { createdAt } : {}) },
     select: {
       id: true,
       status: true,

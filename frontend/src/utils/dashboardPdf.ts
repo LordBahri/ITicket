@@ -32,7 +32,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
   }
 }
 
-export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
+export async function exportDashboardPdf(data: DashboardStats, periodLabel?: string | null): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const marginX = 14;
@@ -61,6 +61,14 @@ export async function exportDashboardPdf(data: DashboardStats): Promise<void> {
     logo ? marginX + 28 : marginX,
     cursorY + 13,
   );
+
+  if (periodLabel) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...BRAND);
+    doc.text(`Période : ${periodLabel}`, logo ? marginX + 28 : marginX, cursorY + 19);
+    doc.setFont("helvetica", "normal");
+    cursorY += 6;
+  }
 
   cursorY += 26;
   doc.setDrawColor(...BRAND);

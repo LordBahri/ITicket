@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { apiClient } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -137,23 +137,54 @@ function BarRow({
   );
 }
 
+function formatDateLabel(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString("fr-FR");
+}
+
 export function Dashboard() {
   const toast = useToast();
   const [isExporting, setIsExporting] = useState(false);
+  const [dateMode, setDateMode] = useState<"range" | "single">("range");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [singleDate, setSingleDate] = useState("");
+
+  const dateParams = useMemo(() => {
+    if (dateMode === "single") return singleDate ? { from: singleDate, to: singleDate } : {};
+    const params: { from?: string; to?: string } = {};
+    if (fromDate) params.from = fromDate;
+    if (toDate) params.to = toDate;
+    return params;
+  }, [dateMode, fromDate, toDate, singleDate]);
+
+  const hasDateFilter = Boolean(dateParams.from || dateParams.to);
+
+  const periodLabel = hasDateFilter
+    ? dateMode === "single" && singleDate
+      ? `Le ${formatDateLabel(singleDate)}`
+      : `Du ${dateParams.from ? formatDateLabel(dateParams.from) : "…"} au ${dateParams.to ? formatDateLabel(dateParams.to) : "…"}`
+    : null;
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: async () => (await apiClient.get<DashboardStats>("/dashboard")).data,
+    queryKey: ["dashboard", dateParams],
+    queryFn: async () => (await apiClient.get<DashboardStats>("/dashboard", { params: dateParams })).data,
   });
 
   const maxStatus = data ? Math.max(1, ...Object.values(data.byStatus)) : 1;
   const maxPriority = data ? Math.max(1, ...Object.values(data.byPriority)) : 1;
   const priorityColors = ["bg-brand-500", "bg-amber-500", "bg-orange-500", "bg-red-500", "bg-slate-400"];
 
+  function resetDateFilter() {
+    setFromDate("");
+    setToDate("");
+    setSingleDate("");
+  }
+
   const handleExport = async () => {
     if (!data) return;
     setIsExporting(true);
     try {
-      await exportDashboardPdf(data);
+      await exportDashboardPdf(data, periodLabel);
     } catch {
       toast.error("Échec de la génération du PDF");
     } finally {
@@ -163,8 +194,11 @@ export function Dashboard() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Tableau de bord</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Tableau de bord</h1>
+          {periodLabel && <p className="mt-0.5 text-xs font-medium text-brand-700">Période filtrée : {periodLabel}</p>}
+        </div>
         <div className="flex items-center gap-2">
           {data && (
             <Button variant="secondary" onClick={handleExport} disabled={isExporting}>
@@ -177,6 +211,70 @@ export function Dashboard() {
           </Link>
         </div>
       </div>
+
+      <Card className="mb-6 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex rounded-md border border-slate-200 p-0.5">
+            <button
+              type="button"
+              onClick={() => setDateMode("range")}
+              className={`rounded px-3 py-1 text-xs font-medium transition ${
+                dateMode === "range" ? "bg-brand-600 text-white" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Plage de dates
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateMode("single")}
+              className={`rounded px-3 py-1 text-xs font-medium transition ${
+                dateMode === "single" ? "bg-brand-600 text-white" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Date précise
+            </button>
+          </div>
+
+          {dateMode === "range" ? (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Du</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Au</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Date</label>
+              <input
+                type="date"
+                value={singleDate}
+                onChange={(e) => setSingleDate(e.target.value)}
+                className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          )}
+
+          {hasDateFilter && (
+            <Button variant="secondary" onClick={resetDateFilter}>
+              Réinitialiser
+            </Button>
+          )}
+        </div>
+      </Card>
 
       {isLoading || !data ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
