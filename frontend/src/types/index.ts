@@ -225,6 +225,9 @@ export interface Ticket {
   isOverdue: boolean;
   elapsedHours: number;
   isArchived: boolean;
+  satisfactionRating: number | null;
+  satisfactionComment: string | null;
+  satisfactionRatedAt: string | null;
   comments?: Comment[];
   attachments?: Attachment[];
   statusHistory?: TicketStatusHistoryEntry[];
@@ -315,6 +318,7 @@ export interface DashboardCompanyStat {
   overdue: number;
   avgResolutionHours: number | null;
   totalElapsedHours: number;
+  avgSatisfaction: number | null;
 }
 
 export interface DashboardAgentStat {
@@ -326,6 +330,7 @@ export interface DashboardAgentStat {
   overdue: number;
   avgResolutionHours: number | null;
   totalElapsedHours: number;
+  avgSatisfaction: number | null;
 }
 
 export interface DashboardUserStat {
@@ -336,6 +341,7 @@ export interface DashboardUserStat {
   resolved: number;
   overdue: number;
   totalElapsedHours: number;
+  avgSatisfaction: number | null;
 }
 
 export interface DashboardStats {
@@ -348,6 +354,19 @@ export interface DashboardStats {
   byCompany: DashboardCompanyStat[];
   byAgent: DashboardAgentStat[];
   byUser: DashboardUserStat[];
+}
+
+export type NotificationType = "COMMENT" | "STATUS_CHANGE" | "APPROVAL_DECISION" | "ASSIGNED";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  ticketId: string | null;
+  ticket: { id: string; reference: string; title: string } | null;
 }
 
 export interface ChatUser {

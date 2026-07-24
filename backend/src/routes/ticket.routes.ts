@@ -12,6 +12,7 @@ import {
   archiveTicket,
   unarchiveTicket,
   deleteTicket,
+  rateTicketSatisfaction,
 } from "../controllers/ticket.controller";
 import { addComment } from "../controllers/comment.controller";
 import { uploadAttachments, listAttachments, downloadAttachment } from "../controllers/attachment.controller";
@@ -38,6 +39,7 @@ ticketRouter.post("/:id/reject", asyncHandler(rejectTicketProcess));
 ticketRouter.patch("/:id/steps/:completionId", authorize("AGENT", "ADMIN"), asyncHandler(toggleProcessStep));
 ticketRouter.post("/:id/archive-form", authorize("AGENT", "ADMIN"), asyncHandler(archiveTicketForm));
 ticketRouter.post("/:id/automate-sage-access", authorize("AGENT", "ADMIN"), asyncHandler(automateSageAccess));
+ticketRouter.post("/:id/satisfaction", asyncHandler(rateTicketSatisfaction));
 ticketRouter.post("/:id/archive", authorize("AGENT", "ADMIN"), asyncHandler(archiveTicket));
 ticketRouter.post("/:id/unarchive", authorize("AGENT", "ADMIN"), asyncHandler(unarchiveTicket));
 ticketRouter.delete("/:id", authorize("ADMIN"), asyncHandler(deleteTicket));

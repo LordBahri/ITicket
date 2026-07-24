@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { sendMail } from "../services/email.service";
 import { renderTicketEmail, escapeHtml } from "../services/emailTemplate";
+import { createNotification } from "../services/notification.service";
 
 const createCommentSchema = z.object({
   message: z.string().min(1).max(5000),
@@ -45,6 +46,13 @@ export async function addComment(req: Request, res: Response) {
         extraNote: data.message,
       });
       void sendMail({ to: notifyTarget.email, subject: `[${ticket.reference}] Nouveau commentaire`, ...mail });
+      void createNotification({
+        userId: notifyTarget.id,
+        type: "COMMENT",
+        title: `Nouveau commentaire sur ${ticket.reference}`,
+        message: `${comment.author.name} : ${data.message.slice(0, 140)}`,
+        ticketId: ticket.id,
+      });
     }
   }
 

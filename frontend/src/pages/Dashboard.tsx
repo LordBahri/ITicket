@@ -5,7 +5,7 @@ import { apiClient } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
-import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle, IconDownload } from "../components/icons";
+import { IconTicket, IconDashboard as IconOpen, IconClock, IconAlertTriangle, IconDownload, IconStar } from "../components/icons";
 import type { ComponentType, SVGProps } from "react";
 import type { DashboardAgentStat, DashboardCompanyStat, DashboardStats, DashboardUserStat, TicketStatus } from "../types";
 import { STATUS_BAR_COLORS, STATUS_LABELS } from "../constants/ticketStatus";
@@ -44,6 +44,7 @@ function StatsTable({
   rows,
   nameHeader,
   showAvgResolution,
+  showSatisfaction,
   billing,
   totalTickets,
 }: {
@@ -51,6 +52,7 @@ function StatsTable({
   rows: (DashboardCompanyStat | DashboardAgentStat | DashboardUserStat)[];
   nameHeader: string;
   showAvgResolution?: boolean;
+  showSatisfaction?: boolean;
   billing?: boolean;
   totalTickets: number;
 }) {
@@ -74,6 +76,7 @@ function StatsTable({
                 <th className="px-3 py-2 text-right">Résolus</th>
                 <th className="px-3 py-2 text-right">En retard</th>
                 {showAvgResolution && <th className="px-3 py-2 text-right">Résolution moy.</th>}
+                {showSatisfaction && <th className="px-3 py-2 text-right">Satisfaction</th>}
                 <th className={`px-5 py-2 text-right ${billing ? "text-brand-600" : ""}`}>Temps total</th>
               </tr>
             </thead>
@@ -93,6 +96,18 @@ function StatsTable({
                       {"avgResolutionHours" in row && row.avgResolutionHours !== null
                         ? formatDuration(row.avgResolutionHours)
                         : "—"}
+                    </td>
+                  )}
+                  {showSatisfaction && (
+                    <td className="px-3 py-2 text-right">
+                      {row.avgSatisfaction !== null ? (
+                        <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+                          <IconStar className="h-3.5 w-3.5" fill="currentColor" />
+                          {row.avgSatisfaction.toFixed(1)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                   )}
                   <td className={`px-5 py-2 text-right font-medium ${billing ? "text-brand-700" : "text-slate-700"}`}>
@@ -355,10 +370,18 @@ export function Dashboard() {
                 rows={data.byCompany}
                 nameHeader="Société"
                 showAvgResolution
+                showSatisfaction
                 billing
                 totalTickets={data.total}
               />
-              <StatsTable title="Par agent" rows={data.byAgent} nameHeader="Agent" showAvgResolution totalTickets={data.total} />
+              <StatsTable
+                title="Par agent"
+                rows={data.byAgent}
+                nameHeader="Agent"
+                showAvgResolution
+                showSatisfaction
+                totalTickets={data.total}
+              />
               <StatsTable title="Par utilisateur" rows={data.byUser} nameHeader="Utilisateur" totalTickets={data.total} />
             </div>
           )}

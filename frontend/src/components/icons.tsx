@@ -327,6 +327,23 @@ export function IconLock(props: IconProps) {
   );
 }
 
+export function IconBell(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" />
+      <path d="M10 19.5a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+export function IconStar(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <polygon points="12,3.5 14.6,9.2 20.8,9.9 16.2,14.1 17.5,20.3 12,17.1 6.5,20.3 7.8,14.1 3.2,9.9 9.4,9.2" />
+    </svg>
+  );
+}
+
 export function IconPhone(props: IconProps) {
   return (
     <svg {...base} {...props}>

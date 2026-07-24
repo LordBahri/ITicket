@@ -22,6 +22,12 @@ function totalElapsedOf(tickets: { createdAt: Date; resolvedAt: Date | null }[])
   return tickets.reduce((sum, t) => sum + computeElapsedHours(t), 0);
 }
 
+function avgSatisfactionOf(tickets: { satisfactionRating: number | null }[]): number | null {
+  const rated = tickets.filter((t) => t.satisfactionRating !== null);
+  if (rated.length === 0) return null;
+  return rated.reduce((sum, t) => sum + t.satisfactionRating!, 0) / rated.length;
+}
+
 export async function getDashboard(req: Request, res: Response) {
   const { from, to } = dateFilterSchema.parse(req.query);
   if (from && to && from > to) throw new HttpError(400, "La date de début doit précéder la date de fin");
@@ -40,6 +46,7 @@ export async function getDashboard(req: Request, res: Response) {
       priority: { select: { name: true } },
       createdAt: true,
       resolvedAt: true,
+      satisfactionRating: true,
       requester: {
         select: { id: true, name: true, isSystemPlaceholder: true, company: { select: { id: true, name: true, isSystemPlaceholder: true } } },
       },
@@ -69,6 +76,7 @@ export async function getDashboard(req: Request, res: Response) {
     overdue: number;
     avgResolutionHours: number | null;
     totalElapsedHours: number;
+    avgSatisfaction: number | null;
   };
 
   const companyGroups = new Map<string, { name: string; tickets: typeof tickets }>();
@@ -116,6 +124,7 @@ export async function getDashboard(req: Request, res: Response) {
     overdue: group.filter((t) => isOverdue(t)).length,
     avgResolutionHours: avgResolutionOf(group),
     totalElapsedHours: totalElapsedOf(group),
+    avgSatisfaction: avgSatisfactionOf(group),
   });
 
   const byCompany = [...companyGroups.entries()]

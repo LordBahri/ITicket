@@ -21,6 +21,7 @@ import { processRouter } from "./routes/process.routes";
 import { changelogRouter } from "./routes/changelog.routes";
 import { newsRouter } from "./routes/news.routes";
 import { chatRouter } from "./routes/chat.routes";
+import { notificationRouter } from "./routes/notification.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 export const app = express();
@@ -56,5 +57,6 @@ app.use("/api/processes", processRouter);
 app.use("/api/changelog", changelogRouter);
 app.use("/api/news", newsRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/notifications", notificationRouter);
 
 app.use(errorHandler);

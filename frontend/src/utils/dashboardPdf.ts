@@ -17,6 +17,10 @@ function formatPct(value: number, total: number): string {
   return total > 0 ? `${Math.round((value / total) * 100)}%` : "—";
 }
 
+function formatSatisfaction(value: number | null): string {
+  return value !== null ? `${value.toFixed(1)}/5` : "—";
+}
+
 async function loadLogoDataUrl(): Promise<string | null> {
   try {
     const res = await fetch("/logo-meninx.png");
@@ -168,7 +172,7 @@ export async function exportDashboardPdf(data: DashboardStats, periodLabel?: str
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Société", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      head: [["Société", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Satisfaction", "Temps total"]],
       body: data.byCompany.map((c) => [
         c.name,
         String(c.total),
@@ -177,12 +181,13 @@ export async function exportDashboardPdf(data: DashboardStats, periodLabel?: str
         String(c.resolved),
         String(c.overdue),
         formatHours(c.avgResolutionHours),
+        formatSatisfaction(c.avgSatisfaction),
         formatDuration(c.totalElapsedHours),
       ]),
       headStyles: { fillColor: [...BRAND], textColor: 255 },
       styles: { fontSize: 9, cellPadding: 2.5 },
       alternateRowStyles: { fillColor: [246, 249, 252] },
-      columnStyles: { 7: { fontStyle: "bold" } },
+      columnStyles: { 8: { fontStyle: "bold" } },
     });
     afterTable();
   }
@@ -194,7 +199,7 @@ export async function exportDashboardPdf(data: DashboardStats, periodLabel?: str
     autoTable(doc, {
       startY: cursorY + 3,
       margin: { left: marginX, right: marginX },
-      head: [["Agent", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Temps total"]],
+      head: [["Agent", "Total", "%", "Ouverts", "Résolus", "En retard", "Résolution moy.", "Satisfaction", "Temps total"]],
       body: data.byAgent.map((a) => [
         a.name,
         String(a.total),
@@ -203,6 +208,7 @@ export async function exportDashboardPdf(data: DashboardStats, periodLabel?: str
         String(a.resolved),
         String(a.overdue),
         formatHours(a.avgResolutionHours),
+        formatSatisfaction(a.avgSatisfaction),
         formatDuration(a.totalElapsedHours),
       ]),
       headStyles: { fillColor: [...BRAND], textColor: 255 },

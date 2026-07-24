@@ -119,6 +119,8 @@ model User {
   chatMessagesSent    ChatMessage[]           @relation("ChatMessageSender")
   chatReadStates      ChatReadState[]         @relation("ChatReadStateUser")
   ticketStatusChanges TicketStatusHistory[]   @relation("TicketStatusChangedBy")
+  notifications       Notification[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([companyId])
   @@index([serviceId])
@@ -251,6 +253,11 @@ model Ticket {
   isArchived Boolean   @default(false)
   archivedAt DateTime?
 
+  // Évaluation de satisfaction (CSAT) laissée par le demandeur une fois le ticket résolu/fermé.
+  satisfactionRating  Int?
+  satisfactionComment String?
+  satisfactionRatedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -259,6 +266,7 @@ model Ticket {
   approval        ProcessApproval?
   stepCompletions ProcessStepCompletion[]
   statusHistory   TicketStatusHistory[]
+  notifications   Notification[]
 
   @@index([status])
   @@index([requesterId])
@@ -557,4 +565,40 @@ model ChatReadState {
   lastReadAt DateTime   @default(now())
 
   @@unique([threadId, userId])
+}
+
+enum NotificationType {
+  COMMENT
+  STATUS_CHANGE
+  APPROVAL_DECISION
+  ASSIGNED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  ticketId  String?
+  ticket    Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([ticketId])
+}
+
+// Jeton de réinitialisation de mot de passe en libre-service (envoyé par email, à usage unique).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

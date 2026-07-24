@@ -1,11 +1,21 @@
 import type { Request, Response } from "express";
 import fs from "fs";
+import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
 import { comparePassword, hashPassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { HttpError } from "../middleware/errorHandler";
 import { avatarPath } from "../middleware/avatarUpload";
+import { sendMail } from "../services/email.service";
+import { renderSimpleEmail, escapeHtml } from "../services/emailTemplate";
+import { env } from "../config/env";
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -14,6 +24,15 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(100),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
   newPassword: z.string().min(8).max(100),
 });
 
@@ -91,6 +110,53 @@ export async function changePassword(req: Request, res: Response) {
 
   const passwordHash = await hashPassword(data.newPassword);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  res.status(204).send();
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  const data = forgotPasswordSchema.parse(req.body);
+
+  const user = await prisma.user.findUnique({ where: { email: data.email } });
+  if (user && user.isActive) {
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashResetToken(rawToken),
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    });
+
+    const resetUrl = `${env.frontendUrl.replace(/\/$/, "")}/reset-password?token=${rawToken}`;
+    const mail = renderSimpleEmail({
+      heading: "Réinitialisation de votre mot de passe",
+      bodyHtml: `Bonjour ${escapeHtml(user.name)},<br /><br />Vous avez demandé la réinitialisation de votre mot de passe ITicket. Cliquez sur le lien ci-dessous pour en choisir un nouveau (valable 1 heure) :<br /><br /><a href="${resetUrl}">${resetUrl}</a><br /><br />Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.`,
+      bodyText: `Bonjour ${user.name},\n\nVous avez demandé la réinitialisation de votre mot de passe ITicket. Ouvrez ce lien pour en choisir un nouveau (valable 1 heure) :\n${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet email.`,
+    });
+    void sendMail({ to: user.email, subject: "Réinitialisation de votre mot de passe ITicket", ...mail });
+  }
+
+  // Réponse identique que l'email existe ou non, pour ne pas révéler les comptes existants.
+  res.status(204).send();
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const data = resetPasswordSchema.parse(req.body);
+
+  const tokenHash = hashResetToken(data.token);
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    throw new HttpError(400, "Lien de réinitialisation invalide ou expiré");
+  }
+
+  const passwordHash = await hashPassword(data.newPassword);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ]);
 
   res.status(204).send();
 }

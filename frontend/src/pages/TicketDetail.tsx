@@ -10,7 +10,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { IconAlertTriangle, IconWorkflow } from "../components/icons";
+import { IconAlertTriangle, IconWorkflow, IconStar } from "../components/icons";
 import type { ProcessCategory, SageAutomationResult, Ticket, User, TicketStatus } from "../types";
 import { IconCheckCircle, IconXCircle } from "../components/icons";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
@@ -271,6 +271,79 @@ function ProcessPanel({
   );
 }
 
+function SatisfactionPanel({ ticket, isRequester }: { ticket: Ticket; isRequester: boolean }) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+
+  const rateMutation = useMutation({
+    mutationFn: async () => apiClient.post(`/tickets/${ticket.id}/satisfaction`, { rating, comment: comment || undefined }),
+    onSuccess: () => {
+      toast.success("Merci pour votre évaluation");
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible d'enregistrer l'évaluation")),
+  });
+
+  const isResolvedOrClosed = ticket.status === "RESOLVED" || ticket.status === "CLOSED";
+  if (!isResolvedOrClosed) return null;
+  if (!ticket.satisfactionRatedAt && !isRequester) return null;
+
+  return (
+    <Card className="mb-4 p-6">
+      <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+        <IconStar className="h-4 w-4 text-amber-500" fill="currentColor" /> Satisfaction
+      </h2>
+      {ticket.satisfactionRatedAt ? (
+        <div>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <IconStar
+                key={i}
+                className={`h-5 w-5 ${i <= (ticket.satisfactionRating ?? 0) ? "text-amber-400" : "text-slate-200"}`}
+                fill="currentColor"
+              />
+            ))}
+          </div>
+          {ticket.satisfactionComment && <p className="mt-2 text-sm text-slate-600">{ticket.satisfactionComment}</p>}
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2 text-sm text-slate-600">Comment évaluez-vous la résolution de ce ticket ?</p>
+          <div className="mb-3 flex gap-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <button
+                key={i}
+                type="button"
+                onMouseEnter={() => setHoverRating(i)}
+                onMouseLeave={() => setHoverRating(0)}
+                onClick={() => setRating(i)}
+              >
+                <IconStar
+                  className={`h-7 w-7 transition ${i <= (hoverRating || rating) ? "text-amber-400" : "text-slate-200"}`}
+                  fill="currentColor"
+                />
+              </button>
+            ))}
+          </div>
+          <textarea
+            rows={2}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Commentaire (optionnel)"
+            className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+          <Button size="sm" disabled={rating === 0} loading={rateMutation.isPending} onClick={() => rateMutation.mutate()}>
+            Envoyer mon évaluation
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -430,6 +503,8 @@ export function TicketDetail() {
       <ProcessPanel ticket={ticket} isStaff={isStaff} isAdmin={user?.role === "ADMIN"} currentUserId={user?.id} />
 
       <AttachmentsPanel ticketId={ticket.id} attachments={ticket.attachments ?? []} />
+
+      <SatisfactionPanel ticket={ticket} isRequester={ticket.requester.id === user?.id} />
 
       {isStaff && (
         <Card className="mb-4 p-6">

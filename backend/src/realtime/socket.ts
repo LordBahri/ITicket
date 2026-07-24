@@ -4,6 +4,7 @@ import { verifyToken } from "../utils/jwt";
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { chatBus } from "./chatBus";
+import { notificationBus } from "./notificationBus";
 
 function isStaff(role: string) {
   return role === "AGENT" || role === "ADMIN";
@@ -57,6 +58,10 @@ export function attachSocketServer(httpServer: HttpServer) {
 
   chatBus.on("thread-created", ({ thread }) => {
     io.to("staff-inbox").emit("chat:thread-created", thread);
+  });
+
+  notificationBus.on("notification", ({ userId, notification }) => {
+    io.to(`user:${userId}`).emit("notification:new", notification);
   });
 
   return io;

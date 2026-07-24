@@ -25,6 +25,7 @@ import {
 } from "./icons";
 import { Avatar } from "./ui/Avatar";
 import { TopProgressBar } from "./ui/TopProgressBar";
+import { NotificationBell } from "./NotificationBell";
 
 const SUPPORT_EMAIL = "support@meninx.tn";
 const SUPPORT_PHONE_DISPLAY = "+216 58 94 44 17";
@@ -149,6 +150,7 @@ export function Layout() {
         <header className="relative flex shrink-0 items-center justify-end bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 px-6 py-3">
           <TopProgressBar />
           <div className="flex items-center gap-5 text-sm text-white/90">
+            <NotificationBell />
             <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-1.5 transition hover:text-white">
               <IconMail className="h-4 w-4 shrink-0" />
               {SUPPORT_EMAIL}

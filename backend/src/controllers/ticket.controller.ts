@@ -8,6 +8,7 @@ import { createTicketRecord, ticketInclude } from "../services/ticket.service";
 import { STATUS_LABELS } from "../constants/ticketStatus";
 import { renderTicketEmail, escapeHtml } from "../services/emailTemplate";
 import { runSageAccessAutomation } from "../services/sageAccess.service";
+import { createNotification } from "../services/notification.service";
 
 const TICKET_CHANNELS = ["WEB", "EMAIL", "CHAT", "API", "PHONE", "SLACK", "TEAMS"] as const;
 const TICKET_STATUSES = ["PENDING_APPROVAL", "OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"] as const;
@@ -245,6 +246,14 @@ export async function updateTicket(req: Request, res: Response) {
       });
       void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Votre ticket a été assigné`, ...requesterMail });
     }
+
+    void createNotification({
+      userId: updated.assignee.id,
+      type: "ASSIGNED",
+      title: `Ticket assigné : ${updated.reference}`,
+      message: `${updated.title}`,
+      ticketId: updated.id,
+    });
   }
 
   if (data.status === "CLOSED") {
@@ -256,6 +265,15 @@ export async function updateTicket(req: Request, res: Response) {
     });
     for (const person of stakeholders) {
       void sendMail({ to: person.email, subject: `[${updated.reference}] Ticket fermé : ${updated.title}`, ...mail });
+      if (person.id !== req.user!.id) {
+        void createNotification({
+          userId: person.id,
+          type: "STATUS_CHANGE",
+          title: `Ticket fermé : ${updated.reference}`,
+          message: updated.title,
+          ticketId: updated.id,
+        });
+      }
     }
   } else if (data.status) {
     const mail = renderTicketEmail({
@@ -265,6 +283,15 @@ export async function updateTicket(req: Request, res: Response) {
     });
     for (const person of stakeholders) {
       void sendMail({ to: person.email, subject: `[${updated.reference}] Statut mis à jour : ${STATUS_LABELS[data.status]}`, ...mail });
+      if (person.id !== req.user!.id) {
+        void createNotification({
+          userId: person.id,
+          type: "STATUS_CHANGE",
+          title: `Statut mis à jour : ${STATUS_LABELS[data.status]}`,
+          message: updated.title,
+          ticketId: updated.id,
+        });
+      }
     }
   }
 
@@ -334,6 +361,13 @@ export async function approveTicketProcess(req: Request, res: Response) {
     ticket: updated,
   });
   void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Demande validée : ${updated.title}`, ...requesterMail });
+  void createNotification({
+    userId: updated.requester.id,
+    type: "APPROVAL_DECISION",
+    title: `Demande validée : ${updated.reference}`,
+    message: updated.title,
+    ticketId: updated.id,
+  });
 
   const agents = await prisma.user.findMany({ where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true }, select: { email: true } });
   const agentMail = renderTicketEmail({
@@ -374,6 +408,13 @@ export async function rejectTicketProcess(req: Request, res: Response) {
     extraNote: `Motif : ${comment}`,
   });
   void sendMail({ to: updated.requester.email, subject: `[${updated.reference}] Demande refusée : ${updated.title}`, ...rejectMail });
+  void createNotification({
+    userId: updated.requester.id,
+    type: "APPROVAL_DECISION",
+    title: `Demande refusée : ${updated.reference}`,
+    message: comment,
+    ticketId: updated.id,
+  });
 
   res.json({ ticket: serializeTicket(updated) });
 }
@@ -412,6 +453,37 @@ export async function unarchiveTicket(req: Request, res: Response) {
   const updated = await prisma.ticket.update({
     where: { id: ticket.id },
     data: { isArchived: false, archivedAt: null },
+    include: ticketInclude,
+  });
+  res.json({ ticket: serializeTicket(updated) });
+}
+
+const satisfactionSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(1000).optional(),
+});
+
+export async function rateTicketSatisfaction(req: Request, res: Response) {
+  const data = satisfactionSchema.parse(req.body);
+  const ticket = await getTicketOr404(req.params.id);
+
+  if (ticket.requesterId !== req.user!.id) {
+    throw new HttpError(403, "Seul le demandeur peut évaluer ce ticket");
+  }
+  if (ticket.status !== "RESOLVED" && ticket.status !== "CLOSED") {
+    throw new HttpError(400, "Le ticket doit être résolu ou fermé avant de pouvoir être évalué");
+  }
+  if (ticket.satisfactionRatedAt) {
+    throw new HttpError(400, "Ce ticket a déjà été évalué");
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id: ticket.id },
+    data: {
+      satisfactionRating: data.rating,
+      satisfactionComment: data.comment ?? null,
+      satisfactionRatedAt: new Date(),
+    },
     include: ticketInclude,
   });
   res.json({ ticket: serializeTicket(updated) });
