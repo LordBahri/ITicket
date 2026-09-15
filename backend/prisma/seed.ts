@@ -471,8 +471,10 @@ async function main() {
   const holding = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Holding" } });
 
   // Catalogue des bases Sage 100 : géré indépendamment des sociétés ITicket (voir modèle
-  // SageDatabase), initialisé ici à partir des noms de bases déjà connus pour ne rien perdre.
-  const sageDatabaseNames = [...new Set(companies.map((c) => c.sageDatabaseName).filter((n): n is string => Boolean(n)))];
+  // SageDatabase). Un dossier Sage 100 comprend en général deux bases distinctes, une par
+  // module (Gestion Commerciale et Comptabilité) ; l'admin IT peut ensuite ajuster ou compléter
+  // ce catalogue (ex : une paire de bases par filiale) depuis Administration IT > Bases Sage.
+  const sageDatabaseNames = ["Sage Commercial", "Sage Comptabilité"];
   for (const name of sageDatabaseNames) {
     await prisma.sageDatabase.upsert({ where: { name }, update: {}, create: { name } });
   }
