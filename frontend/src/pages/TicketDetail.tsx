@@ -11,7 +11,7 @@ import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { IconAlertTriangle, IconWorkflow, IconStar } from "../components/icons";
-import type { ProcessCategory, SageAutomationResult, Ticket, User, TicketStatus } from "../types";
+import type { ProcessCategory, SageAutomationDatabaseResult, Ticket, User, TicketStatus } from "../types";
 import { IconCheckCircle, IconXCircle } from "../components/icons";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
@@ -86,13 +86,14 @@ function ProcessPanel({
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
   });
 
-  const [sageResult, setSageResult] = useState<SageAutomationResult | null>(null);
+  const [sageResults, setSageResults] = useState<SageAutomationDatabaseResult[] | null>(null);
   const automateSageMutation = useMutation({
     mutationFn: async () =>
-      (await apiClient.post<{ result: SageAutomationResult }>(`/tickets/${ticket.id}/automate-sage-access`, {})).data.result,
-    onSuccess: (result) => {
-      setSageResult(result);
-      const allOk = result.rdp.ok && result.files.ok && result.sql.ok;
+      (await apiClient.post<{ results: SageAutomationDatabaseResult[] }>(`/tickets/${ticket.id}/automate-sage-access`, {})).data
+        .results,
+    onSuccess: (results) => {
+      setSageResults(results);
+      const allOk = results.every((r) => r.result.rdp.ok && r.result.files.ok && r.result.sql.ok);
       if (allOk) toast.success("Automatisation Sage terminée avec succès");
       else toast.error("Automatisation Sage terminée avec des erreurs — voir le détail ci-dessous");
       queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
@@ -204,34 +205,65 @@ function ProcessPanel({
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-sm text-brand-900">
               Automatise l'ajout au groupe RDP du serveur applicatif, la copie des fichiers .gcm/.mae et la sécurité SQL
-              Server pour cet accès Sage. La création de l'utilisateur dans Sage reste manuelle.
+              Server pour chaque base Sage sélectionnée. La création de l'utilisateur dans Sage reste manuelle.
             </p>
             <Button size="sm" loading={automateSageMutation.isPending} onClick={() => automateSageMutation.mutate()}>
               Automatiser
             </Button>
           </div>
-          {sageResult && (
-            <ul className="space-y-1 border-t border-brand-100 pt-2 text-sm">
-              {(
-                [
-                  ["rdp", "Accès RDP (serveur applicatif)"],
-                  ["files", "Copie des fichiers .gcm/.mae"],
-                  ["sql", "Sécurité SQL Server"],
-                ] as const
-              ).map(([key, label]) => (
-                <li key={key} className="flex items-start gap-1.5">
-                  {sageResult[key].ok ? (
-                    <IconCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  ) : (
-                    <IconXCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-                  )}
-                  <span className={sageResult[key].ok ? "text-emerald-800" : "text-red-700"}>
-                    {label} {!sageResult[key].ok && `— ${sageResult[key].message}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {ticket.sageDatabaseAccess && ticket.sageDatabaseAccess.length > 0 && (
+            <p className="mb-2 text-xs text-brand-800">
+              Bases demandées : {ticket.sageDatabaseAccess.map((a) => a.sageDatabase.name).join(", ")}
+            </p>
           )}
+          {sageResults && (
+            <div className="space-y-3 border-t border-brand-100 pt-2">
+              {sageResults.map(({ database, result }) => (
+                <div key={database}>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-700">{database}</p>
+                  <ul className="space-y-1 text-sm">
+                    {(
+                      [
+                        ["rdp", "Accès RDP (serveur applicatif)"],
+                        ["files", "Copie des fichiers .gcm/.mae"],
+                        ["sql", "Sécurité SQL Server"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <li key={key} className="flex items-start gap-1.5">
+                        {result[key].ok ? (
+                          <IconCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        ) : (
+                          <IconXCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                        )}
+                        <span className={result[key].ok ? "text-emerald-800" : "text-red-700"}>
+                          {label} {!result[key].ok && `— ${result[key].message}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {ticket.formData && ticket.process.formFields && ticket.process.formFields.length > 0 && (
+        <div className="mb-4 rounded-md border border-slate-200 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Formulaire complété</p>
+          <dl className="space-y-1.5 text-sm">
+            {ticket.process.formFields.map((f) => {
+              const value = ticket.formData?.[f.key];
+              return (
+                <div key={f.key} className="flex flex-wrap gap-1">
+                  <dt className="font-medium text-slate-600">{f.label} :</dt>
+                  <dd className="text-slate-700">
+                    {f.type === "checkbox" ? (value ? "Oui" : "Non") : value ? String(value) : "—"}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
         </div>
       )}
 
@@ -475,6 +507,18 @@ export function TicketDetail() {
         <div className="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-4 text-sm text-slate-500">
           <div>Demandeur : <span className="text-slate-700">{ticket.requester.name}</span></div>
           <div>Assigné à : <span className="text-slate-700">{ticket.assignee?.name ?? "Non assigné"}</span></div>
+          {(ticket.beneficiary || (ticket.beneficiaryLinks && ticket.beneficiaryLinks.length > 0)) && (
+            <div className="col-span-2">
+              {ticket.beneficiaryLinks && ticket.beneficiaryLinks.length > 0
+                ? `Bénéficiaires (${ticket.beneficiaryLinks.length}) : `
+                : "Bénéficiaire : "}
+              <span className="text-slate-700">
+                {ticket.beneficiaryLinks && ticket.beneficiaryLinks.length > 0
+                  ? ticket.beneficiaryLinks.map((b) => b.user.name).join(", ")
+                  : ticket.beneficiary?.name}
+              </span>
+            </div>
+          )}
           <div>
             Société : <span className="text-slate-700">{ticket.requester.company.name}</span>
           </div>

@@ -22,6 +22,9 @@ const createTicketSchema = z.object({
   channel: z.enum(TICKET_CHANNELS).optional(),
   processId: z.string().optional(),
   beneficiaryId: z.string().optional(),
+  beneficiaryIds: z.array(z.string()).optional(),
+  formData: z.record(z.unknown()).optional(),
+  sageDatabaseIds: z.array(z.string()).optional(),
 });
 
 const updateTicketSchema = z.object({
@@ -64,6 +67,9 @@ export async function createTicket(req: Request, res: Response) {
     channel: data.channel ?? "WEB",
     processId: data.processId,
     beneficiaryId: data.beneficiaryId,
+    beneficiaryIds: data.beneficiaryIds,
+    formData: data.formData,
+    sageDatabaseIds: data.sageDatabaseIds,
   });
 
   res.status(201).json({ ticket: serializeTicket(ticket) });
@@ -523,17 +529,33 @@ export async function automateSageAccess(req: Request, res: Response) {
       `Aucun identifiant AD renseigné sur la fiche de ${target.name} : renseignez-le avant de lancer l'automatisation`
     );
   }
-  const sageDatabaseName = target.company?.sageDatabaseName;
-  if (!sageDatabaseName) {
+
+  const requestedDatabases = ticket.sageDatabaseAccess.map((a) => a.sageDatabase);
+  const fallbackDatabaseName = target.company?.sageDatabaseName;
+  const databases =
+    requestedDatabases.length > 0
+      ? requestedDatabases
+      : fallbackDatabaseName
+        ? [{ id: "legacy", name: fallbackDatabaseName }]
+        : [];
+
+  if (databases.length === 0) {
     throw new HttpError(
       400,
-      `Aucun nom de base Sage renseigné sur la fiche de la société ${target.company?.name ?? ""} : renseignez-le avant de lancer l'automatisation`
+      "Aucune base Sage sélectionnée sur ce ticket : renseignez-en au moins une avant de lancer l'automatisation"
     );
   }
 
-  const result = await runSageAccessAutomation({ adUsername: target.adUsername, sageDatabaseName });
+  const adUsername = target.adUsername;
+  const perDatabaseResults = await Promise.all(
+    databases.map(async (db) => ({
+      database: db.name,
+      result: await runSageAccessAutomation({ adUsername, sageDatabaseName: db.name }),
+    }))
+  );
 
-  const stepResults: Record<string, boolean> = { RDP: result.rdp.ok, FILES: result.files.ok, SQL: result.sql.ok };
+  const allOk = (key: "rdp" | "files" | "sql") => perDatabaseResults.every((r) => r.result[key].ok);
+  const stepResults: Record<string, boolean> = { RDP: allOk("rdp"), FILES: allOk("files"), SQL: allOk("sql") };
   for (const completion of ticket.stepCompletions) {
     const key = completion.processStep.automationKey;
     if (key && stepResults[key] && !completion.isDone) {
@@ -545,5 +567,5 @@ export async function automateSageAccess(req: Request, res: Response) {
   }
 
   const updated = await getTicketOr404(req.params.id);
-  res.json({ result, ticket: serializeTicket(updated) });
+  res.json({ results: perDatabaseResults, ticket: serializeTicket(updated) });
 }

@@ -8,7 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { IconLightbulb, IconWorkflow, IconDownload } from "../components/icons";
-import type { Category, KnowledgeArticle, Process, SubCategory, Ticket, TicketType } from "../types";
+import type { Category, KnowledgeArticle, Process, SageDatabase, SubCategory, Ticket, TicketType } from "../types";
 
 interface DirectoryUser {
   id: string;
@@ -31,6 +31,9 @@ export function NewTicket() {
   const [subCategoryId, setSubCategoryId] = useState("");
   const [processId, setProcessId] = useState("");
   const [beneficiaryId, setBeneficiaryId] = useState("");
+  const [beneficiaryIds, setBeneficiaryIds] = useState<string[]>([]);
+  const [formValues, setFormValues] = useState<Record<string, string | boolean>>({});
+  const [sageDatabaseIds, setSageDatabaseIds] = useState<string[]>([]);
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formPromptProcess, setFormPromptProcess] = useState<Process | null>(null);
@@ -80,6 +83,13 @@ export function NewTicket() {
     enabled: Boolean(processId),
   });
 
+  const { data: sageDatabases } = useQuery({
+    queryKey: ["sage-databases"],
+    queryFn: async () => (await apiClient.get<{ sageDatabases: SageDatabase[] }>("/sage-databases")).data.sageDatabases,
+    enabled: Boolean(selectedProcess?.supportsSageAutomation),
+  });
+  const activeSageDatabases = sageDatabases?.filter((d) => d.isActive) ?? [];
+
   const { data: suggestedArticles } = useQuery({
     queryKey: ["knowledge", { categoryId }],
     queryFn: async () =>
@@ -103,6 +113,9 @@ export function NewTicket() {
   function handleProcessChange(value: string) {
     setProcessId(value);
     setBeneficiaryId("");
+    setBeneficiaryIds([]);
+    setFormValues({});
+    setSageDatabaseIds([]);
     if (value) {
       setTypeId("");
       setCategoryId("");
@@ -110,6 +123,14 @@ export function NewTicket() {
       const proc = visibleProcesses.find((p) => p.id === value);
       if (proc?.requiresPhysicalForm) setFormPromptProcess(proc);
     }
+  }
+
+  function toggleBeneficiary(userId: string) {
+    setBeneficiaryIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
+  }
+
+  function toggleSageDatabase(dbId: string) {
+    setSageDatabaseIds((prev) => (prev.includes(dbId) ? prev.filter((id) => id !== dbId) : [...prev, dbId]));
   }
 
   const mutation = useMutation({
@@ -122,7 +143,12 @@ export function NewTicket() {
           categoryId: processId ? undefined : categoryId,
           subCategoryId: processId ? undefined : subCategoryId,
           processId: processId || undefined,
-          beneficiaryId: beneficiaryId || undefined,
+          beneficiaryId: selectedProcess?.allowsMultipleBeneficiaries ? undefined : beneficiaryId || undefined,
+          beneficiaryIds:
+            selectedProcess?.allowsMultipleBeneficiaries && beneficiaryIds.length > 0 ? beneficiaryIds : undefined,
+          formData: selectedProcess?.formFields && selectedProcess.formFields.length > 0 ? formValues : undefined,
+          sageDatabaseIds:
+            selectedProcess?.supportsSageAutomation && sageDatabaseIds.length > 0 ? sageDatabaseIds : undefined,
         })
       ).data.ticket,
     onSuccess: async (ticket) => {
@@ -235,18 +261,115 @@ export function NewTicket() {
 
           {processId && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Utilisateur bénéficiaire (optionnel)</label>
-              <select value={beneficiaryId} onChange={(e) => setBeneficiaryId(e.target.value)} className={inputClass}>
-                <option value="">Aucun — la demande me concerne</option>
-                {directory?.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </option>
-                ))}
-              </select>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                {selectedProcess?.allowsMultipleBeneficiaries
+                  ? "Utilisateurs bénéficiaires (optionnel)"
+                  : "Utilisateur bénéficiaire (optionnel)"}
+              </label>
+              {selectedProcess?.allowsMultipleBeneficiaries ? (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-slate-300 p-2">
+                  {directory?.length ? (
+                    directory.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={beneficiaryIds.includes(u.id)}
+                          onChange={() => toggleBeneficiary(u.id)}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        {u.name} ({u.email})
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Chargement de l'annuaire…</p>
+                  )}
+                </div>
+              ) : (
+                <select value={beneficiaryId} onChange={(e) => setBeneficiaryId(e.target.value)} className={inputClass}>
+                  <option value="">Aucun — la demande me concerne</option>
+                  {directory?.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className="mt-1 text-xs text-slate-400">
-                Sélectionnez la personne concernée par cette demande si ce n'est pas vous (ex : nouvel employé pour un
-                onboarding).
+                {selectedProcess?.allowsMultipleBeneficiaries
+                  ? "Cochez toutes les personnes concernées par cette demande (ex : achat de licence pour plusieurs collaborateurs)."
+                  : "Sélectionnez la personne concernée par cette demande si ce n'est pas vous (ex : nouvel employé pour un onboarding)."}
+              </p>
+            </div>
+          )}
+
+          {selectedProcess && selectedProcess.formFields && selectedProcess.formFields.length > 0 && (
+            <div className="space-y-3 rounded-md border border-slate-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Informations complémentaires</p>
+              {selectedProcess.formFields.map((f) => (
+                <div key={f.key}>
+                  {f.type === "checkbox" ? (
+                    <label className="flex items-start gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        required={f.required}
+                        checked={Boolean(formValues[f.key])}
+                        onChange={(e) => setFormValues((prev) => ({ ...prev, [f.key]: e.target.checked }))}
+                        className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      {f.label}
+                    </label>
+                  ) : (
+                    <>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        {f.label}
+                        {f.required && " *"}
+                      </label>
+                      {f.type === "textarea" ? (
+                        <textarea
+                          required={f.required}
+                          rows={3}
+                          value={(formValues[f.key] as string) ?? ""}
+                          onChange={(e) => setFormValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          className={inputClass}
+                        />
+                      ) : (
+                        <input
+                          type={f.type === "date" ? "date" : f.type === "number" ? "number" : "text"}
+                          required={f.required}
+                          value={(formValues[f.key] as string) ?? ""}
+                          onChange={(e) => setFormValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          className={inputClass}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {selectedProcess?.supportsSageAutomation && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Bases Sage à affecter</label>
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-slate-300 p-2">
+                {activeSageDatabases.length ? (
+                  activeSageDatabases.map((db) => (
+                    <label key={db.id} className="flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={sageDatabaseIds.includes(db.id)}
+                        onChange={() => toggleSageDatabase(db.id)}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      {db.name}
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400">Aucune base Sage active — contactez un administrateur.</p>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                Cochez chaque base Sage à laquelle le bénéficiaire doit avoir accès.
               </p>
             </div>
           )}

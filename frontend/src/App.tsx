@@ -28,6 +28,7 @@ import { CompanyDetail } from "./pages/CompanyDetail";
 import { AdminAssets } from "./pages/AdminAssets";
 import { AdminLicenses } from "./pages/AdminLicenses";
 import { AdminProcesses } from "./pages/AdminProcesses";
+import { AdminSageDatabases } from "./pages/AdminSageDatabases";
 import { Account } from "./pages/Account";
 import { RemoteAccess } from "./pages/RemoteAccess";
 import { Chat } from "./pages/Chat";
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/admin/assets" element={<AdminAssets />} />
             <Route path="/admin/licenses" element={<AdminLicenses />} />
             <Route path="/admin/processes" element={<AdminProcesses />} />
+            <Route path="/admin/sage-databases" element={<AdminSageDatabases />} />
           </Route>
         </Route>
       </Route>

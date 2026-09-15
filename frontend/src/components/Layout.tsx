@@ -16,6 +16,7 @@ import {
   IconMonitor,
   IconKey,
   IconWorkflow,
+  IconDatabase,
   IconMail,
   IconWhatsApp,
   IconRemote,
@@ -105,6 +106,9 @@ export function Layout() {
               </NavLink>
               <NavLink to="/admin/processes" className={navLinkClass}>
                 <IconWorkflow className="h-[18px] w-[18px] shrink-0" /> Processus IT
+              </NavLink>
+              <NavLink to="/admin/sage-databases" className={navLinkClass}>
+                <IconDatabase className="h-[18px] w-[18px] shrink-0" /> Bases Sage
               </NavLink>
 
               <div className="mb-1.5 mt-7 border-t border-slate-100 px-3 pt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">

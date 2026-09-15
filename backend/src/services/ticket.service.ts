@@ -16,6 +16,7 @@ export const ticketInclude = {
   },
   assignee: { select: { id: true, name: true, email: true } },
   beneficiary: { select: { id: true, name: true, email: true, adUsername: true, company: true } },
+  beneficiaryLinks: { select: { user: { select: { id: true, name: true, email: true } } } },
   process: {
     select: {
       id: true,
@@ -25,10 +26,13 @@ export const ticketInclude = {
       requiresPhysicalForm: true,
       formTemplateUrl: true,
       supportsSageAutomation: true,
+      allowsMultipleBeneficiaries: true,
+      formFields: true,
     },
   },
   approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
   physicalFormArchivedBy: { select: { id: true, name: true } },
+  sageDatabaseAccess: { select: { sageDatabase: { select: { id: true, name: true } } } },
   statusHistory: {
     orderBy: { createdAt: "asc" as const },
     include: { changedBy: { select: { id: true, name: true } } },
@@ -45,7 +49,17 @@ interface CreateTicketParams {
   channel: TicketChannel;
   processId?: string | null;
   beneficiaryId?: string | null;
+  beneficiaryIds?: string[];
+  formData?: Record<string, unknown>;
+  sageDatabaseIds?: string[];
   notify?: boolean;
+}
+
+interface ProcessFormField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "date" | "number" | "checkbox";
+  required: boolean;
 }
 
 async function isTicketTypeReservedForProcess(typeId: string): Promise<boolean> {
@@ -54,8 +68,19 @@ async function isTicketTypeReservedForProcess(typeId: string): Promise<boolean> 
 }
 
 export async function createTicketRecord(params: CreateTicketParams) {
-  let process: { id: string; name: string; requiresManagerApproval: boolean; typeId: string; categoryId: string; subCategoryId: string } | null =
-    null;
+  let process:
+    | {
+        id: string;
+        name: string;
+        requiresManagerApproval: boolean;
+        typeId: string;
+        categoryId: string;
+        subCategoryId: string;
+        allowsMultipleBeneficiaries: boolean;
+        formFields: unknown;
+        supportsSageAutomation: boolean;
+      }
+    | null = null;
   let approverId: string | null = null;
 
   if (params.processId) {
@@ -110,6 +135,46 @@ export async function createTicketRecord(params: CreateTicketParams) {
     if (!beneficiary || !beneficiary.isActive) throw new HttpError(400, "Utilisateur bénéficiaire invalide");
   }
 
+  let beneficiaryUsers: { id: string }[] = [];
+  if (params.beneficiaryIds && params.beneficiaryIds.length > 0) {
+    if (!process?.allowsMultipleBeneficiaries) {
+      throw new HttpError(400, "Ce processus ne permet pas de sélectionner plusieurs bénéficiaires");
+    }
+    beneficiaryUsers = await prisma.user.findMany({
+      where: { id: { in: params.beneficiaryIds }, isActive: true },
+      select: { id: true },
+    });
+    if (beneficiaryUsers.length !== new Set(params.beneficiaryIds).size) {
+      throw new HttpError(400, "Un ou plusieurs bénéficiaires sélectionnés sont invalides");
+    }
+  }
+
+  const formFields = (process?.formFields as ProcessFormField[] | null) ?? [];
+  if (formFields.length > 0) {
+    const missing = formFields.filter((f) => {
+      if (!f.required) return false;
+      const value = params.formData?.[f.key];
+      return f.type === "checkbox" ? value !== true : value === undefined || value === null || String(value).trim() === "";
+    });
+    if (missing.length > 0) {
+      throw new HttpError(400, `Champs obligatoires manquants : ${missing.map((f) => f.label).join(", ")}`);
+    }
+  }
+
+  let sageDatabases: { id: string; name: string }[] = [];
+  if (params.sageDatabaseIds && params.sageDatabaseIds.length > 0) {
+    if (!process?.supportsSageAutomation) {
+      throw new HttpError(400, "Ce processus ne prend pas en charge la sélection de bases Sage");
+    }
+    sageDatabases = await prisma.sageDatabase.findMany({
+      where: { id: { in: params.sageDatabaseIds }, isActive: true },
+      select: { id: true, name: true },
+    });
+    if (sageDatabases.length !== new Set(params.sageDatabaseIds).size) {
+      throw new HttpError(400, "Une ou plusieurs bases Sage sélectionnées sont invalides");
+    }
+  }
+
   const reference = await generateTicketReference();
   const dueAt = computeDueAt(subCategory.priority);
 
@@ -128,9 +193,30 @@ export async function createTicketRecord(params: CreateTicketParams) {
       processId: process?.id ?? null,
       status: approverId ? "PENDING_APPROVAL" : undefined,
       dueAt,
+      formData: formFields.length > 0 ? (params.formData as object) : undefined,
     },
     include: ticketInclude,
   });
+
+  if (beneficiaryUsers.length > 0) {
+    await prisma.ticketBeneficiaryLink.createMany({
+      data: beneficiaryUsers.map((u) => ({ ticketId: ticket.id, userId: u.id })),
+    });
+  }
+
+  if (sageDatabases.length > 0) {
+    const targetUserId = params.beneficiaryId ?? params.requesterId;
+    await prisma.ticketSageDatabaseAccess.createMany({
+      data: sageDatabases.map((db) => ({ ticketId: ticket.id, sageDatabaseId: db.id })),
+    });
+    for (const db of sageDatabases) {
+      await prisma.userSageAccess.upsert({
+        where: { userId_sageDatabaseId: { userId: targetUserId, sageDatabaseId: db.id } },
+        update: {},
+        create: { userId: targetUserId, sageDatabaseId: db.id, grantedById: params.requesterId },
+      });
+    }
+  }
 
   await prisma.ticketStatusHistory.create({
     data: { ticketId: ticket.id, status: ticket.status, changedById: params.requesterId },

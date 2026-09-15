@@ -6,7 +6,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { Category, Process, ProcessCategory, ProcessStep, SubCategory, TicketType } from "../types";
+import type { Category, Process, ProcessCategory, ProcessFormField, ProcessFormFieldType, ProcessStep, SubCategory, TicketType } from "../types";
 
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
@@ -19,6 +19,120 @@ const CATEGORY_LABELS: Record<ProcessCategory, string> = {
   ONBOARDING: "Arrivée (onboarding)",
   OFFBOARDING: "Départ (offboarding)",
 };
+
+const FIELD_TYPE_LABELS: Record<ProcessFormFieldType, string> = {
+  text: "Texte court",
+  textarea: "Texte long",
+  date: "Date",
+  number: "Nombre",
+  checkbox: "Case à cocher",
+};
+
+function slugifyFieldKey(label: string): string {
+  const base = label
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/^([0-9])/, "f$1");
+  return base ? base.slice(0, 50) : `champ_${Date.now()}`;
+}
+
+function ProcessFormFieldsManager({ process }: { process: Process }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [label, setLabel] = useState("");
+  const [type, setType] = useState<ProcessFormFieldType>("text");
+  const [required, setRequired] = useState(true);
+
+  const fields = process.formFields ?? [];
+
+  const saveMutation = useMutation({
+    mutationFn: async (nextFields: ProcessFormField[]) => apiClient.patch(`/processes/${process.id}`, { formFields: nextFields }),
+    onSuccess: () => {
+      toast.success("Formulaire numérique mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["processes"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    if (!label.trim()) return;
+    const key = slugifyFieldKey(label);
+    if (fields.some((f) => f.key === key)) {
+      toast.error("Un champ avec un identifiant similaire existe déjà");
+      return;
+    }
+    saveMutation.mutate([...fields, { key, label: label.trim(), type, required }]);
+    setLabel("");
+    setType("text");
+    setRequired(true);
+  }
+
+  function handleRemove(key: string) {
+    saveMutation.mutate(fields.filter((f) => f.key !== key));
+  }
+
+  function handleToggleRequired(key: string) {
+    saveMutation.mutate(fields.map((f) => (f.key === key ? { ...f, required: !f.required } : f)));
+  }
+
+  return (
+    <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Formulaire numérique (rempli depuis la plateforme lors de la création du ticket)
+      </p>
+      {fields.length === 0 && <p className="mb-2 text-xs text-slate-400">Aucun champ défini</p>}
+      <ul className="mb-3 space-y-1">
+        {fields.map((f) => (
+          <li key={f.key} className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-slate-700">
+              {f.label}{" "}
+              <span className="text-xs text-slate-400">
+                ({FIELD_TYPE_LABELS[f.type]}
+                {f.required ? ", obligatoire" : ""})
+              </span>
+            </span>
+            <span className="flex shrink-0 gap-3">
+              <button
+                onClick={() => handleToggleRequired(f.key)}
+                className="text-xs font-medium text-slate-500 hover:text-brand-700 hover:underline"
+              >
+                {f.required ? "Rendre optionnel" : "Rendre obligatoire"}
+              </button>
+              <button onClick={() => handleRemove(f.key)} className="text-xs font-medium text-red-500 hover:text-red-700 hover:underline">
+                Supprimer
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Libellé du champ (ex : Logiciel / Éditeur)…"
+          className={`flex-1 ${inputClass} py-1.5 text-xs`}
+        />
+        <select value={type} onChange={(e) => setType(e.target.value as ProcessFormFieldType)} className={`${inputClass} py-1.5 text-xs`}>
+          {Object.entries(FIELD_TYPE_LABELS).map(([value, l]) => (
+            <option key={value} value={value}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />
+          Obligatoire
+        </label>
+        <Button type="submit" size="sm" loading={saveMutation.isPending}>
+          Ajouter
+        </Button>
+      </form>
+    </div>
+  );
+}
 
 function ProcessStepManager({ process }: { process: Process }) {
   const queryClient = useQueryClient();
@@ -95,6 +209,7 @@ export function AdminProcesses() {
   const [requiresManagerApproval, setRequiresManagerApproval] = useState(true);
   const [requiresPhysicalForm, setRequiresPhysicalForm] = useState(false);
   const [openToAllUsers, setOpenToAllUsers] = useState(false);
+  const [allowsMultipleBeneficiaries, setAllowsMultipleBeneficiaries] = useState(false);
   const [formTemplateUrl, setFormTemplateUrl] = useState("");
   const [typeId, setTypeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -145,6 +260,7 @@ export function AdminProcesses() {
         requiresManagerApproval,
         requiresPhysicalForm,
         openToAllUsers,
+        allowsMultipleBeneficiaries,
         formTemplateUrl: formTemplateUrl || undefined,
         typeId,
         categoryId,
@@ -157,6 +273,7 @@ export function AdminProcesses() {
       setRequiresManagerApproval(true);
       setRequiresPhysicalForm(false);
       setOpenToAllUsers(false);
+      setAllowsMultipleBeneficiaries(false);
       setTypeId("");
       setCategoryId("");
       setSubCategoryId("");
@@ -192,6 +309,16 @@ export function AdminProcesses() {
   const toggleApprovalMutation = useMutation({
     mutationFn: async (process: Process) =>
       apiClient.patch(`/processes/${process.id}`, { requiresManagerApproval: !process.requiresManagerApproval }),
+    onSuccess: () => {
+      toast.success("Processus mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["processes"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const toggleMultiBeneficiaryMutation = useMutation({
+    mutationFn: async (process: Process) =>
+      apiClient.patch(`/processes/${process.id}`, { allowsMultipleBeneficiaries: !process.allowsMultipleBeneficiaries }),
     onSuccess: () => {
       toast.success("Processus mis à jour");
       queryClient.invalidateQueries({ queryKey: ["processes"] });
@@ -323,6 +450,15 @@ export function AdminProcesses() {
               />
               Accessible à tous les utilisateurs (pas seulement aux responsables de service)
             </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={allowsMultipleBeneficiaries}
+                onChange={(e) => setAllowsMultipleBeneficiaries(e.target.checked)}
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              Autorise la sélection de plusieurs bénéficiaires (cases à cocher)
+            </label>
           </div>
           <div className="flex gap-2">
             <Button type="submit" loading={createMutation.isPending}>
@@ -345,12 +481,13 @@ export function AdminProcesses() {
               <th className="px-4 py-2">Validation</th>
               <th className="px-4 py-2">Formulaire</th>
               <th className="px-4 py-2">Accessible</th>
+              <th className="px-4 py-2">Bénéficiaires</th>
               <th className="px-4 py-2">Statut</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={8} />)}
+            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={9} />)}
             {processes?.map((p) => (
               <Fragment key={p.id}>
                 <tr
@@ -411,6 +548,19 @@ export function AdminProcesses() {
                     </button>
                   </td>
                   <td className="px-4 py-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMultiBeneficiaryMutation.mutate(p);
+                      }}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium hover:underline ${
+                        p.allowsMultipleBeneficiaries ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {p.allowsMultipleBeneficiaries ? "Plusieurs" : "Un seul"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2">
                     <span
                       className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                         p.isActive ? "text-emerald-600" : "text-slate-400"
@@ -434,8 +584,9 @@ export function AdminProcesses() {
                 </tr>
                 {expanded === p.id && (
                   <tr>
-                    <td colSpan={8} className="p-0">
+                    <td colSpan={9} className="p-0">
                       <ProcessStepManager process={p} />
+                      <ProcessFormFieldsManager process={p} />
                     </td>
                   </tr>
                 )}

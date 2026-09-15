@@ -121,6 +121,9 @@ model User {
   ticketStatusChanges TicketStatusHistory[]   @relation("TicketStatusChangedBy")
   notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
+  ticketBeneficiaryOf TicketBeneficiaryLink[]
+  sageAccess          UserSageAccess[]        @relation("SageAccessUser")
+  sageAccessGranted   UserSageAccess[]        @relation("SageAccessGrantedBy")
 
   @@index([companyId])
   @@index([serviceId])
@@ -258,15 +261,21 @@ model Ticket {
   satisfactionComment String?
   satisfactionRatedAt DateTime?
 
+  // Valeurs saisies pour les champs de formulaire numérique du processus (Process.formFields),
+  // au format JSON { [fieldKey]: valeur }.
+  formData Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  comments        Comment[]
-  attachments     Attachment[]
-  approval        ProcessApproval?
-  stepCompletions ProcessStepCompletion[]
-  statusHistory   TicketStatusHistory[]
-  notifications   Notification[]
+  comments           Comment[]
+  attachments        Attachment[]
+  approval           ProcessApproval?
+  stepCompletions    ProcessStepCompletion[]
+  statusHistory      TicketStatusHistory[]
+  notifications      Notification[]
+  beneficiaryLinks   TicketBeneficiaryLink[]
+  sageDatabaseAccess TicketSageDatabaseAccess[]
 
   @@index([status])
   @@index([requesterId])
@@ -422,6 +431,15 @@ model Process {
   // Par défaut, seuls les responsables de service (et les admins) peuvent initier un ticket
   // lié à un processus IT. Si vrai, n'importe quel utilisateur peut initier ce processus précis.
   openToAllUsers Boolean @default(false)
+
+  // Si vrai, la création d'un ticket pour ce processus permet de sélectionner plusieurs
+  // bénéficiaires (cases à cocher) au lieu d'un seul (ex : achat de licence multi-utilisateurs).
+  allowsMultipleBeneficiaries Boolean @default(false)
+
+  // Champs de formulaire numérique à remplir depuis la plateforme lors de la création du
+  // ticket (remplace le formulaire papier à imprimer/signer/scanner) : tableau JSON
+  // [{ key, label, type: "text"|"textarea"|"date"|"number"|"checkbox", required }].
+  formFields Json?
 
   // Type/catégorie/sous-catégorie appliqués automatiquement au ticket créé via ce
   // processus (non modifiables par l'utilisateur) ; ce type de demande n'apparaît
@@ -601,4 +619,55 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Bénéficiaire (parmi plusieurs) d'un ticket dont le processus autorise la sélection
+// multi-utilisateurs (ex : achat de licence pour plusieurs collaborateurs).
+model TicketBeneficiaryLink {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([ticketId, userId])
+  @@index([userId])
+}
+
+// Catalogue des bases Sage 100 (indépendant des sociétés ITicket : une base porte
+// généralement le nom d'une société, mais la liste est gérée séparément par l'admin IT).
+model SageDatabase {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  userAccess   UserSageAccess[]
+  ticketAccess TicketSageDatabaseAccess[]
+}
+
+// Accès permanent d'un utilisateur à une base Sage donnée (visible/modifiable depuis sa
+// fiche utilisateur), accordé initialement via un ticket de demande d'accès Sage.
+model UserSageAccess {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation("SageAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  sageDatabaseId String
+  sageDatabase   SageDatabase @relation(fields: [sageDatabaseId], references: [id], onDelete: Cascade)
+  grantedAt      DateTime     @default(now())
+  grantedById    String?
+  grantedBy      User?        @relation("SageAccessGrantedBy", fields: [grantedById], references: [id])
+
+  @@unique([userId, sageDatabaseId])
+}
+
+// Bases Sage demandées sur un ticket d'accès Sage donné (pour l'automatisation et la trace).
+model TicketSageDatabaseAccess {
+  id             String       @id @default(cuid())
+  ticketId       String
+  ticket         Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sageDatabaseId String
+  sageDatabase   SageDatabase @relation(fields: [sageDatabaseId], references: [id])
+
+  @@unique([ticketId, sageDatabaseId])
 }

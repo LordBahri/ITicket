@@ -71,6 +71,7 @@ const publicSelect = {
   ultraviewerId: true,
   avatarUrl: true,
   adUsername: true,
+  sageAccess: { select: { sageDatabase: { select: { id: true, name: true } } } },
 } as const;
 
 async function wouldCreateManagerCycle(userId: string, newManagerId: string): Promise<boolean> {
@@ -311,6 +312,33 @@ export async function resetUserPassword(req: Request, res: Response) {
   await sendMail({ to: user.email, subject: "Votre mot de passe ITicket a été réinitialisé", ...resetMail });
 
   res.json({ generatedPassword });
+}
+
+const sageAccessSchema = z.object({
+  sageDatabaseIds: z.array(z.string()),
+});
+
+export async function updateUserSageAccess(req: Request, res: Response) {
+  const data = sageAccessSchema.parse(req.body);
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw new HttpError(404, "Utilisateur introuvable");
+
+  const sageDatabases = await prisma.sageDatabase.findMany({ where: { id: { in: data.sageDatabaseIds } } });
+  if (sageDatabases.length !== new Set(data.sageDatabaseIds).size) {
+    throw new HttpError(400, "Une ou plusieurs bases Sage sélectionnées sont invalides");
+  }
+
+  await prisma.userSageAccess.deleteMany({ where: { userId: user.id, sageDatabaseId: { notIn: data.sageDatabaseIds } } });
+  for (const db of sageDatabases) {
+    await prisma.userSageAccess.upsert({
+      where: { userId_sageDatabaseId: { userId: user.id, sageDatabaseId: db.id } },
+      update: {},
+      create: { userId: user.id, sageDatabaseId: db.id, grantedById: req.user!.id },
+    });
+  }
+
+  const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: publicSelect });
+  res.json({ user: updated });
 }
 
 export async function listRemoteAccess(_req: Request, res: Response) {

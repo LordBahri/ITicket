@@ -38,6 +38,16 @@ export function IconLayers(props: IconProps) {
   );
 }
 
+export function IconDatabase(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="3" />
+      <path d="M4.5 5.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" />
+      <path d="M4.5 11.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" />
+    </svg>
+  );
+}
+
 export function IconDashboard(props: IconProps) {
   return (
     <svg {...base} {...props}>

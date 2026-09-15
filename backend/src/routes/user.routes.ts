@@ -8,6 +8,7 @@ import {
   updateUser,
   deleteUser,
   resetUserPassword,
+  updateUserSageAccess,
   listRemoteAccess,
 } from "../controllers/user.controller";
 import { authenticate, authorize } from "../middleware/auth";
@@ -26,3 +27,4 @@ userRouter.post("/", authorize("ADMIN"), asyncHandler(createUser));
 userRouter.patch("/:id", authorize("ADMIN"), asyncHandler(updateUser));
 userRouter.delete("/:id", authorize("ADMIN"), asyncHandler(deleteUser));
 userRouter.post("/:id/reset-password", authorize("ADMIN"), asyncHandler(resetUserPassword));
+userRouter.patch("/:id/sage-access", authorize("ADMIN"), asyncHandler(updateUserSageAccess));

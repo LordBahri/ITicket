@@ -55,6 +55,7 @@ export interface User {
   ultraviewerId?: string | null;
   avatarUrl?: string | null;
   adUsername?: string | null;
+  sageAccess?: { sageDatabase: { id: string; name: string } }[];
 }
 
 export interface RemoteAccessUser {
@@ -153,6 +154,27 @@ export interface SageAutomationResult {
   sql: SageAutomationStepResult;
 }
 
+export interface SageAutomationDatabaseResult {
+  database: string;
+  result: SageAutomationResult;
+}
+
+export interface SageDatabase {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export type ProcessFormFieldType = "text" | "textarea" | "date" | "number" | "checkbox";
+
+export interface ProcessFormField {
+  key: string;
+  label: string;
+  type: ProcessFormFieldType;
+  required: boolean;
+}
+
 export interface Process {
   id: string;
   name: string;
@@ -163,6 +185,8 @@ export interface Process {
   formTemplateUrl: string | null;
   supportsSageAutomation?: boolean;
   openToAllUsers: boolean;
+  allowsMultipleBeneficiaries: boolean;
+  formFields: ProcessFormField[] | null;
   isActive: boolean;
   steps: ProcessStep[];
   typeId: string;
@@ -204,6 +228,7 @@ export interface Ticket {
   requester: { id: string; name: string; email: string; service: Service | null; company: Company };
   assignee: { id: string; name: string; email: string } | null;
   beneficiary?: { id: string; name: string; email: string } | null;
+  beneficiaryLinks?: { user: { id: string; name: string; email: string } }[];
   process?: {
     id: string;
     name: string;
@@ -212,11 +237,15 @@ export interface Ticket {
     requiresPhysicalForm: boolean;
     formTemplateUrl: string | null;
     supportsSageAutomation?: boolean;
+    allowsMultipleBeneficiaries?: boolean;
+    formFields?: ProcessFormField[] | null;
   } | null;
   approval?: ProcessApproval | null;
   stepCompletions?: ProcessStepCompletion[];
   physicalFormArchivedAt?: string | null;
   physicalFormArchivedBy?: { id: string; name: string } | null;
+  formData?: Record<string, unknown> | null;
+  sageDatabaseAccess?: { sageDatabase: { id: string; name: string } }[];
   dueAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;

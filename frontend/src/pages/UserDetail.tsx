@@ -8,7 +8,7 @@ import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { PageSpinner } from "../components/ui/Spinner";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Asset, Company, Role, Service, Ticket, User } from "../types";
+import type { Asset, Company, Role, SageDatabase, Service, Ticket, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
 const inputClass =
@@ -50,6 +50,61 @@ function AssetMiniList({ assets }: { assets?: Asset[] }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+function SageAccessSection({ user }: { user: User }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const { data: sageDatabases } = useQuery({
+    queryKey: ["sage-databases"],
+    queryFn: async () => (await apiClient.get<{ sageDatabases: SageDatabase[] }>("/sage-databases")).data.sageDatabases,
+  });
+
+  const currentIds = new Set((user.sageAccess ?? []).map((a) => a.sageDatabase.id));
+
+  const updateMutation = useMutation({
+    mutationFn: async (sageDatabaseIds: string[]) => apiClient.patch(`/users/${user.id}/sage-access`, { sageDatabaseIds }),
+    onSuccess: () => {
+      toast.success("Accès Sage mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["user", user.id] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  function toggle(dbId: string) {
+    const next = currentIds.has(dbId) ? [...currentIds].filter((id) => id !== dbId) : [...currentIds, dbId];
+    updateMutation.mutate(next);
+  }
+
+  const visibleDatabases = sageDatabases?.filter((db) => db.isActive || currentIds.has(db.id)) ?? [];
+
+  return (
+    <Card className="p-6">
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">Accès Sage</h2>
+      {visibleDatabases.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune base Sage configurée</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {visibleDatabases.map((db) => (
+            <li key={db.id}>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={currentIds.has(db.id)}
+                  disabled={updateMutation.isPending}
+                  onChange={() => toggle(db.id)}
+                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                {db.name}
+                {!db.isActive && <span className="text-xs text-slate-400">(désactivée)</span>}
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }
@@ -479,6 +534,7 @@ export function UserDetail() {
 
       <div className="space-y-4">
         <AssetMiniList assets={assignedAssets} />
+        <SageAccessSection user={user} />
         <TicketMiniList title="Tickets créés" tickets={requestedTickets} />
         {isStaff && <TicketMiniList title="Tickets assignés" tickets={assignedTickets} />}
       </div>

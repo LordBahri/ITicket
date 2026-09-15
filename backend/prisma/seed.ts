@@ -5,6 +5,13 @@ const prisma = new PrismaClient();
 
 type ProcessStepDef = string | { name: string; automationKey?: string };
 
+interface ProcessFormFieldDef {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "date" | "number" | "checkbox";
+  required: boolean;
+}
+
 interface ProcessSeedDef {
   name: string;
   category: ProcessCategory;
@@ -14,6 +21,8 @@ interface ProcessSeedDef {
   requiresPhysicalForm: boolean;
   formTemplateUrl: string | null;
   supportsSageAutomation?: boolean;
+  allowsMultipleBeneficiaries?: boolean;
+  formFields?: ProcessFormFieldDef[];
   steps: ProcessStepDef[];
 }
 
@@ -238,14 +247,24 @@ async function main() {
       categoryPath: "Remplacement de matériel/Remplacement standard",
       description: "Remplacement planifié d'un équipement (PC, périphérique...) — traité comme un changement standard ITIL.",
       requiresManagerApproval: true,
-      requiresPhysicalForm: true,
-      formTemplateUrl: "/forms/formulaire-engagement-equipements.docx",
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      formFields: [
+        { key: "equipmentDetails", label: "Équipements remis (désignation, n° de série, état)", type: "textarea", required: true },
+        { key: "deliveryDate", label: "Date de remise", type: "date", required: true },
+        {
+          key: "acknowledgment",
+          label:
+            "J'atteste avoir pris connaissance des engagements liés à l'utilisation du matériel remis (usage professionnel exclusif, bon entretien, restitution en cas de départ, responsabilité en cas de négligence).",
+          type: "checkbox",
+          required: true,
+        },
+      ],
       steps: [
         "Vérifier l'état du matériel actuel et le motif du remplacement",
         "Valider le budget de remplacement",
         "Commander / préparer le nouveau matériel",
         "Configurer et transférer les données",
-        "Faire signer le formulaire d'engagement des équipements",
         "Récupérer l'ancien matériel",
         "Mettre à jour l'inventaire (fiche société / utilisateur)",
       ],
@@ -256,8 +275,19 @@ async function main() {
       categoryPath: "Préparation de poste/Nouvel employé",
       description: "Préparation complète de l'environnement de travail IT d'un nouvel employé (matériel, comptes, accès, licences).",
       requiresManagerApproval: true,
-      requiresPhysicalForm: true,
-      formTemplateUrl: "/forms/formulaire-preparation-poste-nouvel-employe.docx",
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      formFields: [
+        { key: "startDate", label: "Date d'entrée en fonction", type: "date", required: true },
+        { key: "requestingManager", label: "Responsable de service demandeur", type: "text", required: true },
+        {
+          key: "acknowledgment",
+          label:
+            "J'atteste avoir pris connaissance des engagements liés à l'utilisation du matériel et des accès remis (usage professionnel exclusif, confidentialité des identifiants, restitution en cas de départ).",
+          type: "checkbox",
+          required: true,
+        },
+      ],
       steps: [
         "Achat / attribution du PC et des périphériques",
         "Création du compte Active Directory",
@@ -265,7 +295,6 @@ async function main() {
         "Création du compte VPN OpenVPN",
         "Création des accès Sage / ERP",
         "Attribution des licences logicielles nécessaires",
-        "Faire signer le formulaire d'engagement et d'accès",
         "Remise physique du matériel et du badge",
       ],
     },
@@ -275,8 +304,19 @@ async function main() {
       categoryPath: "Départ collaborateur/Offboarding IT",
       description: "Restitution du matériel et désactivation de l'ensemble des accès lors du départ d'un collaborateur.",
       requiresManagerApproval: true,
-      requiresPhysicalForm: true,
-      formTemplateUrl: "/forms/formulaire-restitution-materiel-depart.docx",
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      formFields: [
+        { key: "departureDate", label: "Date de départ", type: "date", required: true },
+        { key: "materialReturned", label: "Matériel restitué (désignation, n° de série, état)", type: "textarea", required: true },
+        {
+          key: "acknowledgment",
+          label:
+            "Je certifie avoir restitué l'intégralité du matériel et des accès, et je m'engage à ne conserver aucune copie de données, identifiants ou accès appartenant à l'entreprise.",
+          type: "checkbox",
+          required: true,
+        },
+      ],
       steps: [
         "Restitution du matériel (PC, téléphone, accessoires)",
         "Désactivation du compte Active Directory",
@@ -284,8 +324,6 @@ async function main() {
         "Désactivation du compte VPN",
         "Désactivation des accès Sage / ERP",
         "Révocation des licences logicielles",
-        "Faire signer le formulaire de restitution",
-        "Archiver le formulaire signé",
       ],
     },
     {
@@ -294,16 +332,20 @@ async function main() {
       categoryPath: "Acquisition de licence/Nouvelle licence",
       description: "Achat d'une nouvelle licence logicielle — Software Asset Management.",
       requiresManagerApproval: true,
-      requiresPhysicalForm: true,
-      formTemplateUrl: "/forms/formulaire-demande-acquisition-licence.docx",
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      allowsMultipleBeneficiaries: true,
+      formFields: [
+        { key: "software", label: "Logiciel / Éditeur", type: "text", required: true },
+        { key: "estimatedCost", label: "Coût estimé (fournisseur / devis)", type: "text", required: false },
+        { key: "justification", label: "Justification du besoin", type: "textarea", required: true },
+      ],
       steps: [
         "Identifier le besoin et le nombre de postes",
         "Obtenir un devis fournisseur",
         "Faire valider le budget par le responsable",
         "Commander la licence",
         "Enregistrer la licence dans l'inventaire (module Licences)",
-        "Faire signer le formulaire de demande",
-        "Archiver le formulaire signé",
       ],
     },
     {
@@ -312,14 +354,17 @@ async function main() {
       categoryPath: "Accès applicatif/Nouvel accès",
       description: "Création, modification ou révocation d'un accès applicatif (AD, Email, VPN, ERP/Sage) hors onboarding/offboarding.",
       requiresManagerApproval: true,
-      requiresPhysicalForm: true,
-      formTemplateUrl: "/forms/formulaire-demande-acces-applicatif.docx",
+      requiresPhysicalForm: false,
+      formTemplateUrl: null,
+      formFields: [
+        { key: "system", label: "Système concerné (AD / Email / VPN / ERP-Sage / Autre)", type: "text", required: true },
+        { key: "natureOfRequest", label: "Nature de la demande (création / modification / révocation)", type: "text", required: true },
+        { key: "justification", label: "Justification", type: "textarea", required: true },
+      ],
       steps: [
         "Vérifier l'habilitation demandée avec le responsable",
         "Créer / modifier les accès (AD, Email, VPN, ERP)",
         "Tester les accès avec l'utilisateur",
-        "Faire signer le formulaire de demande d'accès",
-        "Archiver le formulaire signé",
       ],
     },
     {
@@ -358,6 +403,10 @@ async function main() {
         categoryId: processCategory.id,
         subCategoryId: processSubCategoryId,
         supportsSageAutomation: process.supportsSageAutomation ?? false,
+        requiresPhysicalForm: process.requiresPhysicalForm,
+        formTemplateUrl: process.formTemplateUrl,
+        allowsMultipleBeneficiaries: process.allowsMultipleBeneficiaries ?? false,
+        formFields: process.formFields ?? undefined,
       },
       create: {
         name: process.name,
@@ -367,6 +416,8 @@ async function main() {
         requiresPhysicalForm: process.requiresPhysicalForm,
         formTemplateUrl: process.formTemplateUrl,
         supportsSageAutomation: process.supportsSageAutomation ?? false,
+        allowsMultipleBeneficiaries: process.allowsMultipleBeneficiaries ?? false,
+        formFields: process.formFields ?? undefined,
         typeId: typeProcessus.id,
         categoryId: processCategory.id,
         subCategoryId: processSubCategoryId,
@@ -377,13 +428,21 @@ async function main() {
       const automationKey = typeof stepDef === "string" ? null : stepDef.automationKey ?? null;
       const existingStep = await prisma.processStep.findFirst({ where: { processId: created.id, name: stepName } });
       if (existingStep) {
-        if (existingStep.automationKey !== automationKey) {
-          await prisma.processStep.update({ where: { id: existingStep.id }, data: { automationKey } });
+        if (existingStep.automationKey !== automationKey || !existingStep.isActive) {
+          await prisma.processStep.update({ where: { id: existingStep.id }, data: { automationKey, isActive: true } });
         }
       } else {
         await prisma.processStep.create({ data: { processId: created.id, name: stepName, order: index, automationKey } });
       }
     }
+    // Désactive les étapes existantes qui ne font plus partie de la définition du processus
+    // (ex : anciennes étapes de signature/archivage papier remplacées par un formulaire numérique),
+    // sans les supprimer pour conserver l'historique des tickets déjà traités.
+    const currentStepNames = new Set(process.steps.map((s) => (typeof s === "string" ? s : s.name)));
+    await prisma.processStep.updateMany({
+      where: { processId: created.id, isActive: true, name: { notIn: [...currentStepNames] } },
+      data: { isActive: false },
+    });
   }
 
   const companies = [
@@ -410,6 +469,13 @@ async function main() {
     });
   }
   const holding = await prisma.company.findUniqueOrThrow({ where: { name: "Meninx Holding" } });
+
+  // Catalogue des bases Sage 100 : géré indépendamment des sociétés ITicket (voir modèle
+  // SageDatabase), initialisé ici à partir des noms de bases déjà connus pour ne rien perdre.
+  const sageDatabaseNames = [...new Set(companies.map((c) => c.sageDatabaseName).filter((n): n is string => Boolean(n)))];
+  for (const name of sageDatabaseNames) {
+    await prisma.sageDatabase.upsert({ where: { name }, update: {}, create: { name } });
+  }
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
 

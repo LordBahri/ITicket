@@ -12,6 +12,17 @@ const PROCESS_CATEGORIES = [
   "OFFBOARDING",
 ] as const;
 
+const processFormFieldSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-zA-Z][a-zA-Z0-9_]*$/, "Identifiant technique invalide (lettres/chiffres/underscore, doit commencer par une lettre)"),
+  label: z.string().min(1).max(300),
+  type: z.enum(["text", "textarea", "date", "number", "checkbox"]),
+  required: z.boolean(),
+});
+
 const processSchema = z.object({
   name: z.string().min(2).max(150),
   category: z.enum(PROCESS_CATEGORIES),
@@ -21,6 +32,8 @@ const processSchema = z.object({
   formTemplateUrl: z.string().max(300).nullable().optional(),
   isActive: z.boolean().optional(),
   openToAllUsers: z.boolean().optional(),
+  allowsMultipleBeneficiaries: z.boolean().optional(),
+  formFields: z.array(processFormFieldSchema).max(20).optional(),
   typeId: z.string(),
   categoryId: z.string(),
   subCategoryId: z.string(),
