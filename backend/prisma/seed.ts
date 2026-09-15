@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-type ProcessStepDef = string | { name: string; automationKey?: string };
+type ProcessStepDef = string | { name: string; automationKey?: string; requiresLicenseLink?: boolean };
 
 interface ProcessFormFieldDef {
   key: string;
@@ -273,10 +273,12 @@ async function main() {
       name: "Préparation de poste — Nouvel employé",
       category: "ONBOARDING" as const,
       categoryPath: "Préparation de poste/Nouvel employé",
-      description: "Préparation complète de l'environnement de travail IT d'un nouvel employé (matériel, comptes, accès, licences).",
+      description:
+        "Préparation complète de l'environnement de travail IT d'un nouvel employé : compte AD, email, licences Office Desktop et Windows, et accès Sage 100 (optionnel, une ou plusieurs bases).",
       requiresManagerApproval: true,
       requiresPhysicalForm: false,
       formTemplateUrl: null,
+      supportsSageAutomation: true,
       formFields: [
         { key: "startDate", label: "Date d'entrée en fonction", type: "date", required: true },
         { key: "requestingManager", label: "Responsable de service demandeur", type: "text", required: true },
@@ -289,13 +291,17 @@ async function main() {
         },
       ],
       steps: [
-        "Achat / attribution du PC et des périphériques",
         "Création du compte Active Directory",
         "Création de la boîte email professionnelle",
-        "Création du compte VPN OpenVPN",
-        "Création des accès Sage / ERP",
-        "Attribution des licences logicielles nécessaires",
-        "Remise physique du matériel et du badge",
+        { name: "Acquisition d'une licence Office Desktop", requiresLicenseLink: true },
+        { name: "Acquisition d'une licence Windows", requiresLicenseLink: true },
+        { name: "Ajouter le compte AD au groupe RDP du serveur applicatif (si accès Sage requis)", automationKey: "RDP" },
+        { name: "Copier les fichiers .gcm/.mae vers le bureau de l'utilisateur (si accès Sage requis)", automationKey: "FILES" },
+        {
+          name: "Créer le login/utilisateur SQL Server et l'ajouter à la base Sage de la société (si accès Sage requis)",
+          automationKey: "SQL",
+        },
+        "Créer l'utilisateur dans l'application Sage 100 (si accès Sage requis)",
       ],
     },
     {
@@ -402,6 +408,7 @@ async function main() {
         typeId: typeProcessus.id,
         categoryId: processCategory.id,
         subCategoryId: processSubCategoryId,
+        description: process.description,
         supportsSageAutomation: process.supportsSageAutomation ?? false,
         requiresPhysicalForm: process.requiresPhysicalForm,
         formTemplateUrl: process.formTemplateUrl,
@@ -426,13 +433,24 @@ async function main() {
     for (const [index, stepDef] of process.steps.entries()) {
       const stepName = typeof stepDef === "string" ? stepDef : stepDef.name;
       const automationKey = typeof stepDef === "string" ? null : stepDef.automationKey ?? null;
+      const requiresLicenseLink = typeof stepDef === "string" ? false : stepDef.requiresLicenseLink ?? false;
       const existingStep = await prisma.processStep.findFirst({ where: { processId: created.id, name: stepName } });
       if (existingStep) {
-        if (existingStep.automationKey !== automationKey || !existingStep.isActive) {
-          await prisma.processStep.update({ where: { id: existingStep.id }, data: { automationKey, isActive: true } });
+        if (
+          existingStep.automationKey !== automationKey ||
+          existingStep.requiresLicenseLink !== requiresLicenseLink ||
+          existingStep.order !== index ||
+          !existingStep.isActive
+        ) {
+          await prisma.processStep.update({
+            where: { id: existingStep.id },
+            data: { automationKey, requiresLicenseLink, order: index, isActive: true },
+          });
         }
       } else {
-        await prisma.processStep.create({ data: { processId: created.id, name: stepName, order: index, automationKey } });
+        await prisma.processStep.create({
+          data: { processId: created.id, name: stepName, order: index, automationKey, requiresLicenseLink },
+        });
       }
     }
     // Désactive les étapes existantes qui ne font plus partie de la définition du processus

@@ -7,6 +7,7 @@ import {
   approveTicketProcess,
   rejectTicketProcess,
   toggleProcessStep,
+  linkStepLicense,
   archiveTicketForm,
   automateSageAccess,
   archiveTicket,
@@ -37,6 +38,7 @@ ticketRouter.get("/:id/attachments/:attachmentId/download", asyncHandler(downloa
 ticketRouter.post("/:id/approve", asyncHandler(approveTicketProcess));
 ticketRouter.post("/:id/reject", asyncHandler(rejectTicketProcess));
 ticketRouter.patch("/:id/steps/:completionId", authorize("AGENT", "ADMIN"), asyncHandler(toggleProcessStep));
+ticketRouter.post("/:id/steps/:completionId/link-license", authorize("AGENT", "ADMIN"), asyncHandler(linkStepLicense));
 ticketRouter.post("/:id/archive-form", authorize("AGENT", "ADMIN"), asyncHandler(archiveTicketForm));
 ticketRouter.post("/:id/automate-sage-access", authorize("AGENT", "ADMIN"), asyncHandler(automateSageAccess));
 ticketRouter.post("/:id/satisfaction", asyncHandler(rateTicketSatisfaction));

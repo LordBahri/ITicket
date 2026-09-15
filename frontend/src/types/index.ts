@@ -141,6 +141,7 @@ export interface ProcessStep {
   isActive: boolean;
   processId: string;
   automationKey?: string | null;
+  requiresLicenseLink?: boolean;
 }
 
 export interface SageAutomationStepResult {
@@ -215,6 +216,7 @@ export interface ProcessStepCompletion {
   note: string | null;
   processStep: ProcessStep;
   doneBy: { id: string; name: string } | null;
+  license?: { id: string; name: string; vendor: string | null; licenseKey: string | null; seats: number; expiryDate: string } | null;
 }
 
 export interface Ticket {

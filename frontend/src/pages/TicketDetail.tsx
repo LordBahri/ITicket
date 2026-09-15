@@ -8,21 +8,30 @@ import { StatusBadge } from "../components/StatusBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Modal } from "../components/ui/Modal";
 import { PageSpinner } from "../components/ui/Spinner";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { IconAlertTriangle, IconWorkflow, IconStar } from "../components/icons";
-import type { ProcessCategory, SageAutomationDatabaseResult, SageDatabaseModules, Ticket, User, TicketStatus } from "../types";
+import type {
+  ProcessCategory,
+  ProcessStepCompletion,
+  SageAutomationDatabaseResult,
+  SageDatabaseModules,
+  Ticket,
+  User,
+  TicketStatus,
+} from "../types";
+import { IconCheckCircle, IconXCircle } from "../components/icons";
+import { AttachmentsPanel } from "../components/AttachmentsPanel";
+import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
+import { STATUS_LABELS } from "../constants/ticketStatus";
+import { formatDuration } from "../utils/duration";
 
 const sageModuleLabels: Record<SageDatabaseModules, string> = {
   COMMERCIAL: "Commercial",
   COMPTABILITE: "Comptabilité",
   BOTH: "Commercial + Comptabilité",
 };
-import { IconCheckCircle, IconXCircle } from "../components/icons";
-import { AttachmentsPanel } from "../components/AttachmentsPanel";
-import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
-import { STATUS_LABELS } from "../constants/ticketStatus";
-import { formatDuration } from "../utils/duration";
 
 const STATUS_OPTIONS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "ON_HOLD", "RESOLVED", "CLOSED"];
 
@@ -81,6 +90,42 @@ function ProcessPanel({
       apiClient.patch(`/tickets/${ticket.id}/steps/${completionId}`, { isDone }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] }),
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const [licenseModalStep, setLicenseModalStep] = useState<ProcessStepCompletion | null>(null);
+  const [licenseName, setLicenseName] = useState("");
+  const [licenseVendor, setLicenseVendor] = useState("");
+  const [licenseKey, setLicenseKeyValue] = useState("");
+  const [licenseSeats, setLicenseSeats] = useState("1");
+  const [licenseExpiry, setLicenseExpiry] = useState("");
+  const [licenseNotes, setLicenseNotes] = useState("");
+
+  function openLicenseModal(sc: ProcessStepCompletion) {
+    setLicenseModalStep(sc);
+    setLicenseName(sc.processStep.name.replace(/^Acquisition d['’]une licence /i, ""));
+    setLicenseVendor("");
+    setLicenseKeyValue("");
+    setLicenseSeats("1");
+    setLicenseExpiry("");
+    setLicenseNotes("");
+  }
+
+  const linkLicenseMutation = useMutation({
+    mutationFn: async () =>
+      apiClient.post(`/tickets/${ticket.id}/steps/${licenseModalStep!.id}/link-license`, {
+        name: licenseName,
+        vendor: licenseVendor || undefined,
+        licenseKey: licenseKey || undefined,
+        seats: licenseSeats ? Number(licenseSeats) : undefined,
+        expiryDate: licenseExpiry,
+        notes: licenseNotes || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Licence rattachée, étape complétée");
+      setLicenseModalStep(null);
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Impossible de rattacher la licence")),
   });
 
   const archiveFormMutation = useMutation({
@@ -190,18 +235,37 @@ function ProcessPanel({
         <div className="mb-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Checklist de traitement</p>
           <ul className="space-y-1.5">
-            {ticket.stepCompletions.map((sc) => (
-              <li key={sc.id} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={sc.isDone}
-                  onChange={(e) => toggleStepMutation.mutate({ completionId: sc.id, isDone: e.target.checked })}
-                  className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                <span className={sc.isDone ? "text-slate-400 line-through" : "text-slate-700"}>{sc.processStep.name}</span>
-                {sc.isDone && sc.doneBy && <span className="text-xs text-slate-400">— {sc.doneBy.name}</span>}
-              </li>
-            ))}
+            {ticket.stepCompletions.map((sc) => {
+              const needsLicense = sc.processStep.requiresLicenseLink;
+              return (
+                <li key={sc.id} className="flex flex-wrap items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={sc.isDone}
+                    disabled={needsLicense}
+                    onChange={(e) => toggleStepMutation.mutate({ completionId: sc.id, isDone: e.target.checked })}
+                    className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 disabled:opacity-60"
+                  />
+                  <span className={sc.isDone ? "text-slate-400 line-through" : "text-slate-700"}>{sc.processStep.name}</span>
+                  {sc.isDone && sc.doneBy && <span className="text-xs text-slate-400">— {sc.doneBy.name}</span>}
+                  {sc.isDone && sc.license && (
+                    <span className="text-xs text-brand-700">
+                      (licence « {sc.license.name} », {sc.license.seats} poste{sc.license.seats > 1 ? "s" : ""}, expire le{" "}
+                      {new Date(sc.license.expiryDate).toLocaleDateString("fr-FR")})
+                    </span>
+                  )}
+                  {needsLicense && !sc.isDone && (
+                    <button
+                      type="button"
+                      onClick={() => openLicenseModal(sc)}
+                      className="text-xs font-medium text-brand-600 hover:underline"
+                    >
+                      Lier une licence
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -317,6 +381,82 @@ function ProcessPanel({
           </div>
         </div>
       )}
+
+      <Modal
+        open={Boolean(licenseModalStep)}
+        onClose={() => setLicenseModalStep(null)}
+        title="Lier une licence"
+        description={licenseModalStep ? `Étape : ${licenseModalStep.processStep.name}` : undefined}
+      >
+        <form
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            linkLicenseMutation.mutate();
+          }}
+          className="space-y-3"
+        >
+          <input
+            required
+            autoFocus
+            value={licenseName}
+            onChange={(e) => setLicenseName(e.target.value)}
+            placeholder="Nom de la licence (ex : Microsoft 365 Apps, Windows 11 Pro…)"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+          <input
+            value={licenseVendor}
+            onChange={(e) => setLicenseVendor(e.target.value)}
+            placeholder="Éditeur (optionnel)"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+          <input
+            value={licenseKey}
+            onChange={(e) => setLicenseKeyValue(e.target.value)}
+            placeholder="Clé de licence (optionnel)"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Nombre de postes</label>
+              <input
+                type="number"
+                min={1}
+                value={licenseSeats}
+                onChange={(e) => setLicenseSeats(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Date d'expiration</label>
+              <input
+                required
+                type="date"
+                value={licenseExpiry}
+                onChange={(e) => setLicenseExpiry(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          </div>
+          <textarea
+            rows={2}
+            value={licenseNotes}
+            onChange={(e) => setLicenseNotes(e.target.value)}
+            placeholder="Notes (optionnel)"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+          <p className="text-xs text-slate-400">
+            Cette licence sera enregistrée dans le module Licences, rattachée à la société du bénéficiaire.
+          </p>
+          <div className="flex gap-2">
+            <Button type="submit" loading={linkLicenseMutation.isPending}>
+              Rattacher et marquer terminé
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setLicenseModalStep(null)}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </Card>
   );
 }

@@ -386,6 +386,8 @@ model License {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id])
 
+  stepCompletions ProcessStepCompletion[]
+
   @@index([companyId])
   @@index([expiryDate])
 }
@@ -471,6 +473,10 @@ model ProcessStep {
   // l'automatisation puisse retrouver la bonne étape sans dépendre du libellé ou de l'ordre.
   automationKey String?
 
+  // Si vrai, cette étape ne peut être complétée qu'en créant/rattachant une fiche du module
+  // Licences (ex. licence Office Desktop, licence Windows lors d'un onboarding).
+  requiresLicenseLink Boolean @default(false)
+
   processId String
   process   Process @relation(fields: [processId], references: [id], onDelete: Cascade)
 
@@ -507,6 +513,11 @@ model ProcessStepCompletion {
 
   doneById String?
   doneBy   User?   @relation(fields: [doneById], references: [id])
+
+  // Fiche du module Licences créée/rattachée lors de la complétion d'une étape marquée
+  // requiresLicenseLink (ex. acquisition d'une licence Office Desktop ou Windows).
+  licenseId String?
+  license   License? @relation(fields: [licenseId], references: [id])
 
   @@index([ticketId])
 }

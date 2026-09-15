@@ -131,7 +131,11 @@ async function getTicketOr404(id: string) {
       },
       attachments: { orderBy: { createdAt: "asc" } },
       stepCompletions: {
-        include: { processStep: true, doneBy: { select: { id: true, name: true } } },
+        include: {
+          processStep: true,
+          doneBy: { select: { id: true, name: true } },
+          license: { select: { id: true, name: true, vendor: true, licenseKey: true, seats: true, expiryDate: true } },
+        },
         orderBy: { processStep: { order: "asc" } },
       },
     },
@@ -439,9 +443,48 @@ export async function toggleProcessStep(req: Request, res: Response) {
       doneAt: isDone ? new Date() : null,
       doneById: isDone ? req.user!.id : null,
     },
-    include: { processStep: true, doneBy: { select: { id: true, name: true } } },
+    include: {
+      processStep: true,
+      doneBy: { select: { id: true, name: true } },
+      license: { select: { id: true, name: true, vendor: true, licenseKey: true, seats: true, expiryDate: true } },
+    },
   });
   res.json({ step: updated });
+}
+
+const linkStepLicenseSchema = z.object({
+  name: z.string().min(2).max(150),
+  vendor: z.string().max(150).optional(),
+  licenseKey: z.string().max(500).optional(),
+  seats: z.number().int().min(1).max(100000).optional(),
+  startDate: z.coerce.date().optional(),
+  expiryDate: z.coerce.date(),
+  notes: z.string().max(2000).optional(),
+});
+
+export async function linkStepLicense(req: Request, res: Response) {
+  const data = linkStepLicenseSchema.parse(req.body);
+  const ticket = await getTicketOr404(req.params.id);
+
+  const completion = ticket.stepCompletions.find((c) => c.id === req.params.completionId);
+  if (!completion) throw new HttpError(404, "Étape introuvable");
+  if (!completion.processStep.requiresLicenseLink) {
+    throw new HttpError(400, "Cette étape ne nécessite pas de rattachement à une licence");
+  }
+
+  const target = ticket.beneficiary ?? ticket.requester;
+  const license = await prisma.license.create({ data: { ...data, companyId: target.company?.id ?? null } });
+
+  const updatedCompletion = await prisma.processStepCompletion.update({
+    where: { id: completion.id },
+    data: { isDone: true, doneAt: new Date(), doneById: req.user!.id, licenseId: license.id },
+    include: {
+      processStep: true,
+      doneBy: { select: { id: true, name: true } },
+      license: { select: { id: true, name: true, vendor: true, licenseKey: true, seats: true, expiryDate: true } },
+    },
+  });
+  res.json({ step: updatedCompletion });
 }
 
 export async function archiveTicket(req: Request, res: Response) {
