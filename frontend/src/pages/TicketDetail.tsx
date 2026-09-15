@@ -11,7 +11,13 @@ import { Button } from "../components/ui/Button";
 import { PageSpinner } from "../components/ui/Spinner";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { IconAlertTriangle, IconWorkflow, IconStar } from "../components/icons";
-import type { ProcessCategory, SageAutomationDatabaseResult, Ticket, User, TicketStatus } from "../types";
+import type { ProcessCategory, SageAutomationDatabaseResult, SageDatabaseModules, Ticket, User, TicketStatus } from "../types";
+
+const sageModuleLabels: Record<SageDatabaseModules, string> = {
+  COMMERCIAL: "Commercial",
+  COMPTABILITE: "Comptabilité",
+  BOTH: "Commercial + Comptabilité",
+};
 import { IconCheckCircle, IconXCircle } from "../components/icons";
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { TicketStatusTimeline } from "../components/TicketStatusTimeline";
@@ -213,19 +219,30 @@ function ProcessPanel({
           </div>
           {ticket.sageDatabaseAccess && ticket.sageDatabaseAccess.length > 0 && (
             <p className="mb-2 text-xs text-brand-800">
-              Bases demandées : {ticket.sageDatabaseAccess.map((a) => a.sageDatabase.name).join(", ")}
+              Bases demandées :{" "}
+              {ticket.sageDatabaseAccess
+                .map((a) => `${a.sageDatabase.name} (${sageModuleLabels[a.sageDatabase.modules]})`)
+                .join(", ")}
             </p>
           )}
           {sageResults && (
             <div className="space-y-3 border-t border-brand-100 pt-2">
-              {sageResults.map(({ database, result }) => (
+              {sageResults.map(({ database, result }) => {
+                const dbModules = ticket.sageDatabaseAccess?.find((a) => a.sageDatabase.name === database)?.sageDatabase.modules;
+                const filesLabel =
+                  dbModules === "COMMERCIAL"
+                    ? "Copie du fichier .gcm (Commercial)"
+                    : dbModules === "COMPTABILITE"
+                      ? "Copie du fichier .mae (Comptabilité)"
+                      : "Copie des fichiers .gcm/.mae";
+                return (
                 <div key={database}>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-700">{database}</p>
                   <ul className="space-y-1 text-sm">
                     {(
                       [
                         ["rdp", "Accès RDP (serveur applicatif)"],
-                        ["files", "Copie des fichiers .gcm/.mae"],
+                        ["files", filesLabel],
                         ["sql", "Sécurité SQL Server"],
                       ] as const
                     ).map(([key, label]) => (
@@ -242,7 +259,8 @@ function ProcessPanel({
                     ))}
                   </ul>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

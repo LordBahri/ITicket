@@ -5,6 +5,7 @@ import { HttpError } from "../middleware/errorHandler";
 
 const sageDatabaseSchema = z.object({
   name: z.string().min(1).max(100),
+  modules: z.enum(["COMMERCIAL", "COMPTABILITE", "BOTH"]).optional(),
   isActive: z.boolean().optional(),
 });
 

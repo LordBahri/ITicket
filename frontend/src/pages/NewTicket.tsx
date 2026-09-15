@@ -8,7 +8,13 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { IconLightbulb, IconWorkflow, IconDownload } from "../components/icons";
-import type { Category, KnowledgeArticle, Process, SageDatabase, SubCategory, Ticket, TicketType } from "../types";
+import type { Category, KnowledgeArticle, Process, SageDatabase, SageDatabaseModules, SubCategory, Ticket, TicketType } from "../types";
+
+const sageModuleLabels: Record<SageDatabaseModules, string> = {
+  COMMERCIAL: "Commercial",
+  COMPTABILITE: "Comptabilité",
+  BOTH: "Commercial + Comptabilité",
+};
 
 interface DirectoryUser {
   id: string;
@@ -362,6 +368,7 @@ export function NewTicket() {
                         className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                       />
                       {db.name}
+                      <span className="text-xs text-slate-400">({sageModuleLabels[db.modules]})</span>
                     </label>
                   ))
                 ) : (

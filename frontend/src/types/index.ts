@@ -55,7 +55,7 @@ export interface User {
   ultraviewerId?: string | null;
   avatarUrl?: string | null;
   adUsername?: string | null;
-  sageAccess?: { sageDatabase: { id: string; name: string } }[];
+  sageAccess?: { sageDatabase: { id: string; name: string; modules: SageDatabaseModules } }[];
 }
 
 export interface RemoteAccessUser {
@@ -159,9 +159,12 @@ export interface SageAutomationDatabaseResult {
   result: SageAutomationResult;
 }
 
+export type SageDatabaseModules = "COMMERCIAL" | "COMPTABILITE" | "BOTH";
+
 export interface SageDatabase {
   id: string;
   name: string;
+  modules: SageDatabaseModules;
   isActive: boolean;
   createdAt?: string;
 }
@@ -245,7 +248,7 @@ export interface Ticket {
   physicalFormArchivedAt?: string | null;
   physicalFormArchivedBy?: { id: string; name: string } | null;
   formData?: Record<string, unknown> | null;
-  sageDatabaseAccess?: { sageDatabase: { id: string; name: string } }[];
+  sageDatabaseAccess?: { sageDatabase: { id: string; name: string; modules: SageDatabaseModules } }[];
   dueAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;

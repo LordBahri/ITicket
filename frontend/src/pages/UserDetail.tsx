@@ -8,9 +8,14 @@ import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { PageSpinner } from "../components/ui/Spinner";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Asset, Company, Role, SageDatabase, Service, Ticket, User } from "../types";
+import type { Asset, Company, Role, SageDatabase, SageDatabaseModules, Service, Ticket, User } from "../types";
 
 const ROLES: Role[] = ["USER", "AGENT", "ADMIN"];
+const sageModuleLabels: Record<SageDatabaseModules, string> = {
+  COMMERCIAL: "Commercial",
+  COMPTABILITE: "Comptabilité",
+  BOTH: "Commercial + Comptabilité",
+};
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
@@ -99,6 +104,7 @@ function SageAccessSection({ user }: { user: User }) {
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                 />
                 {db.name}
+                <span className="text-xs text-slate-400">({sageModuleLabels[db.modules]})</span>
                 {!db.isActive && <span className="text-xs text-slate-400">(désactivée)</span>}
               </label>
             </li>

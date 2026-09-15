@@ -635,15 +635,25 @@ model TicketBeneficiaryLink {
 }
 
 // Catalogue des bases Sage 100 (indépendant des sociétés ITicket : une base porte
-// généralement le nom d'une société, mais la liste est gérée séparément par l'admin IT).
+// le nom d'une société, mais la liste est gérée séparément par l'admin IT).
 model SageDatabase {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id        String             @id @default(cuid())
+  name      String             @unique
+  // Une base Sage peut couvrir le module Commercial (Gestion Commerciale) seul, le module
+  // Comptabilité seul, ou les deux à la fois — cela détermine quel(s) fichier(s) .gcm/.mae
+  // sont copiés lors de l'automatisation d'un accès.
+  modules   SageDatabaseModules @default(BOTH)
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
 
   userAccess   UserSageAccess[]
   ticketAccess TicketSageDatabaseAccess[]
+}
+
+enum SageDatabaseModules {
+  COMMERCIAL
+  COMPTABILITE
+  BOTH
 }
 
 // Accès permanent d'un utilisateur à une base Sage donnée (visible/modifiable depuis sa

@@ -18,7 +18,13 @@ function psQuote(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
-async function runOnAppServer(adUsername: string, sageDatabaseName: string): Promise<{ rdp: SageStepResult; files: SageStepResult }> {
+export type SageDatabaseModules = "COMMERCIAL" | "COMPTABILITE" | "BOTH";
+
+async function runOnAppServer(
+  adUsername: string,
+  sageDatabaseName: string,
+  modules: SageDatabaseModules
+): Promise<{ rdp: SageStepResult; files: SageStepResult }> {
   if (!env.sage.appServerHost || !env.sage.appServerUsername) {
     return {
       rdp: { ok: false, message: "SAGE_APP_SSH_HOST/SAGE_APP_SSH_USERNAME non configurés" },
@@ -29,6 +35,12 @@ async function runOnAppServer(adUsername: string, sageDatabaseName: string): Pro
   const destDir = env.sage.filesDestPattern.replace("{adUsername}", adUsername);
   const sourceGcm = `${env.sage.filesSourceDir}\\${sageDatabaseName}.gcm`.replace(/\\{2,}/g, "\\");
   const sourceMae = `${env.sage.filesSourceDir}\\${sageDatabaseName}.mae`.replace(/\\{2,}/g, "\\");
+  // Ne copie que le(s) fichier(s) correspondant au(x) module(s) couvert(s) par cette base :
+  // .gcm pour Commercial, .mae pour Comptabilité.
+  const sourceFiles = [
+    ...(modules === "COMMERCIAL" || modules === "BOTH" ? [sourceGcm] : []),
+    ...(modules === "COMPTABILITE" || modules === "BOTH" ? [sourceMae] : []),
+  ];
 
   const script = [
     "$ErrorActionPreference = 'Stop'",
@@ -43,7 +55,7 @@ async function runOnAppServer(adUsername: string, sageDatabaseName: string): Pro
     "}",
     "try {",
     `  New-Item -ItemType Directory -Force -Path ${psQuote(destDir)} | Out-Null`,
-    `  Copy-Item -Path ${psQuote(sourceGcm)},${psQuote(sourceMae)} -Destination ${psQuote(destDir)} -Force`,
+    `  Copy-Item -Path ${sourceFiles.map(psQuote).join(",")} -Destination ${psQuote(destDir)} -Force`,
     "  Write-Output 'FILES:OK'",
     "} catch {",
     "  Write-Output ('FILES:ERROR:' + $_.Exception.Message)",
@@ -172,9 +184,11 @@ async function grantSqlAccess(adUsername: string, sageDatabaseName: string): Pro
 export async function runSageAccessAutomation(params: {
   adUsername: string;
   sageDatabaseName: string;
+  modules?: SageDatabaseModules;
 }): Promise<SageAutomationResult> {
+  const modules = params.modules ?? "BOTH";
   const [appResult, sqlResult] = await Promise.all([
-    runOnAppServer(params.adUsername, params.sageDatabaseName).catch((err) => ({
+    runOnAppServer(params.adUsername, params.sageDatabaseName, modules).catch((err) => ({
       rdp: { ok: false, message: err instanceof Error ? err.message : String(err) },
       files: { ok: false, message: err instanceof Error ? err.message : String(err) },
     })),

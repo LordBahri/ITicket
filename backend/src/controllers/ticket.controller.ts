@@ -536,7 +536,7 @@ export async function automateSageAccess(req: Request, res: Response) {
     requestedDatabases.length > 0
       ? requestedDatabases
       : fallbackDatabaseName
-        ? [{ id: "legacy", name: fallbackDatabaseName }]
+        ? [{ id: "legacy", name: fallbackDatabaseName, modules: "BOTH" as const }]
         : [];
 
   if (databases.length === 0) {
@@ -550,7 +550,7 @@ export async function automateSageAccess(req: Request, res: Response) {
   const perDatabaseResults = await Promise.all(
     databases.map(async (db) => ({
       database: db.name,
-      result: await runSageAccessAutomation({ adUsername, sageDatabaseName: db.name }),
+      result: await runSageAccessAutomation({ adUsername, sageDatabaseName: db.name, modules: db.modules }),
     }))
   );
 

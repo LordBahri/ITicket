@@ -7,16 +7,23 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { TableRowSkeleton } from "../components/ui/Skeleton";
-import type { SageDatabase } from "../types";
+import type { SageDatabase, SageDatabaseModules } from "../types";
 
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+
+const moduleLabels: Record<SageDatabaseModules, string> = {
+  COMMERCIAL: "Commercial uniquement",
+  COMPTABILITE: "Comptabilité uniquement",
+  BOTH: "Commercial et Comptabilité",
+};
 
 export function AdminSageDatabases() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
+  const [modules, setModules] = useState<SageDatabaseModules>("BOTH");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SageDatabase | null>(null);
 
@@ -26,9 +33,10 @@ export function AdminSageDatabases() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async () => apiClient.post("/sage-databases", { name }),
+    mutationFn: async () => apiClient.post("/sage-databases", { name, modules }),
     onSuccess: () => {
       setName("");
+      setModules("BOTH");
       setShowForm(false);
       toast.success("Base Sage créée");
       queryClient.invalidateQueries({ queryKey: ["sage-databases"] });
@@ -44,6 +52,16 @@ export function AdminSageDatabases() {
     mutationFn: async (db: SageDatabase) => apiClient.patch(`/sage-databases/${db.id}`, { isActive: !db.isActive }),
     onSuccess: (_res, db) => {
       toast.success(db.isActive ? "Base désactivée" : "Base activée");
+      queryClient.invalidateQueries({ queryKey: ["sage-databases"] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
+  });
+
+  const updateModulesMutation = useMutation({
+    mutationFn: async ({ db, modules: next }: { db: SageDatabase; modules: SageDatabaseModules }) =>
+      apiClient.patch(`/sage-databases/${db.id}`, { modules: next }),
+    onSuccess: () => {
+      toast.success("Modules mis à jour");
       queryClient.invalidateQueries({ queryKey: ["sage-databases"] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, "Action impossible")),
@@ -75,8 +93,9 @@ export function AdminSageDatabases() {
         <div>
           <h1 className="mb-1 text-xl font-bold text-slate-900">Bases Sage</h1>
           <p className="text-sm text-slate-500">
-            Catalogue des bases Sage 100 (une par société/filiale en général), géré indépendamment des sociétés
-            ITicket. Utilisé pour cocher les accès à affecter lors d'une demande d'accès Sage.
+            Catalogue des bases Sage 100 (une par société/filiale, en général), géré indépendamment des sociétés
+            ITicket. Chaque base peut couvrir le module Commercial, Comptabilité, ou les deux. Utilisé pour cocher
+            les accès à affecter lors d'une demande d'accès Sage.
           </p>
         </div>
         <Button onClick={() => setShowForm(true)}>+ Nouvelle base</Button>
@@ -90,9 +109,23 @@ export function AdminSageDatabases() {
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nom de la base (ex : Holding, Filiale A…)"
+            placeholder="Nom de la base (= nom de la société, ex : Holding, Filiale A…)"
             className={`w-full ${inputClass}`}
           />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Modules couverts</label>
+            <select
+              value={modules}
+              onChange={(e) => setModules(e.target.value as SageDatabaseModules)}
+              className={`w-full ${inputClass}`}
+            >
+              {(Object.keys(moduleLabels) as SageDatabaseModules[]).map((m) => (
+                <option key={m} value={m}>
+                  {moduleLabels[m]}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2">
             <Button type="submit" loading={createMutation.isPending}>
               Ajouter
@@ -109,15 +142,30 @@ export function AdminSageDatabases() {
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-2">Nom</th>
+              <th className="px-4 py-2">Modules</th>
               <th className="px-4 py-2">Statut</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={3} />)}
+            {isLoading && Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} columns={4} />)}
             {sageDatabases?.map((db) => (
               <tr key={db.id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-2 font-medium text-slate-900">{db.name}</td>
+                <td className="px-4 py-2">
+                  <select
+                    value={db.modules}
+                    disabled={updateModulesMutation.isPending}
+                    onChange={(e) => updateModulesMutation.mutate({ db, modules: e.target.value as SageDatabaseModules })}
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs outline-none focus:border-brand-500"
+                  >
+                    {(Object.keys(moduleLabels) as SageDatabaseModules[]).map((m) => (
+                      <option key={m} value={m}>
+                        {moduleLabels[m]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td className="px-4 py-2">
                   <span
                     className={`inline-flex items-center gap-1.5 text-xs font-medium ${

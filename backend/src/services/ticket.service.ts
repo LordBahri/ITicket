@@ -32,7 +32,7 @@ export const ticketInclude = {
   },
   approval: { include: { approver: { select: { id: true, name: true, email: true } } } },
   physicalFormArchivedBy: { select: { id: true, name: true } },
-  sageDatabaseAccess: { select: { sageDatabase: { select: { id: true, name: true } } } },
+  sageDatabaseAccess: { select: { sageDatabase: { select: { id: true, name: true, modules: true } } } },
   statusHistory: {
     orderBy: { createdAt: "asc" as const },
     include: { changedBy: { select: { id: true, name: true } } },
